@@ -1,2 +1,6 @@
 # chrome-extension-website-blocker
-Website blocker extension for Chrome
+Website blocker extension for Chrome.
+
+
+
+
