@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Block Website</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        #textarea {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            margin: 10px auto;
+        }
+
+        #save {
+            padding: 10px 20px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #checkbox {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>List of blocked websites</h1>
+<textarea id="textarea" rows="10" cols="30" spellcheck="false"></textarea>
+<br />
+<button id="save">Save</button>
+<script src="options.js"></script>
+</body>
+</html>
