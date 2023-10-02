@@ -11,11 +11,11 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 - **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
 
-- **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions. It's our way of contributing to a more focused and productive online experience. 
+- **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions.
 
 - **Data**: It does not call any external API. It does not use a network. The blocked websites' list is stored in your browser locally, so if you remove the extension, You will lose the list.
 
-- **Created for Personal Use**: I created this extension for myself because I found only non-free extensions with this simple function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
+- **Created for Personal Use**: I created this extension for myself because I found only non-free or overcomplicated extensions with this function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
 
 ## Installation Guide
 
