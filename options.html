@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Block Website</title>
+    <title>Tiny Website Blocker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,34 +15,75 @@
             color: #333;
         }
 
-        #textarea {
+        #websiteList {
             width: 80%;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
             margin: 10px auto;
+            text-align: left;
         }
 
-        #save {
-            padding: 10px 20px;
+        .header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
             background-color: #333;
             color: #fff;
+            padding: 10px 0;
+        }
+
+        .websiteHeader {
+            flex-grow: 1;
+            padding: 5px;
+        }
+
+        .actionHeader {
+            padding: 5px;
+            width: 150px; /* Adjust the width as needed */
+        }
+
+        .websiteItem {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            padding: 5px;
+        }
+
+        .websiteName {
+            flex-grow: 1;
+            padding: 5px;
+        }
+
+        .websiteCheckbox {
+            padding: 5px;
+        }
+
+        .deleteButton {
+            background-color: #ff0000;
+            color: #fff;
             border: none;
-            border-radius: 5px;
             cursor: pointer;
         }
 
-        #checkbox {
-            margin-top: 10px;
+        #addWebsite {
+            margin: 10px auto;
         }
     </style>
 </head>
 <body>
 
 <h1>List of blocked websites</h1>
-<textarea id="textarea" rows="10" cols="30" spellcheck="false"></textarea>
-<br />
-<button id="save">Save</button>
+<div id="websiteList">
+    <div class="header">
+        <div class="websiteHeader">Website</div>
+        <div class="actionHeader">Blocked/Unblocked</div>
+    </div>
+</div>
+<div id="addWebsite">
+    <input type="text" id="newWebsite" placeholder="Enter a website">
+    <button id="addButton">Add</button>
+</div>
 <script src="options.js"></script>
 </body>
 </html>
