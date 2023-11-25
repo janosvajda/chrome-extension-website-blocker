@@ -1,0 +1,33 @@
+{
+  "name": "chrome-extension-website-blocker",
+  "version": "1.0.0",
+  "description": "Website blocker",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/janosvajda/chrome-extension-website-blocker.git"
+  },
+  "keywords": [
+    "Website",
+    "blocking",
+    "Chrome",
+    "website",
+    "blocker",
+    "block",
+    "website"
+  ],
+  "author": "Janos Vajda",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/janosvajda/chrome-extension-website-blocker/issues"
+  },
+  "homepage": "https://github.com/janosvajda/chrome-extension-website-blocker#readme",
+  "scripts": {
+    "build": "npm run clean && tsc && npm run copy-files",
+    "clean": "rm -rf ./built",
+    "copy-files": "cp -a ./src/ui/. ./built/"
+  }
+}
