@@ -9,7 +9,7 @@ lerna-debug.log*
 .idea/
 
 # Built project
-./built
+built/
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
