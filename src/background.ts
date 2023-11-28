@@ -10,7 +10,7 @@ chrome.runtime.onInstalled.addListener(() => {
 const blockedTabs = {};
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    const url = changeInfo.pendingUrl || tab.url;
+    const url = tab.pendingUrl || tab.url;
     if (!url || !url.startsWith("http")) {
         return;
     }
