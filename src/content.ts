@@ -1,13 +1,5 @@
-// script.js
+import { jokes } from "./data/jokes";
 
-// Arrays of jokes
-const jokes = [
-    "Why do programmers always mix up Christmas and Halloween? Because Oct 31 == Dec 25.",
-    "Why was the math book sad? Because it had too many problems.",
-    "I'm reading a book on anti-gravity. It's impossible to put down!",
-    "Why did the mathematician throw his clock out the window? He wanted to see time fly.",
-    "Why did the computer catch a cold? Because it had too many windows open.",
-];
 const scientificQuotes = [
     "Science is the poetry of reality. - Richard Dawkins",
     "The good thing about science is that it's true whether or not you believe in it. - Neil deGrasse Tyson",
@@ -29,7 +21,6 @@ function getQuotes() {
     const randomIndex = Math.floor(Math.random() * scientificQuotes.length);
      return scientificQuotes[randomIndex];
 }
-
 
 // Arrays of blocked site messages
 const blockedMessages = [
