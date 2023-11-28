@@ -55,7 +55,6 @@ function removeFromLocalStorage(websiteToRemove) {
 function loadAndPopulateWebsiteList() {
     chrome.storage.local.get({ blocked: [] }, (data) => {
         const blockedWebsites = data.blocked;
-
         if (blockedWebsites && blockedWebsites.length > 0) {
             blockedWebsites.forEach((website) => {
                 createWebsiteItem(website.name, website.enabled);
@@ -67,10 +66,10 @@ function loadAndPopulateWebsiteList() {
 // Event listener to add a new website when Enter key is pressed
 newWebsiteInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-        const websiteName = newWebsiteInput.value.trim();
+        const websiteName = (newWebsiteInput as HTMLInputElement).value.toString().trim();
         if (websiteName) {
             createWebsiteItem(websiteName, true);
-            newWebsiteInput.value = "";
+            (newWebsiteInput as HTMLInputElement).value = "";
             saveToLocalStorage(); // Save the updated list to local storage
         }
     }
@@ -83,10 +82,10 @@ window.addEventListener("DOMContentLoaded", () => {
 
 // Event listener to add a new website
 addButton.addEventListener("click", () => {
-    const websiteName = newWebsiteInput.value.trim();
+    const websiteName = (newWebsiteInput as HTMLInputElement).value.toString().trim();
     if (websiteName) {
         createWebsiteItem(websiteName, true);
-        newWebsiteInput.value = "";
+        (newWebsiteInput as HTMLInputElement).value = "";
         saveToLocalStorage(); // Save the updated list to local storage
     }
 });
@@ -96,9 +95,8 @@ function saveToLocalStorage() {
     const websiteItems = document.querySelectorAll(".websiteItem");
     const blocked = Array.from(websiteItems).map(item => ({
         name: item.querySelector(".websiteName").textContent,
-        enabled: item.querySelector(".websiteCheckbox").checked
+        enabled: (item.querySelector(".websiteCheckbox") as HTMLInputElement).checked
     }));
-
     // Store the blocked websites in chrome.storage.local
     chrome.storage.local.set({ blocked });
 }

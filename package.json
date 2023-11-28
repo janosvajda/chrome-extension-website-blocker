@@ -4,7 +4,9 @@
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
-    "test": "jest"
+    "build": "npm run clean && tsc && npm run copy-files",
+    "clean": "rm -rf ./built",
+    "copy-files": "cp -a ./src/ui/. ./built/"
   },
   "repository": {
     "type": "git",
@@ -25,9 +27,7 @@
     "url": "https://github.com/janosvajda/chrome-extension-website-blocker/issues"
   },
   "homepage": "https://github.com/janosvajda/chrome-extension-website-blocker#readme",
-  "scripts": {
-    "build": "npm run clean && tsc && npm run copy-files",
-    "clean": "rm -rf ./built",
-    "copy-files": "cp -a ./src/ui/. ./built/"
+  "dependencies": {
+    "@types/chrome": "^0.0.253"
   }
 }
