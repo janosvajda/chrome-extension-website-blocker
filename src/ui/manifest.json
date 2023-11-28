@@ -9,7 +9,6 @@
     "http://*/*",
     "https://*/*"
   ],
-  "background": {
-    "service_worker": "background.js"
-  }
+  "background": { "service_worker": "background.js", "type": "module" },
+  "minimum_chrome_version": "92"
 }
