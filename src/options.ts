@@ -1,3 +1,6 @@
+import {saveToLocalStorage} from "./browserAPI/chrome/saveToLocalStorage";
+import {removeFromLocalStorage} from "./browserAPI/chrome/removeFromLocalStorage";
+
 const websiteList = document.getElementById("websiteList");
 const addButton = document.getElementById("addButton");
 const newWebsiteInput = document.getElementById("newWebsite");
@@ -18,7 +21,8 @@ function createWebsiteItem(website, enabled) {
 
     // Add an event listener to the checkbox to update local storage when checked or unchecked
     websiteCheckbox.addEventListener("change", () => {
-        saveToLocalStorage();
+        const websiteItems = document.querySelectorAll(".websiteItem");
+        saveToLocalStorage(websiteItems);
     });
 
     const deleteButton = document.createElement("button");
@@ -34,21 +38,6 @@ function createWebsiteItem(website, enabled) {
     websiteList.appendChild(websiteItem);
 
     return websiteItem;
-}
-
-// Function to remove a website from local storage
-function removeFromLocalStorage(websiteToRemove) {
-    chrome.storage.local.get({ blocked: [] }, (data) => {
-        const blockedWebsites = data.blocked;
-
-        // Filter out the website to remove
-        const updatedBlockedWebsites = blockedWebsites.filter((website) => {
-            return website.name !== websiteToRemove;
-        });
-
-        // Store the updated list in local storage
-        chrome.storage.local.set({ blocked: updatedBlockedWebsites });
-    });
 }
 
 // Function to load data from local storage and populate the list
@@ -70,7 +59,8 @@ newWebsiteInput.addEventListener("keydown", (event) => {
         if (websiteName) {
             createWebsiteItem(websiteName, true);
             (newWebsiteInput as HTMLInputElement).value = "";
-            saveToLocalStorage(); // Save the updated list to local storage
+            const websiteItems = document.querySelectorAll(".websiteItem");
+            saveToLocalStorage(websiteItems); // Save the updated list to local storage
         }
     }
 });
@@ -86,17 +76,9 @@ addButton.addEventListener("click", () => {
     if (websiteName) {
         createWebsiteItem(websiteName, true);
         (newWebsiteInput as HTMLInputElement).value = "";
-        saveToLocalStorage(); // Save the updated list to local storage
+        const websiteItems = document.querySelectorAll(".websiteItem");
+        saveToLocalStorage(websiteItems); // Save the updated list to local storage
     }
 });
 
-// Function to save the enabled/disabled status of websites to local storage
-function saveToLocalStorage() {
-    const websiteItems = document.querySelectorAll(".websiteItem");
-    const blocked = Array.from(websiteItems).map(item => ({
-        name: item.querySelector(".websiteName").textContent,
-        enabled: (item.querySelector(".websiteCheckbox") as HTMLInputElement).checked
-    }));
-    // Store the blocked websites in chrome.storage.local
-    chrome.storage.local.set({ blocked });
-}
+
