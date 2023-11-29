@@ -4,7 +4,7 @@
   "description": "This scripts blocks websites.",
   "version": "0.1",
   "options_page": "options.html",
-  "permissions": ["storage", "tabs", "activeTab"],
+  "permissions": ["storage", "tabs", "activeTab", "contextMenus"],
   "host_permissions": [
     "http://*/*",
     "https://*/*"
