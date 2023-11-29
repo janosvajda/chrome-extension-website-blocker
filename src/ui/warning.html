@@ -12,15 +12,18 @@
             margin: 0;
             font-size: x-large;
         }
+
         #svg-container {
             position: relative;
         }
+
         #svg {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
         }
+
         #message {
             margin-top: 20px;
             margin: 20px;
@@ -31,14 +34,22 @@
 <body>
 <div id="svg-container">
     <?xml version="1.0" encoding="utf-8"?>
-    <svg viewBox="167.9474 123.6971 106.4452 100.5268" width="106.4452" height="100.5268" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="226.26" cy="27.143" r="9" fill="red" stroke="white" stroke-width="2" style="" transform="matrix(5.913620948791504, 0, 0, 5.584824085235596, -1116.8458251953125, 22.371662139892585)"/>
-        <ellipse style="stroke: rgb(0, 0, 0); fill: rgb(196, 36, 47);" cx="220.627" cy="174.048" rx="36.852" ry="34.232" transform="matrix(1, 0, 0, 1, 0, 7.105427357601002e-15)"/>
-        <text style="fill: rgb(248, 249, 241); font-size: 24px; font-weight: 700; white-space: pre;" transform="matrix(3.895263910293579, 0, 0, 3.3341989517211914, -661.2632446289062, 11.101400375366218)" x="223.26" y="32.143" dx="-0.883" dy="24.838">!</text>
+    <svg viewBox="167.9474 123.6971 106.4452 100.5268" width="106.4452" height="100.5268"
+         xmlns="http://www.w3.org/2000/svg">
+        <circle cx="226.26" cy="27.143" r="9" fill="red" stroke="white" stroke-width="2" style=""
+                transform="matrix(5.913620948791504, 0, 0, 5.584824085235596, -1116.8458251953125, 22.371662139892585)"/>
+        <ellipse style="stroke: rgb(0, 0, 0); fill: rgb(196, 36, 47);" cx="220.627" cy="174.048" rx="36.852" ry="34.232"
+                 transform="matrix(1, 0, 0, 1, 0, 7.105427357601002e-15)"/>
+        <text style="fill: rgb(248, 249, 241); font-size: 24px; font-weight: 700; white-space: pre;"
+              transform="matrix(3.895263910293579, 0, 0, 3.3341989517211914, -661.2632446289062, 11.101400375366218)"
+              x="223.26" y="32.143" dx="-0.883" dy="24.838">!
+        </text>
     </svg>
 </div>
-<div id="message">
-    <!-- JavaScript will insert a message here -->
+
+<div>
+    <div id="message"></div>
+    <cite id="randomItem"></cite>
 </div>
 
 <script src="../content.js"></script>

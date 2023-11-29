@@ -1,4 +1,6 @@
 export const scientificQuotes = [
+    "c2 = a2 + b2 - Pythagoras of Samos",
+    "I would not say I like quotes. :) - Tiny Website blocker",
     "Science is the poetry of reality. - Richard Dawkins",
     "The good thing about science is that it's true whether or not you believe in it. - Neil deGrasse Tyson",
     "In science, there are no shortcuts to truth. - Carl Sagan",

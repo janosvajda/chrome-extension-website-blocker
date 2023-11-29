@@ -14,12 +14,11 @@ chrome.runtime.onInstalled.addListener(function() {
     // Create context menu item
     chrome.contextMenus.create({
         id: "blockPage",
-        title: "Block this page",
+        title: "Block this page (Tiny Blocker)",
         contexts: ["page"]
     });
 });
 
-// Function to block the page
 // Function to block the page
 function blockPage(tabId, pageUrl) {
     // Implement your blocking logic here
