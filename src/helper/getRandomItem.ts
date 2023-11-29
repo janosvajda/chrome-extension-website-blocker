@@ -1,4 +1,8 @@
-export function getRandomItem(jokes: string[] ) {
-    const randomIndex = Math.floor(Math.random() * jokes.length);
-    return jokes[randomIndex];
+export function getRandomItem(value: string[]): string | null {
+    if (!Array.isArray(value)) {
+        return null;
+    }
+
+    const randomIndex = Math.floor(Math.random() * value.length);
+    return value[randomIndex];
 }

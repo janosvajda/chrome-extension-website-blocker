@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "strict": false,
-    "moduleResolution": "bundler",
+   // "moduleResolution": "bundler",
     "esModuleInterop": true,
     "sourceMap": false,
     "noEmitOnError": true,
