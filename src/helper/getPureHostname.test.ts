@@ -23,4 +23,31 @@ describe('getPureHostname', () => {
 
         expect(result).toBe(expectedHostname);
     });
+
+    it('handles URLs with http protocol', () => {
+        const inputUrl = 'http://uk.trustpilot.com';
+        const expectedHostname = 'uk.trustpilot.com';
+
+        const result = getPureHostname(inputUrl);
+
+        expect(result).toBe(expectedHostname);
+    });
+
+    it('handles bare hostnames without protocol', () => {
+        const inputUrl = 'uk.trustpilot.com';
+        const expectedHostname = 'uk.trustpilot.com';
+
+        const result = getPureHostname(inputUrl);
+
+        expect(result).toBe(expectedHostname);
+    });
+
+    it('returns empty string for empty input', () => {
+        const inputUrl = '   ';
+        const expectedHostname = '';
+
+        const result = getPureHostname(inputUrl);
+
+        expect(result).toBe(expectedHostname);
+    });
 });
