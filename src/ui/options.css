@@ -1,0 +1,203 @@
+:root {
+    --bg: #f6f1e7;
+    --bg-accent: #f1e2c8;
+    --card: #fffaf2;
+    --ink: #1f1b16;
+    --muted: #6b5f52;
+    --accent: #e0702f;
+    --accent-deep: #c45a1f;
+    --line: #e6d6c2;
+    --shadow: 0 16px 36px rgba(31, 27, 22, 0.12);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 45%),
+        radial-gradient(circle at 20% 30%, rgba(224, 112, 47, 0.14), transparent 50%),
+        linear-gradient(135deg, var(--bg), var(--bg-accent));
+    margin: 0;
+    padding: 40px 18px 60px;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    animation: pageFade 400ms ease-out;
+}
+
+main {
+    width: min(760px, 100%);
+}
+
+header {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 24px;
+}
+
+h1 {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: clamp(26px, 3vw, 34px);
+    margin: 0;
+    letter-spacing: 0.4px;
+}
+
+.subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+}
+
+#websiteList {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 16px 16px 8px;
+    box-shadow: var(--shadow);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+    color: var(--muted);
+    padding: 8px 4px 12px;
+    border-bottom: 1px solid var(--line);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    font-size: 11px;
+}
+
+.websiteHeader {
+    flex-grow: 1;
+    padding: 4px 8px;
+}
+
+.actionHeader {
+    padding: 4px 8px;
+    width: 150px;
+    text-align: right;
+}
+
+.websiteItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+    border: 1px solid var(--line);
+    background-color: #fff;
+    padding: 10px 12px;
+    border-radius: 14px;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+    animation: itemSlide 220ms ease-out;
+}
+
+.websiteItem:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 18px rgba(31, 27, 22, 0.08);
+}
+
+.websiteName {
+    flex-grow: 1;
+    padding: 4px 8px;
+    font-size: 15px;
+    word-break: break-word;
+}
+
+.websiteCheckbox {
+    transform: scale(1.15);
+    accent-color: var(--accent);
+}
+
+button {
+    font-family: inherit;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background-color: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+button:hover {
+    background-color: var(--accent-deep);
+    transform: translateY(-1px);
+}
+
+#addWebsite {
+    margin: 18px auto 0;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid var(--line);
+    box-shadow: 0 12px 26px rgba(31, 27, 22, 0.08);
+}
+
+#newWebsite {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+    font-size: 14px;
+}
+
+#newWebsite:focus {
+    outline: 2px solid rgba(224, 112, 47, 0.35);
+    border-color: var(--accent);
+}
+
+@keyframes pageFade {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes itemSlide {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding-top: 28px;
+    }
+
+    .header {
+        display: none;
+    }
+
+    .websiteItem {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+
+    .actionHeader {
+        width: auto;
+    }
+
+    #addWebsite {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

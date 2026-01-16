@@ -1,0 +1,62 @@
+:root {
+    --bg: #151513;
+    --bg-accent: #2a231b;
+    --card: #fdf6ec;
+    --ink: #1f1b16;
+    --accent: #e0702f;
+    --shadow: 0 22px 40px rgba(10, 10, 10, 0.35);
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    background:
+        radial-gradient(circle at 20% 15%, rgba(224, 112, 47, 0.35), transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08), transparent 45%),
+        linear-gradient(150deg, var(--bg), var(--bg-accent));
+    font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+    color: var(--ink);
+    padding: 24px;
+    animation: pageFade 400ms ease-out;
+}
+
+.card {
+    background: var(--card);
+    border-radius: 22px;
+    padding: 28px 30px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    max-width: 560px;
+}
+
+#svg-container {
+    position: relative;
+    margin-bottom: 12px;
+}
+
+#message {
+    margin: 18px 0 8px;
+    font-size: clamp(18px, 2.4vw, 24px);
+    line-height: 1.5;
+}
+
+#randomItem {
+    display: inline-block;
+    font-size: 14px;
+    color: #6b5f52;
+}
+
+@keyframes pageFade {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

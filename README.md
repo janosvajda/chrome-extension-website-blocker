@@ -23,22 +23,28 @@ To install the Tiny Website Blocker Chrome Extension, follow these simple steps:
 
 1. **Download the Extension**: Download the extension package from [GitHub](https://github.com/janosvajda/chrome-extension-website-blocker.git).
 
-2. **Enable Developer Mode in Chrome**:
+2. **Install Dependencies**:
+    - Run `npm install` in the project root to install dependencies.
+
+3. **Build the Extension**:
+    - Run `npm run build` to generate the `built` directory.
+
+4. **Enable Developer Mode in Chrome**:
     - Open Google Chrome.
     - Click the three dots menu icon in the top right corner of the browser.
     - Navigate to `More tools` > `Extensions`.
     - Enable the `Developer mode` toggle in the top right corner of the Extensions page.
 
-4. **Load the Extension**:
+5. **Load the Extension**:
     - Click the `Load unpacked` button after enabling Developer mode.
-    - Browse to the folder where you extracted the extension package, select it, and click `Select Folder`.
+    - Select the `built` folder and click `Select Folder`.
 
-5. **Configure the Extension**:
+6. **Configure the Extension**:
     - A new icon (like the one shown above) will appear in your Chrome toolbar after loading the extension.
     - Right-click the extension icon and select `Options`.
-    - Add the websites you want to block in the options page (without the "https://" part) and save your settings.
+    - Add the websites you want to block in the options page and save your settings.
 
-6. **Start Blocking Websites**: The extension is now ready. You'll be redirected to an error page whenever you visit a blocked website, and the tab will be closed.
+7. **Start Blocking Websites**: The extension is now ready. You'll be redirected to an error page whenever you visit a blocked website, and the tab will be closed.
 
 ## Feedback and Support
 

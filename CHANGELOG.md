@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.1 - 2026-01-16
+- Move Jest dependencies to devDependencies in package.json.
+- Refresh options and warning UI styling and split CSS into standalone files.
+
 ## 2.0.0 - 2026-01-16
 - Normalize blocked site entries to hostnames, supporting inputs with or without protocol.
 - Harden hostname parsing for empty/invalid values and normalize comparisons during blocking.
