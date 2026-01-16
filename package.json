@@ -1,12 +1,11 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
-    "build": "npm run clean && tsc && npm run copy-files",
     "watch": "npm run clean && webpack --config webpack/webpack.dev.js --watch",
-    "build-webpack": "npm run clean && webpack --config webpack/webpack.prod.js",
+    "build": "npm run clean && webpack --config webpack/webpack.prod.js",
     "clean": "rm -rf ./built",
     "copy-files": "cp -a ./src/ui/. ./built/",
     "test": "jest"

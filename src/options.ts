@@ -1,5 +1,6 @@
 import {saveToLocalStorage} from "./browserAPI/chrome/saveToLocalStorage";
 import {removeFromLocalStorage} from "./browserAPI/chrome/removeFromLocalStorage";
+import {getPureHostname} from "./helper/getPureHostname";
 
 const websiteList = document.getElementById("websiteList");
 const addButton = document.getElementById("addButton");
@@ -7,12 +8,16 @@ const newWebsiteInput = document.getElementById("newWebsite");
 
 // Function to create a new website item with a delete button
 function createWebsiteItem(website, enabled) {
+    const normalizedWebsite = getPureHostname(website);
+    if (!normalizedWebsite) {
+        return null;
+    }
     const websiteItem = document.createElement("div");
     websiteItem.className = "websiteItem";
 
     const websiteName = document.createElement("div");
     websiteName.className = "websiteName";
-    websiteName.textContent = website;
+    websiteName.textContent = normalizedWebsite;
 
     const websiteCheckbox = document.createElement("input");
     websiteCheckbox.type = "checkbox";
@@ -29,7 +34,7 @@ function createWebsiteItem(website, enabled) {
     deleteButton.textContent = "Delete";
     deleteButton.addEventListener("click", () => {
         websiteItem.remove(); // Remove the website item from the UI
-        removeFromLocalStorage(website); // Remove the website from local storage
+        removeFromLocalStorage(normalizedWebsite); // Remove the website from local storage
     });
 
     websiteItem.appendChild(websiteName);
@@ -80,5 +85,3 @@ addButton.addEventListener("click", () => {
         saveToLocalStorage(websiteItems); // Save the updated list to local storage
     }
 });
-
-

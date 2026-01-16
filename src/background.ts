@@ -31,7 +31,7 @@ function blockPage(tabId, pageUrl) {
 
         // Check if the block is enabled for the current hostname
         const blockedWebsite = blockedWebsites.find(
-            (website) => website.name === hostname
+            (website) => getPureHostname(website.name || "") === hostname
         );
 
         if (blockedWebsite && blockedWebsite.enabled) {
@@ -61,9 +61,10 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
             const currentBlocked = result.blocked;
 
             // Check if the pageUrl is not already in the blocked list
-            if (!currentBlocked.some(item => item.name === pageUrl)) {
+            const normalizedPage = getPureHostname(pageUrl);
+            if (!currentBlocked.some(item => getPureHostname(item.name || "") === normalizedPage)) {
                 // Add the new blocked item
-                const newBlocked = [...currentBlocked, { name: getPureHostname(pageUrl), enabled: true }];
+                const newBlocked = [...currentBlocked, { name: normalizedPage, enabled: true }];
 
                 // Store the updated blocked list in chrome.storage.local
                 chrome.storage.local.set({ blocked: newBlocked });
@@ -83,6 +84,5 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     console.info('Opened URL', url);
     blockPage(tabId, url);
 });
-
 
 
