@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
@@ -30,15 +30,15 @@
   },
   "homepage": "https://github.com/janosvajda/chrome-extension-website-blocker#readme",
   "dependencies": {
-    "@types/chrome": "^0.0.253",
-    "babel-jest": "^29.7.0",
-    "jest": "^29.7.0"
+    "@types/chrome": "^0.0.253"
   },
   "devDependencies": {
-    "@babel/preset-env": "^7.23.3",
-    "@types/jest": "^29.5.10",
+    "@babel/preset-env": "^7.28.6",
+    "@types/jest": "^29.5.14",
+    "babel-jest": "^29.7.0",
     "copy-webpack-plugin": "^11.0.0",
-    "ts-jest": "^29.1.1",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.6",
     "ts-loader": "^9.5.1",
     "typescript": "^5.3.2",
     "webpack": "^5.89.0",
