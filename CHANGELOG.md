@@ -14,7 +14,7 @@
 - Update options UI storage to save normalized hostnames for add/remove actions.
 - Add tests for hostname normalization and storage behavior.
 
-## 1.0.0 - 2020-11-20
+## 1.0.0 - 2021-11-20
 - Initial release with the options UI for adding/removing blocked sites.
 - Block pages by matching saved hostnames and redirect to a warning page.
 - Include randomized block messages on the warning page.
