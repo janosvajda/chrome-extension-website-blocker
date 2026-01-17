@@ -1,10 +1,11 @@
 import {saveToLocalStorage} from "./browserAPI/chrome/saveToLocalStorage";
 import {removeFromLocalStorage} from "./browserAPI/chrome/removeFromLocalStorage";
 import {getPureHostname} from "./helper/getPureHostname";
+import {initPasswordProtection} from "./helper/passwordProtection";
 
 const websiteList = document.getElementById("websiteList");
 const addButton = document.getElementById("addButton");
-const newWebsiteInput = document.getElementById("newWebsite");
+const newWebsiteInput = document.getElementById("newWebsite") as HTMLInputElement;
 
 // Function to create a new website item with a delete button
 function createWebsiteItem(website, enabled) {
@@ -60,10 +61,10 @@ function loadAndPopulateWebsiteList() {
 // Event listener to add a new website when Enter key is pressed
 newWebsiteInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
-        const websiteName = (newWebsiteInput as HTMLInputElement).value.toString().trim();
+        const websiteName = newWebsiteInput.value.toString().trim();
         if (websiteName) {
             createWebsiteItem(websiteName, true);
-            (newWebsiteInput as HTMLInputElement).value = "";
+            newWebsiteInput.value = "";
             const websiteItems = document.querySelectorAll(".websiteItem");
             saveToLocalStorage(websiteItems); // Save the updated list to local storage
         }
@@ -71,16 +72,17 @@ newWebsiteInput.addEventListener("keydown", (event) => {
 });
 
 // Load and populate the website list when the page is loaded
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+    await initPasswordProtection();
     loadAndPopulateWebsiteList();
 });
 
 // Event listener to add a new website
 addButton.addEventListener("click", () => {
-    const websiteName = (newWebsiteInput as HTMLInputElement).value.toString().trim();
+    const websiteName = newWebsiteInput.value.toString().trim();
     if (websiteName) {
         createWebsiteItem(websiteName, true);
-        (newWebsiteInput as HTMLInputElement).value = "";
+        newWebsiteInput.value = "";
         const websiteItems = document.querySelectorAll(".websiteItem");
         saveToLocalStorage(websiteItems); // Save the updated list to local storage
     }

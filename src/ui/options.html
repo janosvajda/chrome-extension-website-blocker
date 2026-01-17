@@ -5,10 +5,27 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
-<main>
-    <header>
-        <h1>Tiny Website Blocker</h1>
-        <p class="subtitle">Keep distractions out by listing the sites you want to block.</p>
+<div id="lockScreen" class="lockScreen" hidden>
+    <div class="lockCard">
+        <h2 class="sectionTitle">Enter password</h2>
+        <p class="subtitle">This options page is protected.</p>
+        <div class="lockForm">
+            <input type="password" id="passwordInput" placeholder="Password">
+            <button id="unlockButton">Unlock</button>
+        </div>
+        <p id="unlockError" class="formHint" aria-live="polite"></p>
+    </div>
+</div>
+<main id="appContent">
+    <header class="pageHeader">
+        <div>
+            <h1>Tiny Website Blocker</h1>
+            <p class="subtitle">Keep distractions out by listing the sites you want to block.</p>
+        </div>
+        <div class="headerActions">
+            <button id="passwordButton" class="ghostButton">Set password</button>
+            <p id="passwordNotice" class="formHint" hidden>Password set. You'll be asked next time.</p>
+        </div>
     </header>
     <div id="websiteList">
         <div class="header">
@@ -21,6 +38,21 @@
         <button id="addButton">Add site</button>
     </div>
 </main>
+<div id="passwordModal" class="modal" hidden>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">
+        <h2 id="passwordTitle" class="sectionTitle">Set password</h2>
+        <p class="subtitle">Protect access to this options page.</p>
+        <div class="modalForm">
+            <input type="password" id="modalPasswordInput" placeholder="Enter password">
+            <div class="modalActions">
+                <button id="savePasswordButton">Save</button>
+                <button id="clearPasswordButton" class="ghostButton">Clear</button>
+                <button id="cancelPasswordButton" class="ghostButton">Cancel</button>
+            </div>
+        </div>
+        <p id="modalPasswordHint" class="formHint" aria-live="polite"></p>
+    </div>
+</div>
 <script src="../options.js"></script>
 </body>
 </html>
