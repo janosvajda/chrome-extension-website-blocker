@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.2 - 2026-01-17
+- Add password protection modal and lock screen for options access.
+- Store password as a SHA-256 hash and move password logic into a helper module.
+
 ## 2.0.1 - 2026-01-16
 - Move Jest dependencies to devDependencies in package.json.
 - Refresh options and warning UI styling and split CSS into standalone files.

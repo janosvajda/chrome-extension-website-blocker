@@ -1,50 +1,63 @@
 :root {
-    --bg: #f6f1e7;
-    --bg-accent: #f1e2c8;
-    --card: #fffaf2;
+    --bg: #f6f2eb;
+    --card: #ffffff;
     --ink: #1f1b16;
     --muted: #6b5f52;
     --accent: #e0702f;
     --accent-deep: #c45a1f;
-    --line: #e6d6c2;
-    --shadow: 0 16px 36px rgba(31, 27, 22, 0.12);
+    --line: #e7dccf;
+    --shadow: 0 14px 28px rgba(31, 27, 22, 0.12);
 }
 
 * {
     box-sizing: border-box;
 }
 
+[hidden] {
+    display: none !important;
+}
+
 body {
     font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
     color: var(--ink);
-    background:
-        radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 45%),
-        radial-gradient(circle at 20% 30%, rgba(224, 112, 47, 0.14), transparent 50%),
-        linear-gradient(135deg, var(--bg), var(--bg-accent));
+    background: var(--bg);
     margin: 0;
-    padding: 40px 18px 60px;
+    padding: 36px 18px 48px;
     min-height: 100vh;
     display: flex;
     justify-content: center;
-    animation: pageFade 400ms ease-out;
 }
 
 main {
     width: min(760px, 100%);
 }
 
-header {
+.pageHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 24px;
+}
+
+.headerActions {
     display: flex;
     flex-direction: column;
+    align-items: flex-end;
     gap: 6px;
-    margin-bottom: 24px;
 }
 
 h1 {
     font-family: "Georgia", "Times New Roman", serif;
     font-size: clamp(26px, 3vw, 34px);
-    margin: 0;
+    margin: 0 0 6px;
     letter-spacing: 0.4px;
+}
+
+.sectionTitle {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 18px;
+    margin: 0 0 6px;
 }
 
 .subtitle {
@@ -56,7 +69,7 @@ h1 {
 #websiteList {
     background: var(--card);
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: 16px;
     padding: 16px 16px 8px;
     box-shadow: var(--shadow);
 }
@@ -94,7 +107,6 @@ h1 {
     padding: 10px 12px;
     border-radius: 14px;
     transition: transform 160ms ease, box-shadow 160ms ease;
-    animation: itemSlide 220ms ease-out;
 }
 
 .websiteItem:hover {
@@ -130,16 +142,26 @@ button:hover {
     transform: translateY(-1px);
 }
 
+.ghostButton {
+    background: transparent;
+    color: var(--accent-deep);
+    border: 1px solid var(--accent);
+}
+
+.ghostButton:hover {
+    background: rgba(224, 112, 47, 0.08);
+}
+
 #addWebsite {
     margin: 18px auto 0;
     display: flex;
     gap: 10px;
     align-items: center;
-    background: rgba(255, 255, 255, 0.7);
+    background: var(--card);
     padding: 14px 16px;
     border-radius: 16px;
     border: 1px solid var(--line);
-    box-shadow: 0 12px 26px rgba(31, 27, 22, 0.08);
+    box-shadow: var(--shadow);
 }
 
 #newWebsite {
@@ -155,31 +177,70 @@ button:hover {
     border-color: var(--accent);
 }
 
-@keyframes pageFade {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.formHint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
 }
 
-@keyframes itemSlide {
-    from {
-        opacity: 0;
-        transform: translateY(6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+.lockScreen,
+.modal {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(31, 27, 22, 0.45);
+    padding: 24px;
+    z-index: 20;
+}
+
+.lockCard,
+.modalCard {
+    background: var(--card);
+    border-radius: 18px;
+    padding: 24px;
+    width: min(420px, 100%);
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+
+.lockForm,
+.modalForm {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.lockForm input,
+.modalForm input {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+}
+
+.lockForm input:focus,
+.modalForm input:focus {
+    outline: 2px solid rgba(224, 112, 47, 0.35);
+    border-color: var(--accent);
+}
+
+.modalActions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
 }
 
 @media (max-width: 640px) {
     body {
         padding-top: 28px;
+    }
+
+    .pageHeader {
+        flex-direction: column;
+        align-items: flex-start;
     }
 
     .header {
@@ -197,6 +258,11 @@ button:hover {
     }
 
     #addWebsite {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .modalActions {
         flex-direction: column;
         align-items: stretch;
     }
