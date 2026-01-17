@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.3 - 2026-01-17
+- Add icons to the extension manifest and display the app icon in the options header.
+- Add password protection modal, hashed storage, and move password logic into a helper.
+- Add a refresh list button to options.
+- Cache blocked hostnames in background for faster blocking and add background tests.
+
 ## 2.0.2 - 2026-01-17
 - Add password protection modal and lock screen for options access.
 - Store password as a SHA-256 hash and move password logic into a helper module.

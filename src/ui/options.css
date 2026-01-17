@@ -40,6 +40,21 @@ main {
     margin-bottom: 24px;
 }
 
+.titleBlock {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.appIcon {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    box-shadow: 0 8px 16px rgba(31, 27, 22, 0.12);
+    background: #fff;
+    padding: 6px;
+}
+
 .headerActions {
     display: flex;
     flex-direction: column;

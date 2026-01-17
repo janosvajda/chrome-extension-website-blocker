@@ -6,6 +6,7 @@ import {initPasswordProtection} from "./helper/passwordProtection";
 const websiteList = document.getElementById("websiteList");
 const addButton = document.getElementById("addButton");
 const newWebsiteInput = document.getElementById("newWebsite") as HTMLInputElement;
+const refreshButton = document.getElementById("refreshButton");
 
 // Function to create a new website item with a delete button
 function createWebsiteItem(website, enabled) {
@@ -58,6 +59,12 @@ function loadAndPopulateWebsiteList() {
     });
 }
 
+function refreshWebsiteList() {
+    const items = websiteList.querySelectorAll(".websiteItem");
+    items.forEach((item) => item.remove());
+    loadAndPopulateWebsiteList();
+}
+
 // Event listener to add a new website when Enter key is pressed
 newWebsiteInput.addEventListener("keydown", (event) => {
     if (event.key === "Enter") {
@@ -87,3 +94,9 @@ addButton.addEventListener("click", () => {
         saveToLocalStorage(websiteItems); // Save the updated list to local storage
     }
 });
+
+if (refreshButton) {
+    refreshButton.addEventListener("click", () => {
+        refreshWebsiteList();
+    });
+}
