@@ -5,17 +5,28 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 ## Features
 
-- **Website Blocking**: Easily block access to specific websites by adding their URLs to the extension's options. You do not need to include the "https://" part in the website names.
+- **Website Blocking**: Block access to specific websites from the options page; URLs with or without `http(s)` are supported.
+
+- **Simple Management UI**: A clean options page makes it easy to add, remove, and toggle blocked sites.
+
+- **Context Menu Quick Block**: Right-click any page and choose “Block this page by Tiny Blocker” to add it instantly.
+
+  <img src="src/ui/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 
 - **Error Page**: When you try to access a blocked website, the extension will display an error page, and the blocked tab will be automatically closed to help you stay on track.
+
+- **Password Protection**: Lock the options page with a password so opening its options page in Chrome requires unlocking.
+
+## Licence and security
 
 - **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
 
 - **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions.
 
-- **Data**: It does not call any external API. It does not use a network. The blocked websites' list is stored in your browser locally, so if you remove the extension, You will lose the list.
+- **Data**: It does not call any external API. It does not use a network. The blocked websites' list and your password is stored in your browser's local storage, so if you remove the extension, You will lose the list, and all data you saved. But this also means, your data is just your's. No external storage, cloud etc.
 
 - **Created for Personal Use**: I created this extension for myself because I found only non-free or overcomplicated extensions with this function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
+
 
 ## Installation Guide
 
