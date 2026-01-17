@@ -9,47 +9,62 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // Initialize a dictionary to keep track of blocked tabs
-const blockedTabs = {};
+const blockedTabs: Record<number, boolean> = {};
+let blockedHostnames = new Set<string>();
+
+export function rebuildBlockedHostnames(blockedList) {
+    blockedHostnames = new Set(
+        (blockedList || [])
+            .filter((website) => website.enabled)
+            .map((website) => getPureHostname(website.name || ""))
+            .filter((hostname) => hostname)
+    );
+}
+
+export function shouldBlockHostname(hostname: string): boolean {
+    return blockedHostnames.has(hostname);
+}
+
+export function resetBlockedStateForTest(): void {
+    blockedHostnames = new Set<string>();
+    Object.keys(blockedTabs).forEach((key) => {
+        delete blockedTabs[Number(key)];
+    });
+}
 chrome.runtime.onInstalled.addListener(function() {
     // Create context menu item
     chrome.contextMenus.create({
         id: "blockPage",
-        title: "Block this page (Tiny Blocker)",
+        title: "Block this page by Tiny Blocker",
         contexts: ["page"]
     });
 });
 
+chrome.storage.local.get({ blocked: [] }, (data) => {
+    rebuildBlockedHostnames(data.blocked);
+});
+
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.blocked) {
+        return;
+    }
+    rebuildBlockedHostnames(changes.blocked.newValue || []);
+});
+
 // Function to block the page
-function blockPage(tabId, pageUrl) {
-    // Implement your blocking logic here
-    console.log("Blocking page:", pageUrl);
-    let hostname = getPureHostname(pageUrl)
+export function blockPage(tabId, pageUrl) {
+    const hostname = getPureHostname(pageUrl);
 
-    // Retrieve the list of blocked websites from local storage
-    chrome.storage.local.get("blocked", (local) => {
-        const blockedWebsites = local.blocked || [];
-
-        // Check if the block is enabled for the current hostname
-        const blockedWebsite = blockedWebsites.find(
-            (website) => getPureHostname(website.name || "") === hostname
-        );
-
-        if (blockedWebsite && blockedWebsite.enabled) {
-            // Check if the tab is not already blocked
-            if (!blockedTabs[tabId]) {
-                // Mark the tab as blocked to prevent further actions on it
-                blockedTabs[tabId] = true;
-
-                // Remove the tab and create a new tab with the warning page
-                chrome.tabs.remove(tabId, () => {
-                    chrome.tabs.create({ url: "warning.html" });
-                });
-            }
-        } else {
-            // If the tab is unblocked, clear it from the dictionary
-            delete blockedTabs[tabId];
+    if (shouldBlockHostname(hostname)) {
+        if (!blockedTabs[tabId]) {
+            blockedTabs[tabId] = true;
+            chrome.tabs.remove(tabId, () => {
+                chrome.tabs.create({ url: "warning.html" });
+            });
         }
-    });
+    } else {
+        delete blockedTabs[tabId];
+    }
 }
 
 // Add a listener for context menu item clicks
@@ -84,5 +99,3 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     console.info('Opened URL', url);
     blockPage(tabId, url);
 });
-
-
