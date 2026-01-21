@@ -14,7 +14,7 @@ export interface BlockedMessage {
     randomItem?: string;
 }
 
-export const blockedMessages: BlockedMessage[] = [
+const baseMessages: BlockedMessage[] = [
     {
         message: "Oops! The site you wanted to open is blocked.",
         type: BlockedMessageType.SingleSentence,
@@ -22,21 +22,37 @@ export const blockedMessages: BlockedMessage[] = [
     {
         message: "Sorry, access to the requested site is restricted, but I have a quote for you: ",
         type: BlockedMessageType.ScientificQuotes,
-        randomItem: getRandomItem(scientificQuotes),
     },
     {
         message: "This site is blocked, but here's a joke instead: ",
         type: BlockedMessageType.Joke,
-        randomItem: getRandomItem(jokes),
     },
     {
         message: "Blocked! But don't worry, I've got a joke for you. ",
         type: BlockedMessageType.Joke,
-        randomItem: getRandomItem(jokes),
     },
     {
         message: "The website is under construction, but our humor isn't: ",
         type: BlockedMessageType.Joke,
-        randomItem: getRandomItem(jokes),
     },
 ];
+
+export const blockedMessages = baseMessages;
+
+export function getRandomBlockedMessage(): BlockedMessage {
+    const randomIndex = Math.floor(Math.random() * baseMessages.length);
+    const selected = baseMessages[randomIndex];
+    if (selected.type === BlockedMessageType.Joke) {
+        return {
+            ...selected,
+            randomItem: getRandomItem(jokes) || "",
+        };
+    }
+    if (selected.type === BlockedMessageType.ScientificQuotes) {
+        return {
+            ...selected,
+            randomItem: getRandomItem(scientificQuotes) || "",
+        };
+    }
+    return selected;
+}

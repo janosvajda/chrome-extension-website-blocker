@@ -12,7 +12,13 @@ const mockStorageLocal = {
     },
 };
 
-function createWebsiteItem(name: string, enabled: boolean): Element {
+function createWebsiteItem(
+    name: string,
+    enabled: boolean,
+    scope?: string,
+    title?: string,
+    description?: string
+): Element {
     const nameElement = { textContent: name };
     const checkboxElement = { checked: enabled };
 
@@ -23,6 +29,18 @@ function createWebsiteItem(name: string, enabled: boolean): Element {
             }
             if (selector === '.websiteCheckbox') {
                 return checkboxElement;
+            }
+            return null;
+        },
+        getAttribute: (attribute: string) => {
+            if (attribute === 'data-scope') {
+                return scope;
+            }
+            if (attribute === 'data-title') {
+                return title;
+            }
+            if (attribute === 'data-description') {
+                return description;
             }
             return null;
         },
@@ -38,8 +56,8 @@ describe('saveToLocalStorage', () => {
 
     it('normalizes hostnames and saves enabled state', () => {
         const items = [
-            createWebsiteItem('https://www.example.com', true),
-            createWebsiteItem('http://www.fake-site.test/path', false),
+            createWebsiteItem('https://www.example.com', true, 'domain', 'Example Domain', 'Example description'),
+            createWebsiteItem('http://www.fake-site.test/path', false, 'url'),
             createWebsiteItem('fake-site.test', true),
             createWebsiteItem('https://subdomain.fake-site.test', false),
             createWebsiteItem('www.another-fake.test', true),
@@ -50,11 +68,17 @@ describe('saveToLocalStorage', () => {
 
         expect(mockStorageLocal.set).toHaveBeenCalledWith({
             blocked: [
-                { name: 'example.com', enabled: true },
-                { name: 'fake-site.test', enabled: false },
-                { name: 'fake-site.test', enabled: true },
-                { name: 'subdomain.fake-site.test', enabled: false },
-                { name: 'another-fake.test', enabled: true },
+                {
+                    name: 'example.com',
+                    scope: 'domain',
+                    enabled: true,
+                    title: 'Example Domain',
+                    description: 'Example description',
+                },
+                { name: 'http://www.fake-site.test/path', scope: 'url', enabled: false },
+                { name: 'fake-site.test', scope: 'domain', enabled: true },
+                { name: 'subdomain.fake-site.test', scope: 'domain', enabled: false },
+                { name: 'another-fake.test', scope: 'domain', enabled: true },
             ],
         });
     });

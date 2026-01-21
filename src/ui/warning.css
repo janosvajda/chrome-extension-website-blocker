@@ -50,6 +50,43 @@ body {
     color: #6b5f52;
 }
 
+.blockedReason {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(224, 112, 47, 0.15);
+    color: #c45a1f;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.blockedValue {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #6b5f52;
+    word-break: break-word;
+}
+
+.blockedActions {
+    margin-top: 14px;
+}
+
+.blockedActions button {
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    background-color: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.blockedActions button:hover {
+    background-color: #c45a1f;
+}
+
 @keyframes pageFade {
     from {
         opacity: 0;

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.5 - 2026-01-17
+- Add offline AI assist with topic + source learning, conservative blocking, and AI prompts when unsure.
+- Store page title/description metadata for blocked entries and show it in the options list.
+- Add domain vs URL blocking with a choice modal in the context menu flow.
+- Add pagination and sorting to the blocked list UI.
+- Add warning-page reasons, AI allow/teach action, and AI reset control in options.
+
+## 2.0.4 - 2026-01-17
+- Bugfix: avoid blocking chrome-extension:// URLs.
+
 ## 2.0.3 - 2026-01-17
 - Add icons to the extension manifest and display the app icon in the options header.
 - Add password protection modal, hashed storage, and move password logic into a helper.

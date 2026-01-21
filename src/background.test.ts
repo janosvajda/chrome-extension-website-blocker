@@ -3,6 +3,9 @@ const mockChrome = {
         onInstalled: {
             addListener: jest.fn(),
         },
+        onMessage: {
+            addListener: jest.fn(),
+        },
     },
     contextMenus: {
         create: jest.fn(),
@@ -29,6 +32,13 @@ const mockChrome = {
         onUpdated: {
             addListener: jest.fn(),
         },
+    },
+    scripting: {
+        executeScript: jest.fn((options, callback) => {
+            if (callback) {
+                callback([{ result: { title: "", description: "" } }]);
+            }
+        }),
     },
 };
 
@@ -70,6 +80,21 @@ describe("background blocked hostnames cache", () => {
         blockPage(1, "https://example.com/path");
 
         expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
-        expect(mockChrome.tabs.create).toHaveBeenCalledWith({ url: "warning.html" });
+        expect(mockChrome.tabs.create).toHaveBeenCalledWith({
+            url: expect.stringContaining("warning.html?reason=domain"),
+        });
+    });
+
+    it("blocks a tab when a specific URL is cached as blocked", () => {
+        rebuildBlockedHostnames([
+            { name: "https://www.youtube.com/watch?v=123", scope: "url", enabled: true },
+        ]);
+
+        blockPage(1, "https://www.youtube.com/watch?v=123");
+
+        expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
+        expect(mockChrome.tabs.create).toHaveBeenCalledWith({
+            url: expect.stringContaining("warning.html?reason=url"),
+        });
     });
 });
