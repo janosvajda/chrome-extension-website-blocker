@@ -22,8 +22,9 @@ describe('removeFromLocalStorage', () => {
     it('removes the specified website from local storage', async () => {
         const websiteToRemove = 'example.com';
         const blockedWebsites = [
-            { name: 'example.com' },
-            { name: 'another-example.com' },
+            { name: 'example.com', scope: 'domain' },
+            { name: 'https://example.com/path', scope: 'url' },
+            { name: 'another-example.com', scope: 'domain' },
         ];
 
         // Set up the mock for chrome.storage.local.get
@@ -41,9 +42,14 @@ describe('removeFromLocalStorage', () => {
         });
 
         // Act
-        await removeFromLocalStorage(websiteToRemove);
+        await removeFromLocalStorage(websiteToRemove, 'domain');
 
         // Assert
-        expect(mockStorageLocal.set).toHaveBeenCalledWith({ blocked: [{ name: 'another-example.com' }] });
+        expect(mockStorageLocal.set).toHaveBeenCalledWith({
+            blocked: [
+                { name: 'https://example.com/path', scope: 'url' },
+                { name: 'another-example.com', scope: 'domain' },
+            ],
+        });
     });
 });

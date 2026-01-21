@@ -37,10 +37,44 @@
             <div class="actionHeader">Blocked</div>
         </div>
     </div>
+    <div id="pagination" class="pagination">
+        <button id="prevPageButton" class="ghostButton">Prev</button>
+        <div id="pageNumbers" class="pageNumbers"></div>
+        <button id="nextPageButton" class="ghostButton">Next</button>
+        <div id="pageInfo" class="pageInfo"></div>
+    </div>
     <div id="addWebsite">
         <input type="text" id="newWebsite" placeholder="Enter a website (example.com)">
         <button id="addButton">Add site</button>
     </div>
+    <section id="aiPanel" class="aiPanel">
+        <div class="aiHeader">
+            <div>
+                <h2 class="sectionTitle">AI assist</h2>
+                <p class="subtitle">Learns from the sites you block or allow (offline only).</p>
+            </div>
+            <label class="aiToggle">
+                <input type="checkbox" id="aiEnabled">
+                <span>Enable</span>
+            </label>
+        </div>
+        <div class="aiControls">
+            <label class="aiControl">
+                <span class="aiLabel">Sensitivity</span>
+                <input type="range" id="aiThreshold" min="0.5" max="3" step="0.1">
+                <span id="aiThresholdValue" class="aiValue"></span>
+            </label>
+            <label class="aiControl">
+                <span class="aiLabel">Learning speed</span>
+                <input type="range" id="aiLearningRate" min="0.1" max="1" step="0.1">
+                <span id="aiLearningRateValue" class="aiValue"></span>
+            </label>
+            <div class="aiActions">
+                <button id="aiResetButton" class="ghostButton">Reset AI learning</button>
+                <p class="formHint">Clears learned weights without touching your blocked list.</p>
+            </div>
+        </div>
+    </section>
 </main>
 <div id="passwordModal" class="modal" hidden>
     <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">

@@ -9,13 +9,30 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 - **Simple Management UI**: A clean options page makes it easy to add, remove, and toggle blocked sites.
 
+- **Domain or URL Scopes**: When blocking from the context menu, choose whether to block the whole domain or only the exact URL.
+
 - **Context Menu Quick Block**: Right-click any page and choose “Block this page by Tiny Blocker” to add it instantly.
 
-  <img src="src/ui/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
+  <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 
 - **Error Page**: When you try to access a blocked website, the extension will display an error page, and the blocked tab will be automatically closed to help you stay on track.
 
+- **AI Assist (Offline)**: Optional local learning that uses page title + description and source/domain tokens to suggest or block similar content.
+
+- **Why Blocked + Learn**: The warning page shows why a page was blocked and lets you allow a page while teaching the AI.
+
 - **Password Protection**: Lock the options page with a password so opening its options page in Chrome requires unlocking.
+
+## AI Assist (How it works)
+
+AI Assist is fully offline and does not call any external APIs. It learns from your block/allow actions:
+
+- **Signals**: It looks at page title, meta description, and the source/domain.
+- **Conservative by default**: It blocks only when both topic and source are strong matches.
+- **Ask when unsure**: If topic seems similar but the source is new, it shows a modal asking if you want to block the domain or the exact URL.
+- **Teach from the warning page**: If AI blocked a page, you can tap "Allow & teach AI" to reduce false positives.
+
+You can enable/disable AI Assist and adjust sensitivity in the options page. There is also a reset button to clear learned weights without changing your blocked list.
 
 ## Licence and security
 
