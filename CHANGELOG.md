@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.0.6 - 2026-02-22
+- Remove experimental AI blocker logic and all related runtime behavior.
+- Remove AI controls from options and remove AI actions from the warning page.
+- Remove AI helper module and its tests.
+
 ## 2.0.5 - 2026-01-17
 - Add offline AI assist with topic + source learning, conservative blocking, and AI prompts when unsure.
 - Store page title/description metadata for blocked entries and show it in the options list.
