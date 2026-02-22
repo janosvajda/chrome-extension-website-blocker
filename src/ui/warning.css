@@ -69,24 +69,6 @@ body {
     word-break: break-word;
 }
 
-.blockedActions {
-    margin-top: 14px;
-}
-
-.blockedActions button {
-    border: none;
-    border-radius: 999px;
-    padding: 8px 14px;
-    background-color: var(--accent);
-    color: #fff;
-    cursor: pointer;
-    font-family: inherit;
-}
-
-.blockedActions button:hover {
-    background-color: #c45a1f;
-}
-
 @keyframes pageFade {
     from {
         opacity: 0;

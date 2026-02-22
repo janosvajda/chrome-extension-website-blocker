@@ -244,69 +244,6 @@ button:hover {
     box-shadow: var(--shadow);
 }
 
-.aiPanel {
-    margin: 18px auto 0;
-    background: var(--card);
-    border: 1px solid var(--line);
-    border-radius: 16px;
-    padding: 16px;
-    box-shadow: var(--shadow);
-}
-
-.aiHeader {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 12px;
-}
-
-.aiToggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: bold;
-    color: var(--accent-deep);
-}
-
-.aiToggle input {
-    accent-color: var(--accent);
-    transform: scale(1.1);
-}
-
-.aiControls {
-    display: grid;
-    gap: 12px;
-}
-
-.aiControl {
-    display: grid;
-    gap: 6px;
-}
-
-.aiLabel {
-    font-size: 13px;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
-.aiValue {
-    font-size: 13px;
-    color: var(--accent-deep);
-    font-weight: bold;
-}
-
-.aiControl input[type="range"] {
-    width: 100%;
-}
-
-.aiActions {
-    display: grid;
-    gap: 6px;
-    align-items: start;
-}
-
 #newWebsite {
     flex: 1;
     padding: 10px 12px;
@@ -408,11 +345,6 @@ button:hover {
     .modalActions {
         flex-direction: column;
         align-items: stretch;
-    }
-
-    .aiHeader {
-        flex-direction: column;
-        align-items: flex-start;
     }
 
     .pagination {

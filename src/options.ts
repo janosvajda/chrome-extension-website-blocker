@@ -1,28 +1,18 @@
 import {initPasswordProtection} from "./helper/passwordProtection";
-import {createEmptyAiModel, DEFAULT_AI_CONFIG, mergeAiConfig} from "./helper/aiBlocker";
 import {normalizeBlockedEntry} from "./helper/blockedEntry";
 
 const websiteList = document.getElementById("websiteList");
 const addButton = document.getElementById("addButton");
 const newWebsiteInput = document.getElementById("newWebsite") as HTMLInputElement;
 const refreshButton = document.getElementById("refreshButton");
-const aiEnabledToggle = document.getElementById("aiEnabled") as HTMLInputElement;
-const aiThresholdInput = document.getElementById("aiThreshold") as HTMLInputElement;
-const aiLearningRateInput = document.getElementById("aiLearningRate") as HTMLInputElement;
-const aiThresholdValue = document.getElementById("aiThresholdValue");
-const aiLearningRateValue = document.getElementById("aiLearningRateValue");
-const aiResetButton = document.getElementById("aiResetButton");
 const prevPageButton = document.getElementById("prevPageButton") as HTMLButtonElement;
 const nextPageButton = document.getElementById("nextPageButton") as HTMLButtonElement;
 const pageNumbers = document.getElementById("pageNumbers");
 const pageInfo = document.getElementById("pageInfo");
-let aiConfig = { ...DEFAULT_AI_CONFIG };
 type BlockedEntry = {
     name: string;
     scope: "domain" | "url";
     enabled: boolean;
-    title?: string;
-    description?: string;
 };
 
 // Pagination defaults keep the list readable on smaller screens.
@@ -31,7 +21,7 @@ let currentPage = 1;
 let blockedEntries: BlockedEntry[] = [];
 
 // Render a single entry row and wire its UI events.
-function createWebsiteItem(website, enabled, scope, title, description) {
+function createWebsiteItem(website, enabled, scope) {
     const normalizedWebsite = normalizeBlockedEntry(website, scope);
     if (!normalizedWebsite) {
         return null;
@@ -39,12 +29,6 @@ function createWebsiteItem(website, enabled, scope, title, description) {
     const websiteItem = document.createElement("div");
     websiteItem.className = "websiteItem";
     websiteItem.setAttribute("data-scope", normalizedWebsite.scope);
-    if (title) {
-        websiteItem.setAttribute("data-title", title);
-    }
-    if (description) {
-        websiteItem.setAttribute("data-description", description);
-    }
 
     const websiteDetails = document.createElement("div");
     websiteDetails.className = "websiteDetails";
@@ -53,19 +37,6 @@ function createWebsiteItem(website, enabled, scope, title, description) {
     websiteName.className = "websiteName";
     websiteName.textContent = normalizedWebsite.name;
     websiteDetails.appendChild(websiteName);
-
-    if (title) {
-        const websiteTitle = document.createElement("div");
-        websiteTitle.className = "websiteTitle";
-        websiteTitle.textContent = title;
-        websiteDetails.appendChild(websiteTitle);
-    }
-    if (description) {
-        const websiteDescription = document.createElement("div");
-        websiteDescription.className = "websiteDescription";
-        websiteDescription.textContent = description;
-        websiteDetails.appendChild(websiteDescription);
-    }
 
     const websiteScope = document.createElement("span");
     websiteScope.className = "websiteScope";
@@ -130,11 +101,10 @@ newWebsiteInput.addEventListener("keydown", (event) => {
     }
 });
 
-// Initialize protected UI, list, and AI controls after load.
+// Initialize protected UI and blocked list after load.
 window.addEventListener("DOMContentLoaded", async () => {
     await initPasswordProtection();
     loadAndPopulateWebsiteList();
-    initAiControls();
 });
 
 // Add by button click.
@@ -152,65 +122,6 @@ if (refreshButton) {
     });
 }
 
-function initAiControls() {
-    if (!aiEnabledToggle || !aiThresholdInput || !aiLearningRateInput) {
-        return;
-    }
-
-    chrome.storage.local.get({ aiConfig: null }, (data) => {
-        aiConfig = mergeAiConfig(data.aiConfig);
-        aiEnabledToggle.checked = aiConfig.enabled;
-        aiThresholdInput.value = aiConfig.threshold.toString();
-        aiLearningRateInput.value = aiConfig.learningRate.toString();
-        syncAiLabels();
-    });
-
-    aiEnabledToggle.addEventListener("change", () => {
-        aiConfig = { ...aiConfig, enabled: aiEnabledToggle.checked };
-        persistAiConfig();
-    });
-
-    aiThresholdInput.addEventListener("input", () => {
-        syncAiLabels();
-    });
-
-    aiThresholdInput.addEventListener("change", () => {
-        aiConfig = { ...aiConfig, threshold: Number(aiThresholdInput.value) };
-        persistAiConfig();
-    });
-
-    aiLearningRateInput.addEventListener("input", () => {
-        syncAiLabels();
-    });
-
-    aiLearningRateInput.addEventListener("change", () => {
-        aiConfig = { ...aiConfig, learningRate: Number(aiLearningRateInput.value) };
-        persistAiConfig();
-    });
-
-    if (aiResetButton) {
-        aiResetButton.addEventListener("click", () => {
-            if (!window.confirm("Reset AI learning? This won't change your blocked list.")) {
-                return;
-            }
-            chrome.storage.local.set({ aiModel: createEmptyAiModel() });
-        });
-    }
-}
-
-function syncAiLabels() {
-    if (aiThresholdValue) {
-        aiThresholdValue.textContent = aiThresholdInput.value;
-    }
-    if (aiLearningRateValue) {
-        aiLearningRateValue.textContent = aiLearningRateInput.value;
-    }
-}
-
-function persistAiConfig() {
-    chrome.storage.local.set({ aiConfig });
-}
-
 // Render one page worth of entries and update pagination controls.
 function renderPage(page) {
     const items = websiteList.querySelectorAll(".websiteItem");
@@ -225,9 +136,7 @@ function renderPage(page) {
         createWebsiteItem(
             website.name,
             website.enabled,
-            website.scope,
-            website.title,
-            website.description
+            website.scope
         );
     });
 
@@ -277,8 +186,6 @@ function addBlockedEntry(websiteName) {
             name: normalized.name,
             scope: normalized.scope,
             enabled: true,
-            title: "",
-            description: "",
         });
     }
     blockedEntries = sortBlockedEntries(blockedEntries);
@@ -307,8 +214,6 @@ function normalizeBlockedEntries(entries) {
             name: normalized.name,
             scope: normalized.scope,
             enabled: Boolean(entry?.enabled),
-            title: entry?.title || "",
-            description: entry?.description || "",
         } as BlockedEntry;
     }).filter((entry) => entry !== null) as BlockedEntry[];
 
