@@ -103,11 +103,21 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                     return;
                 }
 
-                const exists = currentBlocked.some((item) => {
+                const existingIndex = currentBlocked.findIndex((item) => {
                     const itemScope = item.scope || "domain";
                     return itemScope === normalizedEntry.scope && item.name === normalizedEntry.name;
                 });
-                if (exists) {
+                if (existingIndex >= 0) {
+                    const existingEntry = currentBlocked[existingIndex];
+                    if (!existingEntry.enabled) {
+                        const updatedBlocked = [...currentBlocked];
+                        updatedBlocked[existingIndex] = { ...existingEntry, enabled: true };
+                        chrome.storage.local.set({ blocked: updatedBlocked }, () => {
+                            chrome.tabs.reload(tabId);
+                        });
+                        return;
+                    }
+                    chrome.tabs.reload(tabId);
                     return;
                 }
 
