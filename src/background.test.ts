@@ -16,7 +16,11 @@ const mockChrome = {
     storage: {
         local: {
             get: jest.fn((keys, callback) => callback({ blocked: [] })),
-            set: jest.fn(),
+            set: jest.fn((payload, callback) => {
+                if (callback) {
+                    callback();
+                }
+            }),
         },
         onChanged: {
             addListener: jest.fn(),
@@ -29,6 +33,7 @@ const mockChrome = {
             }
         }),
         create: jest.fn(),
+        reload: jest.fn(),
         onUpdated: {
             addListener: jest.fn(),
         },
@@ -46,6 +51,7 @@ let blockPage: typeof import("./background").blockPage;
 let rebuildBlockedHostnames: typeof import("./background").rebuildBlockedHostnames;
 let resetBlockedStateForTest: typeof import("./background").resetBlockedStateForTest;
 let shouldBlockHostname: typeof import("./background").shouldBlockHostname;
+let onContextMenuClicked: (info: any, tab: any) => void;
 
 beforeAll(() => {
     (global as any).chrome = mockChrome;
@@ -55,6 +61,7 @@ beforeAll(() => {
         rebuildBlockedHostnames = background.rebuildBlockedHostnames;
         resetBlockedStateForTest = background.resetBlockedStateForTest;
         shouldBlockHostname = background.shouldBlockHostname;
+        onContextMenuClicked = mockChrome.contextMenus.onClicked.addListener.mock.calls[0][0];
     });
 });
 
@@ -96,5 +103,27 @@ describe("background blocked hostnames cache", () => {
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
             url: expect.stringContaining("warning.html?reason=url"),
         });
+    });
+
+    it("re-enables an existing disabled context-menu rule and reloads the tab", async () => {
+        mockChrome.storage.local.get.mockImplementationOnce((keys, callback) => {
+            callback({
+                blocked: [{ name: "example.com", scope: "domain", enabled: false }],
+            });
+        });
+
+        onContextMenuClicked(
+            { menuItemId: "blockPage" },
+            { id: 7, url: "https://example.com", title: "Example" }
+        );
+        await Promise.resolve();
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith(
+            {
+                blocked: [{ name: "example.com", scope: "domain", enabled: true }],
+            },
+            expect.any(Function)
+        );
+        expect(mockChrome.tabs.reload).toHaveBeenCalledWith(7);
     });
 });
