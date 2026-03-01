@@ -1,4 +1,4 @@
-import {getRandomItem} from "./getRandomItem";
+import {getRandomItem} from './getRandomItem';
 
 describe('getRandomItem', () => {
     it('returns a random item from the array', () => {

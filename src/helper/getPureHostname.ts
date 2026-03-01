@@ -1,7 +1,7 @@
 export function getPureHostname(url: string): string {
     const trimmedUrl = url.trim();
     if (!trimmedUrl) {
-        return "";
+        return '';
     }
     const normalizedUrl = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(trimmedUrl)
         ? trimmedUrl
@@ -10,6 +10,6 @@ export function getPureHostname(url: string): string {
         const urlParts = new URL(normalizedUrl);
         return urlParts.hostname.replace(/^www\./, '');
     } catch (error) {
-        return "";
+        return '';
     }
 }

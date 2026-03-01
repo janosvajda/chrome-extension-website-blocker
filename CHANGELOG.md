@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.8 - 2026-03-01
+- Add ESLint tooling and enforce apostrophes (`single` quotes) in TypeScript.
+- Normalize TypeScript quote style across the codebase and align package/changelog versioning.
+
 ## 2.0.7 - 2026-03-01
 - Move password storage keys to root `.env` configuration and load them via `dotenv` in webpack.
 - Require `PASSWORD_STORAGE_KEY` and `PASSWORD_SALT_STORAGE_KEY` to be configured (remove hardcoded fallback keys).

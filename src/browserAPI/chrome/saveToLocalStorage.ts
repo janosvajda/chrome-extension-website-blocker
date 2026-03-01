@@ -1,13 +1,13 @@
-import { normalizeBlockedEntry } from "../../helper/blockedEntry";
+import { normalizeBlockedEntry } from '../../helper/blockedEntry';
 
 // Function to save the enabled/disabled status of websites to local storage
 export function saveToLocalStorage(websiteItems: NodeListOf<Element>) {
     const blocked = Array.from(websiteItems).map((item) => {
-        const name = item.querySelector(".websiteName").textContent || "";
-        const scope = item.getAttribute("data-scope") || undefined;
-        const title = item.getAttribute("data-title") || "";
-        const description = item.getAttribute("data-description") || "";
-        const normalized = normalizeBlockedEntry(name, scope as "domain" | "url" | undefined);
+        const name = item.querySelector('.websiteName').textContent || '';
+        const scope = item.getAttribute('data-scope') || undefined;
+        const title = item.getAttribute('data-title') || '';
+        const description = item.getAttribute('data-description') || '';
+        const normalized = normalizeBlockedEntry(name, scope as 'domain' | 'url' | undefined);
         const entry: {
             name: string;
             scope: string;
@@ -15,9 +15,9 @@ export function saveToLocalStorage(websiteItems: NodeListOf<Element>) {
             title?: string;
             description?: string;
         } = {
-            name: normalized?.name || "",
-            scope: normalized?.scope || "domain",
-            enabled: (item.querySelector(".websiteCheckbox") as HTMLInputElement).checked,
+            name: normalized?.name || '',
+            scope: normalized?.scope || 'domain',
+            enabled: (item.querySelector('.websiteCheckbox') as HTMLInputElement).checked,
         };
         if (title) {
             entry.title = title;

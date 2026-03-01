@@ -1,8 +1,8 @@
-import {getPureHostname} from "./helper/getPureHostname";
-import {normalizeBlockedEntry, normalizeUrlForMatch} from "./helper/blockedEntry";
+import {getPureHostname} from './helper/getPureHostname';
+import {normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
 
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.storage.local.get(["blocked", "enabled"], (local) => {
+    chrome.storage.local.get(['blocked', 'enabled'], (local) => {
         if (!Array.isArray(local.blocked)) {
             chrome.storage.local.set({blocked: []});
         }
@@ -21,11 +21,11 @@ export function rebuildBlockedHostnames(blockedList) {
         if (!website || !website.enabled) {
             return;
         }
-        const normalized = normalizeBlockedEntry(website.name || "", website.scope);
+        const normalized = normalizeBlockedEntry(website.name || '', website.scope);
         if (!normalized) {
             return;
         }
-        if (normalized.scope === "url") {
+        if (normalized.scope === 'url') {
             blockedUrls.add(normalized.name);
             return;
         }
@@ -47,9 +47,9 @@ export function resetBlockedStateForTest(): void {
 chrome.runtime.onInstalled.addListener(function() {
     // Create context menu item
     chrome.contextMenus.create({
-        id: "blockPage",
-        title: "Block this page by Tiny Blocker",
-        contexts: ["page"]
+        id: 'blockPage',
+        title: 'Block this page by Tiny Blocker',
+        contexts: ['page']
     });
 });
 
@@ -58,7 +58,7 @@ chrome.storage.local.get({ blocked: [] }, (data) => {
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local") {
+    if (areaName !== 'local') {
         return;
     }
     if (changes.blocked) {
@@ -69,27 +69,27 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
 // Function to block the page
 export function blockPage(tabId, pageUrl) {
-    if (pageUrl.startsWith("chrome-extension://")) {
+    if (pageUrl.startsWith('chrome-extension://')) {
         return;
     }
     const hostname = getPureHostname(pageUrl);
     const normalizedUrl = normalizeUrlForMatch(pageUrl);
     if (normalizedUrl && blockedUrls.has(normalizedUrl)) {
-        blockTabWithReason(tabId, pageUrl, hostname, "url", normalizedUrl);
+        blockTabWithReason(tabId, pageUrl, hostname, 'url', normalizedUrl);
         return;
     }
     if (shouldBlockHostname(hostname)) {
-        blockTabWithReason(tabId, pageUrl, hostname, "domain", hostname);
+        blockTabWithReason(tabId, pageUrl, hostname, 'domain', hostname);
         return;
     }
 }
 
 // Add a listener for context menu item clicks
 chrome.contextMenus.onClicked.addListener(function(info, tab) {
-    if (info.menuItemId === "blockPage") {
+    if (info.menuItemId === 'blockPage') {
         const pageUrl = tab.url;
         const tabId = tab.id;
-        if (!pageUrl || pageUrl.startsWith("chrome://") || pageUrl.startsWith("chrome-extension://")) {
+        if (!pageUrl || pageUrl.startsWith('chrome://') || pageUrl.startsWith('chrome-extension://')) {
             return;
         }
         decideBlockScope(tabId, pageUrl).then((scope) => {
@@ -104,7 +104,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                 }
 
                 const existingIndex = currentBlocked.findIndex((item) => {
-                    const itemScope = item.scope || "domain";
+                    const itemScope = item.scope || 'domain';
                     return itemScope === normalizedEntry.scope && item.name === normalizedEntry.name;
                 });
                 if (existingIndex >= 0) {
@@ -139,7 +139,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const url = tab.pendingUrl || tab.url;
-    if (!url || !url.startsWith("http")) {
+    if (!url || !url.startsWith('http')) {
         return;
     }
     blockPage(tabId, url);
@@ -149,7 +149,7 @@ function blockTabWithReason(
     tabId: number,
     pageUrl: string,
     hostname: string,
-    reason: "url" | "domain",
+    reason: 'url' | 'domain',
     blockedLabel: string
 ) {
     if (blockedTabs[tabId]) {
@@ -166,18 +166,18 @@ function blockTabWithReason(
     });
 }
 
-function decideBlockScope(tabId, pageUrl): Promise<"domain" | "url" | null> {
+function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
     const isTopDomain = (() => {
         try {
             const url = new URL(pageUrl);
-            return url.pathname === "/" && !url.search && !url.hash;
+            return url.pathname === '/' && !url.search && !url.hash;
         } catch {
             return true;
         }
     })();
 
     if (isTopDomain) {
-        return Promise.resolve("domain");
+        return Promise.resolve('domain');
     }
 
     return new Promise((resolve) => {
@@ -190,90 +190,90 @@ function decideBlockScope(tabId, pageUrl): Promise<"domain" | "url" | null> {
                 target: { tabId },
                 args: [pageUrl],
                 func: (url) => {
-                    const existing = document.getElementById("tiny-blocker-choice");
+                    const existing = document.getElementById('tiny-blocker-choice');
                     if (existing) {
                         existing.remove();
                     }
                     return new Promise((resolve) => {
-                        const overlay = document.createElement("div");
-                        overlay.id = "tiny-blocker-choice";
-                        overlay.style.position = "fixed";
-                        overlay.style.inset = "0";
-                        overlay.style.background = "rgba(0, 0, 0, 0.55)";
-                        overlay.style.zIndex = "2147483647";
-                        overlay.style.display = "flex";
-                        overlay.style.alignItems = "center";
-                        overlay.style.justifyContent = "center";
+                        const overlay = document.createElement('div');
+                        overlay.id = 'tiny-blocker-choice';
+                        overlay.style.position = 'fixed';
+                        overlay.style.inset = '0';
+                        overlay.style.background = 'rgba(0, 0, 0, 0.55)';
+                        overlay.style.zIndex = '2147483647';
+                        overlay.style.display = 'flex';
+                        overlay.style.alignItems = 'center';
+                        overlay.style.justifyContent = 'center';
 
-                        const card = document.createElement("div");
-                        card.style.background = "#ffffff";
-                        card.style.color = "#1f1b16";
-                        card.style.borderRadius = "14px";
-                        card.style.padding = "18px";
-                        card.style.maxWidth = "420px";
-                        card.style.boxShadow = "0 18px 32px rgba(0, 0, 0, 0.25)";
-                        card.style.fontFamily = '"Trebuchet MS","Lucida Grande","Lucida Sans Unicode",sans-serif';
+                        const card = document.createElement('div');
+                        card.style.background = '#ffffff';
+                        card.style.color = '#1f1b16';
+                        card.style.borderRadius = '14px';
+                        card.style.padding = '18px';
+                        card.style.maxWidth = '420px';
+                        card.style.boxShadow = '0 18px 32px rgba(0, 0, 0, 0.25)';
+                        card.style.fontFamily = '\'Trebuchet MS\',\'Lucida Grande\',\'Lucida Sans Unicode\',sans-serif';
 
-                        const title = document.createElement("div");
-                        title.textContent = "Block this page";
-                        title.style.fontWeight = "bold";
-                        title.style.marginBottom = "8px";
+                        const title = document.createElement('div');
+                        title.textContent = 'Block this page';
+                        title.style.fontWeight = 'bold';
+                        title.style.marginBottom = '8px';
 
-                        const subtitle = document.createElement("div");
+                        const subtitle = document.createElement('div');
                         subtitle.textContent = `Choose how to block: ${url}`;
-                        subtitle.style.fontSize = "12px";
-                        subtitle.style.color = "#6b5f52";
-                        subtitle.style.marginBottom = "14px";
-                        subtitle.style.wordBreak = "break-word";
+                        subtitle.style.fontSize = '12px';
+                        subtitle.style.color = '#6b5f52';
+                        subtitle.style.marginBottom = '14px';
+                        subtitle.style.wordBreak = 'break-word';
 
-                        const actions = document.createElement("div");
-                        actions.style.display = "flex";
-                        actions.style.gap = "8px";
-                        actions.style.justifyContent = "flex-end";
-                        actions.style.flexWrap = "wrap";
+                        const actions = document.createElement('div');
+                        actions.style.display = 'flex';
+                        actions.style.gap = '8px';
+                        actions.style.justifyContent = 'flex-end';
+                        actions.style.flexWrap = 'wrap';
 
-                        const cancelButton = document.createElement("button");
-                        cancelButton.textContent = "Cancel";
-                        const domainButton = document.createElement("button");
-                        domainButton.textContent = "Block domain";
-                        const urlButton = document.createElement("button");
-                        urlButton.textContent = "Block URL";
+                        const cancelButton = document.createElement('button');
+                        cancelButton.textContent = 'Cancel';
+                        const domainButton = document.createElement('button');
+                        domainButton.textContent = 'Block domain';
+                        const urlButton = document.createElement('button');
+                        urlButton.textContent = 'Block URL';
 
                         [cancelButton, domainButton, urlButton].forEach((button) => {
-                            button.style.border = "none";
-                            button.style.borderRadius = "999px";
-                            button.style.padding = "8px 12px";
-                            button.style.cursor = "pointer";
-                            button.style.fontFamily = "inherit";
+                            button.style.border = 'none';
+                            button.style.borderRadius = '999px';
+                            button.style.padding = '8px 12px';
+                            button.style.cursor = 'pointer';
+                            button.style.fontFamily = 'inherit';
                         });
 
-                        cancelButton.style.background = "transparent";
-                        cancelButton.style.border = "1px solid #c45a1f";
-                        cancelButton.style.color = "#c45a1f";
+                        cancelButton.style.background = 'transparent';
+                        cancelButton.style.border = '1px solid #c45a1f';
+                        cancelButton.style.color = '#c45a1f';
 
-                        domainButton.style.background = "#e0702f";
-                        domainButton.style.color = "#ffffff";
+                        domainButton.style.background = '#e0702f';
+                        domainButton.style.color = '#ffffff';
 
-                        urlButton.style.background = "#1f1b16";
-                        urlButton.style.color = "#ffffff";
+                        urlButton.style.background = '#1f1b16';
+                        urlButton.style.color = '#ffffff';
 
                         const cleanup = (result) => {
                             overlay.remove();
                             resolve(result);
                         };
 
-                        cancelButton.addEventListener("click", () => cleanup(null));
-                        domainButton.addEventListener("click", () => cleanup("domain"));
-                        urlButton.addEventListener("click", () => cleanup("url"));
-                        overlay.addEventListener("click", (event) => {
+                        cancelButton.addEventListener('click', () => cleanup(null));
+                        domainButton.addEventListener('click', () => cleanup('domain'));
+                        urlButton.addEventListener('click', () => cleanup('url'));
+                        overlay.addEventListener('click', (event) => {
                             if (event.target === overlay) {
                                 cleanup(null);
                             }
                         });
                         window.addEventListener(
-                            "keydown",
+                            'keydown',
                             (event) => {
-                                if (event.key === "Escape") {
+                                if (event.key === 'Escape') {
                                     cleanup(null);
                                 }
                             },
@@ -297,7 +297,7 @@ function decideBlockScope(tabId, pageUrl): Promise<"domain" | "url" | null> {
                     resolve(null);
                     return;
                 }
-                resolve(results[0].result as "domain" | "url");
+                resolve(results[0].result as 'domain' | 'url');
             }
         );
     });

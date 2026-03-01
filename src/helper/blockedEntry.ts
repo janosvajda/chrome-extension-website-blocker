@@ -1,6 +1,6 @@
-import {getPureHostname} from "./getPureHostname";
+import {getPureHostname} from './getPureHostname';
 
-export type BlockScope = "domain" | "url";
+export type BlockScope = 'domain' | 'url';
 
 export type BlockedEntry = {
     name: string;
@@ -22,33 +22,33 @@ export function normalizeBlockedEntry(input: string, scope?: BlockScope): Normal
     }
 
     const resolvedScope = scope || detectBlockScope(trimmed);
-    if (resolvedScope === "url") {
+    if (resolvedScope === 'url') {
         const normalizedUrl = normalizeUrlForMatch(trimmed);
         if (!normalizedUrl) {
             return null;
         }
-        return { name: normalizedUrl, scope: "url" };
+        return { name: normalizedUrl, scope: 'url' };
     }
 
     const hostname = getPureHostname(trimmed);
     if (!hostname) {
         return null;
     }
-    return { name: hostname, scope: "domain" };
+    return { name: hostname, scope: 'domain' };
 }
 
 export function detectBlockScope(input: string): BlockScope {
     const url = toUrl(input);
     if (!url) {
-        return "domain";
+        return 'domain';
     }
-    if (url.pathname && url.pathname !== "/") {
-        return "url";
+    if (url.pathname && url.pathname !== '/') {
+        return 'url';
     }
     if (url.search || url.hash) {
-        return "url";
+        return 'url';
     }
-    return "domain";
+    return 'domain';
 }
 
 export function normalizeUrlForMatch(input: string): string | null {
@@ -56,8 +56,8 @@ export function normalizeUrlForMatch(input: string): string | null {
     if (!url) {
         return null;
     }
-    let pathname = url.pathname || "/";
-    if (pathname.length > 1 && pathname.endsWith("/")) {
+    let pathname = url.pathname || '/';
+    if (pathname.length > 1 && pathname.endsWith('/')) {
         pathname = pathname.slice(0, -1);
     }
     return `${url.origin}${pathname}${url.search}${url.hash}`;

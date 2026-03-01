@@ -1,17 +1,17 @@
-import {initPasswordProtection} from "./helper/passwordProtection";
-import {normalizeBlockedEntry} from "./helper/blockedEntry";
+import {initPasswordProtection} from './helper/passwordProtection';
+import {normalizeBlockedEntry} from './helper/blockedEntry';
 
-const websiteList = document.getElementById("websiteList");
-const addButton = document.getElementById("addButton");
-const newWebsiteInput = document.getElementById("newWebsite") as HTMLInputElement;
-const refreshButton = document.getElementById("refreshButton");
-const prevPageButton = document.getElementById("prevPageButton") as HTMLButtonElement;
-const nextPageButton = document.getElementById("nextPageButton") as HTMLButtonElement;
-const pageNumbers = document.getElementById("pageNumbers");
-const pageInfo = document.getElementById("pageInfo");
+const websiteList = document.getElementById('websiteList');
+const addButton = document.getElementById('addButton');
+const newWebsiteInput = document.getElementById('newWebsite') as HTMLInputElement;
+const refreshButton = document.getElementById('refreshButton');
+const prevPageButton = document.getElementById('prevPageButton') as HTMLButtonElement;
+const nextPageButton = document.getElementById('nextPageButton') as HTMLButtonElement;
+const pageNumbers = document.getElementById('pageNumbers');
+const pageInfo = document.getElementById('pageInfo');
 type BlockedEntry = {
     name: string;
-    scope: "domain" | "url";
+    scope: 'domain' | 'url';
     enabled: boolean;
 };
 
@@ -26,29 +26,29 @@ function createWebsiteItem(website, enabled, scope) {
     if (!normalizedWebsite) {
         return null;
     }
-    const websiteItem = document.createElement("div");
-    websiteItem.className = "websiteItem";
-    websiteItem.setAttribute("data-scope", normalizedWebsite.scope);
+    const websiteItem = document.createElement('div');
+    websiteItem.className = 'websiteItem';
+    websiteItem.setAttribute('data-scope', normalizedWebsite.scope);
 
-    const websiteDetails = document.createElement("div");
-    websiteDetails.className = "websiteDetails";
+    const websiteDetails = document.createElement('div');
+    websiteDetails.className = 'websiteDetails';
 
-    const websiteName = document.createElement("div");
-    websiteName.className = "websiteName";
+    const websiteName = document.createElement('div');
+    websiteName.className = 'websiteName';
     websiteName.textContent = normalizedWebsite.name;
     websiteDetails.appendChild(websiteName);
 
-    const websiteScope = document.createElement("span");
-    websiteScope.className = "websiteScope";
-    websiteScope.textContent = normalizedWebsite.scope === "url" ? "URL" : "Domain";
+    const websiteScope = document.createElement('span');
+    websiteScope.className = 'websiteScope';
+    websiteScope.textContent = normalizedWebsite.scope === 'url' ? 'URL' : 'Domain';
 
-    const websiteCheckbox = document.createElement("input");
-    websiteCheckbox.type = "checkbox";
-    websiteCheckbox.className = "websiteCheckbox";
+    const websiteCheckbox = document.createElement('input');
+    websiteCheckbox.type = 'checkbox';
+    websiteCheckbox.className = 'websiteCheckbox';
     websiteCheckbox.checked = enabled;
 
     // Add an event listener to the checkbox to update local storage when checked or unchecked
-    websiteCheckbox.addEventListener("change", () => {
+    websiteCheckbox.addEventListener('change', () => {
         const index = blockedEntries.findIndex((entry) =>
             entry.name === normalizedWebsite.name && entry.scope === normalizedWebsite.scope
         );
@@ -58,9 +58,9 @@ function createWebsiteItem(website, enabled, scope) {
         }
     });
 
-    const deleteButton = document.createElement("button");
-    deleteButton.textContent = "Delete";
-    deleteButton.addEventListener("click", () => {
+    const deleteButton = document.createElement('button');
+    deleteButton.textContent = 'Delete';
+    deleteButton.addEventListener('click', () => {
         blockedEntries = blockedEntries.filter((entry) =>
             !(entry.name === normalizedWebsite.name && entry.scope === normalizedWebsite.scope)
         );
@@ -91,40 +91,40 @@ function refreshWebsiteList() {
 }
 
 // Add by keyboard for quick entry.
-newWebsiteInput.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
+newWebsiteInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') {
         const websiteName = newWebsiteInput.value.toString().trim();
         if (websiteName) {
             addBlockedEntry(websiteName);
-            newWebsiteInput.value = "";
+            newWebsiteInput.value = '';
         }
     }
 });
 
 // Initialize protected UI and blocked list after load.
-window.addEventListener("DOMContentLoaded", async () => {
+window.addEventListener('DOMContentLoaded', async () => {
     await initPasswordProtection();
     loadAndPopulateWebsiteList();
 });
 
 // Add by button click.
-addButton.addEventListener("click", () => {
+addButton.addEventListener('click', () => {
     const websiteName = newWebsiteInput.value.toString().trim();
     if (websiteName) {
         addBlockedEntry(websiteName);
-        newWebsiteInput.value = "";
+        newWebsiteInput.value = '';
     }
 });
 
 if (refreshButton) {
-    refreshButton.addEventListener("click", () => {
+    refreshButton.addEventListener('click', () => {
         refreshWebsiteList();
     });
 }
 
 // Render one page worth of entries and update pagination controls.
 function renderPage(page) {
-    const items = websiteList.querySelectorAll(".websiteItem");
+    const items = websiteList.querySelectorAll('.websiteItem');
     items.forEach((item) => item.remove());
 
     const totalPages = Math.max(1, Math.ceil(blockedEntries.length / pageSize));
@@ -154,14 +154,14 @@ function renderPagination(totalPages) {
         nextPageButton.onclick = () => renderPage(currentPage + 1);
     }
     if (pageNumbers) {
-        pageNumbers.innerHTML = "";
+        pageNumbers.innerHTML = '';
         for (let i = 1; i <= totalPages; i += 1) {
-            const button = document.createElement("button");
+            const button = document.createElement('button');
             button.textContent = i.toString();
             if (i === currentPage) {
-                button.classList.add("active");
+                button.classList.add('active');
             }
-            button.addEventListener("click", () => renderPage(i));
+            button.addEventListener('click', () => renderPage(i));
             pageNumbers.appendChild(button);
         }
     }
@@ -172,7 +172,7 @@ function renderPagination(totalPages) {
 
 // Insert or enable an entry, then persist and jump to page 1.
 function addBlockedEntry(websiteName) {
-    const normalized = normalizeBlockedEntry(websiteName, "domain");
+    const normalized = normalizeBlockedEntry(websiteName, 'domain');
     if (!normalized) {
         return;
     }
@@ -200,13 +200,13 @@ function persistBlockedEntries() {
 
 function sortBlockedEntries(entries: BlockedEntry[]) {
     return [...entries].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+        a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
     );
 }
 
 function normalizeBlockedEntries(entries) {
     const normalizedEntries = (entries || []).map((entry) => {
-        const normalized = normalizeBlockedEntry(entry?.name || "", entry?.scope);
+        const normalized = normalizeBlockedEntry(entry?.name || '', entry?.scope);
         if (!normalized) {
             return null;
         }
