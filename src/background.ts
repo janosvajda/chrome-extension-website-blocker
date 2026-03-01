@@ -142,7 +142,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     if (!url || !url.startsWith("http")) {
         return;
     }
-    console.info('Opened URL', url);
     blockPage(tabId, url);
 });
 
