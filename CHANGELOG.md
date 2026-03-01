@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.7 - 2026-03-01
+- Move password storage keys to root `.env` configuration and load them via `dotenv` in webpack.
+- Require `PASSWORD_STORAGE_KEY` and `PASSWORD_SALT_STORAGE_KEY` to be configured (remove hardcoded fallback keys).
+- Replace direct SHA-256 password hashing with salted PBKDF2 hashing and keep backward-compatible migration.
+- Remove URL logging from background tab updates to avoid leaking browsing data in extension logs.
+
 ## 2.0.6 - 2026-02-22
 - Remove experimental AI blocker logic and all related runtime behavior.
 - Remove AI controls from options and remove AI actions from the warning page.

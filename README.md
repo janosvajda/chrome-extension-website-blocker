@@ -19,17 +19,6 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 - **Password Protection**: Lock the options page with a password so opening its options page in Chrome requires unlocking.
 
-## Licence and security
-
-- **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
-
-- **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions.
-
-- **Data**: It does not call any external API. It does not use a network. The blocked websites' list and your password is stored in your browser's local storage, so if you remove the extension, You will lose the list, and all data you saved. But this also means, your data is just your's. No external storage, cloud etc.
-
-- **Created for Personal Use**: I created this extension for myself because I found only non-free or overcomplicated extensions with this function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
-
-
 ## Installation Guide
 
 To install the Tiny Website Blocker Chrome Extension, follow these simple steps:
@@ -39,25 +28,40 @@ To install the Tiny Website Blocker Chrome Extension, follow these simple steps:
 2. **Install Dependencies**:
     - Run `npm install` in the project root to install dependencies.
 
-3. **Build the Extension**:
+3. **Create Environment File**:
+    - Copy `.env.example` to `.env`.
+    - Set `PASSWORD_STORAGE_KEY` and `PASSWORD_SALT_STORAGE_KEY` in `.env` (required).
+    - Build config loads this root `.env` via `dotenv` during webpack build.
+
+4. **Build the Extension**:
     - Run `npm run build` to generate the `built` directory.
 
-4. **Enable Developer Mode in Chrome**:
+5. **Enable Developer Mode in Chrome**:
     - Open Google Chrome.
     - Click the three dots menu icon in the top right corner of the browser.
     - Navigate to `More tools` > `Extensions`.
     - Enable the `Developer mode` toggle in the top right corner of the Extensions page.
 
-5. **Load the Extension**:
+6. **Load the Extension**:
     - Click the `Load unpacked` button after enabling Developer mode.
     - Select the `built` folder and click `Select Folder`.
 
-6. **Configure the Extension**:
+7. **Configure the Extension**:
     - A new icon (like the one shown above) will appear in your Chrome toolbar after loading the extension.
     - Right-click the extension icon and select `Options`.
     - Add the websites you want to block in the options page and save your settings.
 
-7. **Start Blocking Websites**: The extension is now ready. You'll be redirected to an error page whenever you visit a blocked website, and the tab will be closed.
+8. **Start Blocking Websites**: The extension is now ready. You'll be redirected to an error page whenever you visit a blocked website, and the tab will be closed.
+
+## Licence and security
+
+- **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
+
+- **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions.
+
+- **Data**: It does not call any external API. It does not use a network. The blocked websites' list and your password is stored in your browser's local storage, so if you remove the extension, You will lose the list, and all data you saved. But this also means, your data is just your's. No external storage, cloud etc.
+
+- **Created for Personal Use**: I created this extension for myself because I found only non-free or overcomplicated extensions with this function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
 
 ## Feedback and Support
 
