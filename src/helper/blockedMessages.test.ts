@@ -38,7 +38,7 @@ describe('blockedMessages', () => {
     it('should have correct structure', () => {
         blockedMessages.forEach((message, index) => {
             if (index === 0) {
-                expect(message.message).toEqual("Oops! The site you wanted to open is blocked.");
+                expect(message.message).toEqual('Oops! The site you wanted to open is blocked.');
             } else if (index === 1) {
                 expect(message.message).toMatch(/Sorry, access to the requested site is restricted, but I have a quote for you:/);
             } else if (index === 2) {

@@ -4,12 +4,12 @@ function createElementMock(initialHidden = false) {
     const listeners: Record<string, Listener[]> = {};
     const attributes: Record<string, string> = {};
     if (initialHidden) {
-        attributes.hidden = "true";
+        attributes.hidden = 'true';
     }
 
     return {
-        textContent: "",
-        value: "",
+        textContent: '',
+        value: '',
         addEventListener: jest.fn((eventName: string, callback: Listener) => {
             if (!listeners[eventName]) {
                 listeners[eventName] = [];
@@ -23,7 +23,7 @@ function createElementMock(initialHidden = false) {
             }
         },
         click() {
-            return this.dispatch("click");
+            return this.dispatch('click');
         },
         setAttribute(name: string, value: string) {
             attributes[name] = value;
@@ -34,7 +34,7 @@ function createElementMock(initialHidden = false) {
         toggleAttribute(name: string, force?: boolean) {
             const shouldHaveAttribute = force === undefined ? !attributes[name] : force;
             if (shouldHaveAttribute) {
-                attributes[name] = "true";
+                attributes[name] = 'true';
             } else {
                 delete attributes[name];
             }
@@ -85,11 +85,11 @@ function createChromeStorageMock(initialState: Record<string, any>) {
             callback(result);
             return;
         }
-        if (typeof keys === "string") {
+        if (typeof keys === 'string') {
             callback({ [keys]: state[keys] });
             return;
         }
-        const defaults = keys && typeof keys === "object" ? keys : {};
+        const defaults = keys && typeof keys === 'object' ? keys : {};
         const result = { ...defaults };
         Object.keys(defaults).forEach((key) => {
             if (Object.prototype.hasOwnProperty.call(state, key)) {
@@ -129,13 +129,13 @@ function createChromeStorageMock(initialState: Record<string, any>) {
 }
 
 async function sha256Hex(value: string): Promise<string> {
-    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
     return Array.from(new Uint8Array(digest))
-        .map((byte) => byte.toString(16).padStart(2, "0"))
-        .join("");
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
 }
 
-describe("passwordProtection", () => {
+describe('passwordProtection', () => {
     afterEach(() => {
         delete (global as any).__TINY_BLOCKER_PASSWORD_STORAGE_KEY__;
         delete (global as any).__TINY_BLOCKER_PASSWORD_SALT_STORAGE_KEY__;
@@ -145,8 +145,8 @@ describe("passwordProtection", () => {
         jest.clearAllMocks();
     });
 
-    it("migrates legacy SHA-256 password hash to salted PBKDF2 after successful unlock", async () => {
-        const legacyHash = await sha256Hex("secret123");
+    it('migrates legacy SHA-256 password hash to salted PBKDF2 after successful unlock', async () => {
+        const legacyHash = await sha256Hex('secret123');
         const { chromeMock } = createChromeStorageMock({
             optionsPassword: legacyHash,
         });
@@ -154,16 +154,16 @@ describe("passwordProtection", () => {
 
         (global as any).chrome = chromeMock;
         (global as any).document = documentMock;
-        (global as any).__TINY_BLOCKER_PASSWORD_STORAGE_KEY__ = "optionsPassword";
-        (global as any).__TINY_BLOCKER_PASSWORD_SALT_STORAGE_KEY__ = "optionsPasswordSalt";
+        (global as any).__TINY_BLOCKER_PASSWORD_STORAGE_KEY__ = 'optionsPassword';
+        (global as any).__TINY_BLOCKER_PASSWORD_SALT_STORAGE_KEY__ = 'optionsPasswordSalt';
 
         let initPasswordProtection: () => Promise<void>;
         jest.isolateModules(() => {
-            ({ initPasswordProtection } = require("./passwordProtection"));
+            ({ initPasswordProtection } = require('./passwordProtection'));
         });
 
         await initPasswordProtection();
-        elements.passwordInput.value = "secret123";
+        elements.passwordInput.value = 'secret123';
         await elements.unlockButton.click();
 
         expect(chromeMock.storage.local.set).toHaveBeenCalledWith(
@@ -177,7 +177,7 @@ describe("passwordProtection", () => {
         expect(migratedPayload.optionsPasswordSalt).toBeTruthy();
     });
 
-    it("throws when password storage key config is missing", () => {
+    it('throws when password storage key config is missing', () => {
         const { chromeMock } = createChromeStorageMock({});
         const { documentMock } = createDocumentAndElements();
 
@@ -188,8 +188,8 @@ describe("passwordProtection", () => {
 
         expect(() => {
             jest.isolateModules(() => {
-                require("./passwordProtection");
+                require('./passwordProtection');
             });
-        }).toThrow("Missing password storage keys configuration.");
+        }).toThrow('Missing password storage keys configuration.');
     });
 });

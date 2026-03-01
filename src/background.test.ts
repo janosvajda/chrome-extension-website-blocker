@@ -41,22 +41,22 @@ const mockChrome = {
     scripting: {
         executeScript: jest.fn((options, callback) => {
             if (callback) {
-                callback([{ result: { title: "", description: "" } }]);
+                callback([{ result: { title: '', description: '' } }]);
             }
         }),
     },
 };
 
-let blockPage: typeof import("./background").blockPage;
-let rebuildBlockedHostnames: typeof import("./background").rebuildBlockedHostnames;
-let resetBlockedStateForTest: typeof import("./background").resetBlockedStateForTest;
-let shouldBlockHostname: typeof import("./background").shouldBlockHostname;
+let blockPage: typeof import('./background').blockPage;
+let rebuildBlockedHostnames: typeof import('./background').rebuildBlockedHostnames;
+let resetBlockedStateForTest: typeof import('./background').resetBlockedStateForTest;
+let shouldBlockHostname: typeof import('./background').shouldBlockHostname;
 let onContextMenuClicked: (info: any, tab: any) => void;
 
 beforeAll(() => {
     (global as any).chrome = mockChrome;
     jest.isolateModules(() => {
-        const background = require("./background");
+        const background = require('./background');
         blockPage = background.blockPage;
         rebuildBlockedHostnames = background.rebuildBlockedHostnames;
         resetBlockedStateForTest = background.resetBlockedStateForTest;
@@ -70,57 +70,57 @@ beforeEach(() => {
     jest.clearAllMocks();
 });
 
-describe("background blocked hostnames cache", () => {
-    it("tracks only enabled hostnames and normalizes them", () => {
+describe('background blocked hostnames cache', () => {
+    it('tracks only enabled hostnames and normalizes them', () => {
         rebuildBlockedHostnames([
-            { name: "https://www.example.com", enabled: true },
-            { name: "disabled.com", enabled: false },
+            { name: 'https://www.example.com', enabled: true },
+            { name: 'disabled.com', enabled: false },
         ]);
 
-        expect(shouldBlockHostname("example.com")).toBe(true);
-        expect(shouldBlockHostname("disabled.com")).toBe(false);
+        expect(shouldBlockHostname('example.com')).toBe(true);
+        expect(shouldBlockHostname('disabled.com')).toBe(false);
     });
 
-    it("blocks a tab when hostname is cached as blocked", () => {
-        rebuildBlockedHostnames([{ name: "example.com", enabled: true }]);
+    it('blocks a tab when hostname is cached as blocked', () => {
+        rebuildBlockedHostnames([{ name: 'example.com', enabled: true }]);
 
-        blockPage(1, "https://example.com/path");
+        blockPage(1, 'https://example.com/path');
 
         expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
-            url: expect.stringContaining("warning.html?reason=domain"),
+            url: expect.stringContaining('warning.html?reason=domain'),
         });
     });
 
-    it("blocks a tab when a specific URL is cached as blocked", () => {
+    it('blocks a tab when a specific URL is cached as blocked', () => {
         rebuildBlockedHostnames([
-            { name: "https://www.youtube.com/watch?v=123", scope: "url", enabled: true },
+            { name: 'https://www.youtube.com/watch?v=123', scope: 'url', enabled: true },
         ]);
 
-        blockPage(1, "https://www.youtube.com/watch?v=123");
+        blockPage(1, 'https://www.youtube.com/watch?v=123');
 
         expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
-            url: expect.stringContaining("warning.html?reason=url"),
+            url: expect.stringContaining('warning.html?reason=url'),
         });
     });
 
-    it("re-enables an existing disabled context-menu rule and reloads the tab", async () => {
+    it('re-enables an existing disabled context-menu rule and reloads the tab', async () => {
         mockChrome.storage.local.get.mockImplementationOnce((keys, callback) => {
             callback({
-                blocked: [{ name: "example.com", scope: "domain", enabled: false }],
+                blocked: [{ name: 'example.com', scope: 'domain', enabled: false }],
             });
         });
 
         onContextMenuClicked(
-            { menuItemId: "blockPage" },
-            { id: 7, url: "https://example.com", title: "Example" }
+            { menuItemId: 'blockPage' },
+            { id: 7, url: 'https://example.com', title: 'Example' }
         );
         await Promise.resolve();
 
         expect(mockChrome.storage.local.set).toHaveBeenCalledWith(
             {
-                blocked: [{ name: "example.com", scope: "domain", enabled: true }],
+                blocked: [{ name: 'example.com', scope: 'domain', enabled: true }],
             },
             expect.any(Function)
         );
