@@ -235,6 +235,7 @@ button:hover {
 #addWebsite {
     margin: 18px auto 0;
     display: flex;
+    flex-wrap: wrap;
     gap: 10px;
     align-items: center;
     background: var(--card);
@@ -282,6 +283,18 @@ button:hover {
 #newWebsite:focus {
     outline: 2px solid rgba(224, 112, 47, 0.35);
     border-color: var(--accent);
+}
+
+#newWebsite[aria-invalid="true"] {
+    border-color: #a33226;
+}
+
+#addWebsiteStatus {
+    flex-basis: 100%;
+}
+
+#addWebsiteStatus.error {
+    color: #a33226;
 }
 
 .formHint {

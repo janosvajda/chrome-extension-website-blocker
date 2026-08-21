@@ -53,6 +53,7 @@ let resetBlockedStateForTest: typeof import('./background').resetBlockedStateFor
 let shouldBlockHostname: typeof import('./background').shouldBlockHostname;
 let onContextMenuClicked: (info: any, tab: any) => void;
 let onStorageChanged: (changes: any, areaName: string) => void;
+let createContextMenu: () => void;
 
 beforeAll(() => {
     (global as any).chrome = mockChrome;
@@ -64,6 +65,7 @@ beforeAll(() => {
         shouldBlockHostname = background.shouldBlockHostname;
         onContextMenuClicked = mockChrome.contextMenus.onClicked.addListener.mock.calls[0][0];
         onStorageChanged = mockChrome.storage.onChanged.addListener.mock.calls[0][0];
+        createContextMenu = mockChrome.runtime.onInstalled.addListener.mock.calls[1][0];
     });
 });
 
@@ -73,6 +75,17 @@ beforeEach(() => {
 });
 
 describe('background blocked hostnames cache', () => {
+    it('shows the block-page context menu only on HTTP and HTTPS pages', () => {
+        createContextMenu();
+
+        expect(mockChrome.contextMenus.create).toHaveBeenCalledWith({
+            id: 'blockPage',
+            title: 'Block this page by Tiny Blocker',
+            contexts: ['page'],
+            documentUrlPatterns: ['http://*/*', 'https://*/*'],
+        });
+    });
+
     it('tracks only enabled hostnames and normalizes them', () => {
         rebuildBlockedHostnames([
             { name: 'https://www.example.com', enabled: true },

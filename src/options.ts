@@ -4,6 +4,7 @@ import {parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState'
 const websiteList = document.getElementById('websiteList');
 const addButton = document.getElementById('addButton');
 const newWebsiteInput = document.getElementById('newWebsite') as HTMLInputElement;
+const addWebsiteStatus = document.getElementById('addWebsiteStatus');
 const refreshButton = document.getElementById('refreshButton');
 const prevPageButton = document.getElementById('prevPageButton') as HTMLButtonElement;
 const nextPageButton = document.getElementById('nextPageButton') as HTMLButtonElement;
@@ -97,11 +98,7 @@ function refreshWebsiteList() {
 // Add by keyboard for quick entry.
 newWebsiteInput.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {
-        const websiteName = newWebsiteInput.value.toString().trim();
-        if (websiteName) {
-            addBlockedEntry(websiteName);
-            newWebsiteInput.value = '';
-        }
+        submitBlockedEntry();
     }
 });
 
@@ -112,12 +109,26 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // Add by button click.
 addButton.addEventListener('click', () => {
-    const websiteName = newWebsiteInput.value.toString().trim();
-    if (websiteName) {
-        addBlockedEntry(websiteName);
-        newWebsiteInput.value = '';
-    }
+    submitBlockedEntry();
 });
+
+function submitBlockedEntry() {
+    const websiteName = newWebsiteInput.value.toString().trim();
+    if (!websiteName || !addBlockedEntry(websiteName)) {
+        showAddWebsiteStatus('Enter a valid website, such as example.com or https://example.co.uk.', true);
+        return;
+    }
+    newWebsiteInput.value = '';
+    showAddWebsiteStatus('Website added.');
+}
+
+function showAddWebsiteStatus(message: string, isError = false) {
+    newWebsiteInput.setAttribute('aria-invalid', String(isError));
+    if (addWebsiteStatus) {
+        addWebsiteStatus.textContent = message;
+        addWebsiteStatus.classList.toggle('error', isError);
+    }
+}
 
 if (refreshButton) {
     refreshButton.addEventListener('click', () => {
@@ -238,7 +249,7 @@ function renderPagination(totalPages) {
 function addBlockedEntry(websiteName) {
     const normalized = normalizeBlockedEntry(websiteName, 'domain');
     if (!normalized) {
-        return;
+        return false;
     }
     const existingIndex = blockedEntries.findIndex((entry) =>
         entry.name === normalized.name && entry.scope === normalized.scope
@@ -255,6 +266,7 @@ function addBlockedEntry(websiteName) {
     blockedEntries = sortBlockedEntries(blockedEntries);
     persistBlockedEntries();
     renderPage(1);
+    return true;
 }
 
 // Persist the current in-memory list for background logic.
