@@ -3,7 +3,7 @@
 ## 2.1.0 - 2026-08-21
 - Add a Chrome toolbar popup with a global blocking on/off switch, active-rule count, and a shortcut to the options page.
 - Add local daily and lifetime blocking statistics with automatic daily rollover and no external tracking.
-- Add validated JSON configuration export and import for blocked rules and the global blocking setting; keep passwords and statistics out of backup files.
+- Add validated JSON configuration export and import for blocked rules and the global blocking setting; keep statistics out of backup files.
 - Add popup pinning and feature guidance to the README.
 - Upgrade direct and transitive dependencies, pin direct versions for reproducible installs, and resolve all vulnerabilities reported by `npm audit` at release time.
 - Upgrade to TypeScript 7 and add an explicit `tsc --noEmit` check before production builds.
@@ -11,6 +11,12 @@
 - Update Chrome storage and Web Crypto handling for the stricter current type definitions.
 - Remove the redundant `copy-files` npm script because Webpack already copies extension UI assets.
 - Expand automated coverage for the global blocking switch, statistics rollover and increments, and configuration import validation.
+- Add a real Chromium end-to-end suite covering options management, pagination, JSON export/import, popup state, the global switch, domain and URL blocking, warning pages, statistics, and paused blocking.
+- Add a fast integration workflow test for storage propagation and the context-menu rule workflow, which cannot be reliably driven through native browser UI automation.
+- Remove unnecessary persistent access to all HTTP and HTTPS hosts; retain only the minimum API permissions required for automatic blocking and user-invoked context-menu injection.
+- Add a Chrome Web Store privacy policy covering local browsing-data processing, storage, retention, permission use, and Limited Use commitments.
+- Add verified `package:store` and `publish` commands that create a versioned production ZIP with the manifest at the archive root.
+- Remove password protection because a standalone extension cannot provide a tamper-resistant security boundary against someone who controls the Chrome profile; remove all related runtime code, storage, UI, tests, and build-time configuration.
 
 ## 2.0.8 - 2026-03-01
 - Add ESLint tooling and enforce apostrophes (`single` quotes) in TypeScript.

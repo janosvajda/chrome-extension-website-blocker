@@ -6,10 +6,6 @@
   "options_page": "options.html",
   "action": { "default_popup": "popup.html" },
   "permissions": ["storage", "tabs", "activeTab", "contextMenus", "scripting"],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
   "background": { "service_worker": "background.js", "type": "module" },
   "icons": {
     "16": "icons/website_blocker_icon_16x16.png",

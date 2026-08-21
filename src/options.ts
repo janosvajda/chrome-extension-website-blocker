@@ -1,4 +1,3 @@
-import {initPasswordProtection} from './helper/passwordProtection';
 import {normalizeBlockedEntry} from './helper/blockedEntry';
 import {parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
 
@@ -107,8 +106,7 @@ newWebsiteInput.addEventListener('keydown', (event) => {
 });
 
 // Initialize protected UI and blocked list after load.
-window.addEventListener('DOMContentLoaded', async () => {
-    await initPasswordProtection();
+window.addEventListener('DOMContentLoaded', () => {
     loadAndPopulateWebsiteList();
 });
 
@@ -154,7 +152,7 @@ importFileInput?.addEventListener('change', async () => {
     }
     try {
         const configuration = parseImportedConfiguration(JSON.parse(await file.text()));
-        await chrome.storage.local.set({
+        await setLocalStorage({
             [STORAGE_KEYS.blocked]: configuration.blocked,
             [STORAGE_KEYS.enabled]: configuration.enabled,
         });
@@ -174,6 +172,18 @@ function showTransferStatus(message: string, isError = false) {
         transferStatus.textContent = message;
         transferStatus.classList.toggle('error', isError);
     }
+}
+
+function setLocalStorage(values: Record<string, unknown>): Promise<void> {
+    return new Promise((resolve, reject) => {
+        chrome.storage.local.set(values, () => {
+            if (chrome.runtime.lastError) {
+                reject(new Error(chrome.runtime.lastError.message));
+                return;
+            }
+            resolve();
+        });
+    });
 }
 
 // Render one page worth of entries and update pagination controls.
