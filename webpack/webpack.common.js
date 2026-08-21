@@ -21,6 +21,7 @@ module.exports = {
         options: path.join(srcDir, 'options.ts'),
         background: path.join(srcDir, 'background.ts'),
         content: path.join(srcDir, 'content.ts'),
+        popup: path.join(srcDir, 'popup.ts'),
     },
     output: {
         path: path.join(__dirname, "../built"),
@@ -38,7 +39,15 @@ module.exports = {
         rules: [
             {
                 test: /\.ts?$/,
-                use: "ts-loader",
+                use: {
+                    loader: "swc-loader",
+                    options: {
+                        jsc: {
+                            parser: { syntax: "typescript" },
+                            target: "es2022",
+                        },
+                    },
+                },
                 exclude: /node_modules/,
             },
         ],

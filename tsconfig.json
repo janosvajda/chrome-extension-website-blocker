@@ -10,7 +10,7 @@
     "outDir": "./built",
     "allowJs": true,
     "target": "ESNext",
-    "typeRoots": [ "node_modules/@types" ]
+    "types": ["chrome", "jest", "node"]
   },
   "include": ["./src/**/*"]
 }

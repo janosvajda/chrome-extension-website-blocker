@@ -1,5 +1,6 @@
 import {initPasswordProtection} from './helper/passwordProtection';
 import {normalizeBlockedEntry} from './helper/blockedEntry';
+import {parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
 
 const websiteList = document.getElementById('websiteList');
 const addButton = document.getElementById('addButton');
@@ -9,6 +10,10 @@ const prevPageButton = document.getElementById('prevPageButton') as HTMLButtonEl
 const nextPageButton = document.getElementById('nextPageButton') as HTMLButtonElement;
 const pageNumbers = document.getElementById('pageNumbers');
 const pageInfo = document.getElementById('pageInfo');
+const exportButton = document.getElementById('exportButton');
+const importButton = document.getElementById('importButton');
+const importFileInput = document.getElementById('importFile') as HTMLInputElement;
+const transferStatus = document.getElementById('transferStatus');
 type BlockedEntry = {
     name: string;
     scope: 'domain' | 'url';
@@ -120,6 +125,55 @@ if (refreshButton) {
     refreshButton.addEventListener('click', () => {
         refreshWebsiteList();
     });
+}
+
+exportButton?.addEventListener('click', () => {
+    chrome.storage.local.get({ blocked: [], enabled: true }, (data) => {
+        const configuration = {
+            version: 1,
+            enabled: data.enabled !== false,
+            blocked: normalizeBlockedEntries(Array.isArray(data.blocked) ? data.blocked : []),
+        };
+        const blob = new Blob([JSON.stringify(configuration, null, 2)], { type: 'application/json' });
+        const downloadUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = `tiny-blocker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+        link.click();
+        URL.revokeObjectURL(downloadUrl);
+        showTransferStatus('Configuration exported.');
+    });
+});
+
+importButton?.addEventListener('click', () => importFileInput?.click());
+
+importFileInput?.addEventListener('change', async () => {
+    const file = importFileInput.files?.[0];
+    if (!file) {
+        return;
+    }
+    try {
+        const configuration = parseImportedConfiguration(JSON.parse(await file.text()));
+        await chrome.storage.local.set({
+            [STORAGE_KEYS.blocked]: configuration.blocked,
+            [STORAGE_KEYS.enabled]: configuration.enabled,
+        });
+        blockedEntries = normalizeBlockedEntries(configuration.blocked);
+        renderPage(1);
+        showTransferStatus(`Imported ${blockedEntries.length} rules.`);
+    } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to import this file.';
+        showTransferStatus(message, true);
+    } finally {
+        importFileInput.value = '';
+    }
+});
+
+function showTransferStatus(message: string, isError = false) {
+    if (transferStatus) {
+        transferStatus.textContent = message;
+        transferStatus.classList.toggle('error', isError);
+    }
 }
 
 // Render one page worth of entries and update pagination controls.

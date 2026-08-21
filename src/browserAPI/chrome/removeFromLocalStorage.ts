@@ -7,7 +7,7 @@ export function removeFromLocalStorage(websiteToRemove: string, scope?: 'domain'
         return;
     }
     chrome.storage.local.get({ blocked: [] }, (data) => {
-        const blockedWebsites = data.blocked;
+        const blockedWebsites = Array.isArray(data.blocked) ? data.blocked : [];
 
         // Filter out the website to remove
         const updatedBlockedWebsites = blockedWebsites.filter((website) => {

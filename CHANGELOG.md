@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1.0 - 2026-08-21
+- Add a Chrome toolbar popup with a global blocking on/off switch, active-rule count, and a shortcut to the options page.
+- Add local daily and lifetime blocking statistics with automatic daily rollover and no external tracking.
+- Add validated JSON configuration export and import for blocked rules and the global blocking setting; keep passwords and statistics out of backup files.
+- Add popup pinning and feature guidance to the README.
+- Upgrade direct and transitive dependencies, pin direct versions for reproducible installs, and resolve all vulnerabilities reported by `npm audit` at release time.
+- Upgrade to TypeScript 7 and add an explicit `tsc --noEmit` check before production builds.
+- Remove Babel, `ts-jest`, `ts-loader`, ESLint, and TypeScript ESLint; use SWC for Jest and Webpack transforms and Oxlint for TypeScript linting.
+- Update Chrome storage and Web Crypto handling for the stricter current type definitions.
+- Remove the redundant `copy-files` npm script because Webpack already copies extension UI assets.
+- Expand automated coverage for the global blocking switch, statistics rollover and increments, and configuration import validation.
+
 ## 2.0.8 - 2026-03-01
 - Add ESLint tooling and enforce apostrophes (`single` quotes) in TypeScript.
 - Normalize TypeScript quote style across the codebase and align package/changelog versioning.

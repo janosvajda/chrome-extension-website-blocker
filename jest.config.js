@@ -15,11 +15,14 @@ module.exports = {
     roots: ['<rootDir>/src'],
     testEnvironment: 'node',
     testRegex: '(test|spec)\\.ts?$',
-    preset: 'ts-jest',
     transform: {
-        '^.+\\.(ts|tsx)?$': 'ts-jest',
-        '^.+\\.(js|jsx)$': 'babel-jest',
+        '^.+\\.(ts|tsx)$': ['@swc/jest', {
+            jsc: {
+                parser: { syntax: 'typescript' },
+                target: 'es2022',
+            },
+            module: { type: 'commonjs' },
+        }],
     },
     verbose: true,
 };
-

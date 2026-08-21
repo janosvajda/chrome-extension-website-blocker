@@ -9,6 +9,12 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 - **Simple Management UI**: A clean options page makes it easy to add, remove, and toggle blocked sites.
 
+- **Toolbar Controls**: Open the extension from Chrome's toolbar to turn all blocking on or off, view the number of active rules, and jump to the options page. **To keep it visible, click Chrome's puzzle-piece Extensions icon, find Tiny Website Blocker, and click the pin icon. Then click the Tiny Website Blocker toolbar icon to open the popup.**
+
+- **Local Blocking Statistics**: See how many blocking attempts Tiny Website Blocker stopped today and across all time. Statistics remain in local browser storage and are not sent anywhere.
+
+- **Import and Export**: Back up blocked-site rules and the global blocking setting to a JSON file, then restore them later or move them to another Chrome installation. Passwords and statistics are never included in exports.
+
 - **Domain or URL Scopes**: When blocking from the context menu, choose whether to block the whole domain or only the exact URL.
 
 - **Context Menu Quick Block**: Right-click any page and choose “Block this page by Tiny Blocker” to add it instantly.

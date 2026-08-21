@@ -47,6 +47,18 @@
         <input type="text" id="newWebsite" placeholder="Enter a website (example.com)">
         <button id="addButton">Add site</button>
     </div>
+    <section class="transferCard" aria-labelledby="transferTitle">
+        <div>
+            <h2 id="transferTitle" class="sectionTitle">Backup and restore</h2>
+            <p class="subtitle">Export or import rules and the global blocking setting. Passwords and statistics stay private.</p>
+        </div>
+        <div class="transferActions">
+            <button id="exportButton" type="button" class="ghostButton">Export JSON</button>
+            <button id="importButton" type="button">Import JSON</button>
+            <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <p id="transferStatus" class="formHint" aria-live="polite"></p>
+    </section>
 </main>
 <div id="passwordModal" class="modal" hidden>
     <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">

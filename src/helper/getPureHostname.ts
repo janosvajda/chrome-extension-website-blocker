@@ -9,7 +9,7 @@ export function getPureHostname(url: string): string {
     try {
         const urlParts = new URL(normalizedUrl);
         return urlParts.hostname.replace(/^www\./, '');
-    } catch (error) {
+    } catch {
         return '';
     }
 }

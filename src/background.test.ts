@@ -52,6 +52,7 @@ let rebuildBlockedHostnames: typeof import('./background').rebuildBlockedHostnam
 let resetBlockedStateForTest: typeof import('./background').resetBlockedStateForTest;
 let shouldBlockHostname: typeof import('./background').shouldBlockHostname;
 let onContextMenuClicked: (info: any, tab: any) => void;
+let onStorageChanged: (changes: any, areaName: string) => void;
 
 beforeAll(() => {
     (global as any).chrome = mockChrome;
@@ -62,6 +63,7 @@ beforeAll(() => {
         resetBlockedStateForTest = background.resetBlockedStateForTest;
         shouldBlockHostname = background.shouldBlockHostname;
         onContextMenuClicked = mockChrome.contextMenus.onClicked.addListener.mock.calls[0][0];
+        onStorageChanged = mockChrome.storage.onChanged.addListener.mock.calls[0][0];
     });
 });
 
@@ -103,6 +105,16 @@ describe('background blocked hostnames cache', () => {
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
             url: expect.stringContaining('warning.html?reason=url'),
         });
+    });
+
+    it('does not block when global blocking is disabled', () => {
+        rebuildBlockedHostnames([{ name: 'example.com', enabled: true }]);
+        onStorageChanged({ enabled: { newValue: false } }, 'local');
+
+        blockPage(1, 'https://example.com/path');
+
+        expect(mockChrome.tabs.remove).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.create).not.toHaveBeenCalled();
     });
 
     it('re-enables an existing disabled context-menu rule and reloads the tab', async () => {

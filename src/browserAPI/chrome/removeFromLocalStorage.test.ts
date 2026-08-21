@@ -36,7 +36,7 @@ describe('removeFromLocalStorage', () => {
         });
 
         // Set up the mock for chrome.storage.local.set
-        mockStorageLocal.set.mockImplementationOnce((data) => {
+        mockStorageLocal.set.mockImplementationOnce((_data) => {
             // Simulate asynchronous behavior using Promise.resolve
             return Promise.resolve();
         });

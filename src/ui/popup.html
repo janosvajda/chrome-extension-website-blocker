@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Website Blocker</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<main>
+    <header>
+        <img src="icons/website_blocker_icon_48x48.png" alt="" width="42" height="42">
+        <div>
+            <h1>Tiny Blocker</h1>
+            <p id="statusText">Loading…</p>
+        </div>
+        <label class="switch" aria-label="Enable website blocking">
+            <input id="enabledToggle" type="checkbox">
+            <span class="slider"></span>
+        </label>
+    </header>
+    <section class="stats" aria-label="Blocking statistics">
+        <div><strong id="activeRules">0</strong><span>Active rules</span></div>
+        <div><strong id="blockedToday">0</strong><span>Blocked today</span></div>
+        <div><strong id="blockedTotal">0</strong><span>All time</span></div>
+    </section>
+    <button id="openOptionsButton" type="button">Manage blocked sites</button>
+</main>
+<script src="../popup.js"></script>
+</body>
+</html>
