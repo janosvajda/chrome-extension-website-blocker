@@ -71,6 +71,9 @@ packagedFiles.filter((file) => file.endsWith('.js')).forEach((file) => {
 fs.mkdirSync(releaseDirectory, {recursive: true});
 const archiveName = `tiny-website-blocker-${manifest.version}.zip`;
 const archivePath = path.join(releaseDirectory, archiveName);
+fs.readdirSync(releaseDirectory)
+    .filter((file) => /^tiny-website-blocker-\d+(?:\.\d+){2,3}\.zip$/.test(file) && file !== archiveName)
+    .forEach((file) => fs.rmSync(path.join(releaseDirectory, file), {force: true}));
 fs.rmSync(archivePath, {force: true});
 
 const zip = spawnSync('zip', ['-X', '-q', '-r', archivePath, '.'], {
