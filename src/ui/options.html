@@ -31,8 +31,9 @@
         <div id="pageInfo" class="pageInfo"></div>
     </div>
     <div id="addWebsite">
-        <input type="text" id="newWebsite" placeholder="Enter a website (example.com)">
+        <input type="text" id="newWebsite" placeholder="Enter a website (example.com)" aria-describedby="addWebsiteStatus">
         <button id="addButton">Add site</button>
+        <p id="addWebsiteStatus" class="formHint" aria-live="polite"></p>
     </div>
     <section class="transferCard" aria-labelledby="transferTitle">
         <div>

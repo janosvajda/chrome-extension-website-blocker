@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.1 - 2026-08-21
+
+### Fixed
+
+- Show the **Block this page by Tiny Blocker** context-menu command only on HTTP and HTTPS pages, preventing it from appearing on `chrome-extension://`, `chrome://`, and other internal browser pages.
+- Validate websites before adding or importing rules: accept valid domains and HTTP(S) URLs such as `abcd.com`, `http://abcd.com`, and `https://abcd.co.uk`, while rejecting malformed addresses, unsupported protocols, and single-label values such as `abcd`.
+- Show a clear validation message when a website cannot be added.
+- Add regression coverage for context-menu URL restrictions and website validation.
+
 ## 1.0.0 - 2026-08-21
 
 Initial Chrome Web Store release.

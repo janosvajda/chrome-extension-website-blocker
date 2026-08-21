@@ -55,7 +55,8 @@ chrome.runtime.onInstalled.addListener(function() {
     chrome.contextMenus.create({
         id: 'blockPage',
         title: 'Block this page by Tiny Blocker',
-        contexts: ['page']
+        contexts: ['page'],
+        documentUrlPatterns: ['http://*/*', 'https://*/*']
     });
 });
 
