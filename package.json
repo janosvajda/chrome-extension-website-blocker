@@ -8,9 +8,13 @@
     "build": "npm run typecheck && npm run clean && webpack --config webpack/webpack.prod.js",
     "clean": "rm -rf ./built",
     "test": "jest",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint src",
-    "lint:fix": "oxlint src --fix"
+    "test:integration": "jest --runInBand --no-watchman --testPathPatterns=integration",
+    "test:e2e": "npm run build && playwright test",
+    "package:store": "npm run build && node scripts/create-store-package.cjs",
+    "publish": "npm audit && npm run lint && npm test -- --runInBand --no-watchman && npm run test:e2e && node scripts/create-store-package.cjs",
+    "typecheck": "tsc --noEmit && tsc -p e2e/tsconfig.json",
+    "lint": "oxlint src e2e playwright.config.ts",
+    "lint:fix": "oxlint src e2e playwright.config.ts --fix"
   },
   "repository": {
     "type": "git",
@@ -35,12 +39,12 @@
     "@types/chrome": "0.2.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.62.1",
     "@swc/core": "1.16.1",
     "@swc/jest": "0.2.39",
     "@types/jest": "30.0.0",
     "@types/node": "26.2.0",
     "copy-webpack-plugin": "14.0.0",
-    "dotenv": "17.4.2",
     "jest": "30.4.2",
     "oxlint": "1.79.0",
     "swc-loader": "0.2.7",
