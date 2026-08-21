@@ -1,10 +1,14 @@
 import {getPureHostname} from './helper/getPureHostname';
-import {normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
+import {BlockedEntry, normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
+import {incrementStatistics, STORAGE_KEYS} from './helper/extensionState';
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(['blocked', 'enabled'], (local) => {
         if (!Array.isArray(local.blocked)) {
             chrome.storage.local.set({blocked: []});
+        }
+        if (typeof local.enabled !== 'boolean') {
+            chrome.storage.local.set({enabled: true});
         }
     });
 });
@@ -13,6 +17,7 @@ chrome.runtime.onInstalled.addListener(() => {
 const blockedTabs: Record<number, boolean> = {};
 let blockedHostnames = new Set<string>();
 let blockedUrls = new Set<string>();
+let blockingEnabled = true;
 
 export function rebuildBlockedHostnames(blockedList) {
     blockedHostnames = new Set<string>();
@@ -40,6 +45,7 @@ export function shouldBlockHostname(hostname: string): boolean {
 export function resetBlockedStateForTest(): void {
     blockedHostnames = new Set<string>();
     blockedUrls = new Set<string>();
+    blockingEnabled = true;
     Object.keys(blockedTabs).forEach((key) => {
         delete blockedTabs[Number(key)];
     });
@@ -53,8 +59,9 @@ chrome.runtime.onInstalled.addListener(function() {
     });
 });
 
-chrome.storage.local.get({ blocked: [] }, (data) => {
+chrome.storage.local.get({ blocked: [], enabled: true }, (data) => {
     rebuildBlockedHostnames(data.blocked);
+    blockingEnabled = data.enabled !== false;
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -65,11 +72,14 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         const newBlocked = Array.isArray(changes.blocked.newValue) ? changes.blocked.newValue : [];
         rebuildBlockedHostnames(newBlocked);
     }
+    if (changes.enabled) {
+        blockingEnabled = changes.enabled.newValue !== false;
+    }
 });
 
 // Function to block the page
 export function blockPage(tabId, pageUrl) {
-    if (pageUrl.startsWith('chrome-extension://')) {
+    if (!blockingEnabled || pageUrl.startsWith('chrome-extension://')) {
         return;
     }
     const hostname = getPureHostname(pageUrl);
@@ -97,7 +107,9 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                 return;
             }
             chrome.storage.local.get({ blocked: [] }, function(result) {
-                const currentBlocked = result.blocked;
+                const currentBlocked = Array.isArray(result.blocked)
+                    ? result.blocked as BlockedEntry[]
+                    : [];
                 const normalizedEntry = normalizeBlockedEntry(pageUrl, scope);
                 if (!normalizedEntry) {
                     return;
@@ -156,6 +168,7 @@ function blockTabWithReason(
         return;
     }
     blockedTabs[tabId] = true;
+    recordBlockedAttempt();
     chrome.tabs.remove(tabId, () => {
         const warningUrl =
             `warning.html?reason=${reason}` +
@@ -163,6 +176,13 @@ function blockTabWithReason(
             `&host=${encodeURIComponent(hostname)}` +
             `&url=${encodeURIComponent(pageUrl)}`;
         chrome.tabs.create({ url: warningUrl });
+    });
+}
+
+function recordBlockedAttempt() {
+    chrome.storage.local.get({ [STORAGE_KEYS.statistics]: {} }, (data) => {
+        const statistics = incrementStatistics(data[STORAGE_KEYS.statistics]);
+        chrome.storage.local.set({ [STORAGE_KEYS.statistics]: statistics });
     });
 }
 

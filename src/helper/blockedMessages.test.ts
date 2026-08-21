@@ -1,4 +1,4 @@
-import { blockedMessages, BlockedMessageType } from './blockMessages';
+import { blockedMessages } from './blockMessages';
 
 describe('blockedMessages', () => {
     it('should have the correct number of messages', () => {
@@ -31,7 +31,7 @@ describe('blockedMessages', () => {
 
     it('should contain a variety of characters', () => {
         blockedMessages.forEach((message) => {
-            expect(message.message).toMatch(/[a-zA-Z0-9!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/);
+            expect(message.message).toMatch(/[a-zA-Z0-9!@#$%^&*()_+{}:;<>,.?~\\/-]/);
         });
     });
 
