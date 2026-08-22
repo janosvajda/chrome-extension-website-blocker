@@ -1,6 +1,7 @@
 /// <reference types="chrome" />
 
 import {chromium, expect, test, type BrowserContext, type Page, type Worker} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 
 const extensionPath = path.resolve(__dirname, '../built');
@@ -43,6 +44,11 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             await page.locator('#newWebsite').fill(`site-${index}.example`);
             await page.locator('#addButton').click();
         }
+        await page.locator('#newWebsite').fill('site-1.example');
+        await page.locator('#addButton').click();
+        await expect(page.locator('#addWebsiteStatus')).toHaveText(
+            'This website is already in the always-blocked list.',
+        );
         await expect(page.locator('.websiteItem')).toHaveCount(5);
         await expect(page.locator('#pageInfo')).toHaveText('Page 1 of 2');
         await page.locator('#nextPageButton').click();
@@ -93,6 +99,61 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(popup.locator('#statusText')).toHaveText('Blocking is paused');
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('enabled'))).toEqual({enabled: false});
         await popup.close();
+    });
+
+    test('edits a schedule directly on a rule in the main list', async () => {
+        const page = await context.newPage();
+        await page.goto(`${extensionUrl}/options.html`);
+        await page.locator('#newWebsite').fill('focus.example');
+        await page.locator('#addButton').click();
+        await expect(page.locator('.websiteSchedule')).toHaveText('Always');
+        await page.locator('.scheduleButton').click();
+        await expect(page.locator('#scheduleDialog')).toBeVisible();
+        await page.locator('#saveScheduleButton').click();
+        await expect(page.locator('.websiteSchedule')).toHaveText('Mon, Tue, Wed, Thu, Fri | 09:00-17:00');
+        const stored = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
+        expect(stored.blocked).toEqual([{
+            name: 'focus.example', scope: 'domain', enabled: true,
+            schedule: {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'},
+        }]);
+        await page.close();
+    });
+
+    test('round-trips per-rule schedules through JSON import and export', async () => {
+        const page = await context.newPage();
+        await page.goto(`${extensionUrl}/options.html`);
+        const blocked = [
+            {name: 'always.example', scope: 'domain', enabled: true},
+            {
+                name: 'linkedin.com', scope: 'domain', enabled: true,
+                schedule: {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'},
+            },
+        ];
+
+        await page.locator('#importFile').setInputFiles({
+            name: 'scheduled-rules.json',
+            mimeType: 'application/json',
+            buffer: Buffer.from(JSON.stringify({
+                version: 3,
+                enabled: true,
+                blocked,
+            })),
+        });
+        await expect(page.locator('#transferStatus')).toHaveText('Imported 2 rules.');
+        await expect(page.locator('.websiteSchedule')).toHaveText(['Always', 'Mon, Tue, Wed, Thu, Fri | 09:00-17:00']);
+
+        const downloadPromise = page.waitForEvent('download');
+        await page.locator('#exportButton').click();
+        const download = await downloadPromise;
+        const downloadPath = await download.path();
+        expect(downloadPath).not.toBeNull();
+        const exported = JSON.parse(await readFile(downloadPath as string, 'utf8'));
+        expect(exported).toEqual({
+            version: 3,
+            enabled: true,
+            blocked,
+        });
+        await page.close();
     });
 
     test('blocks domain and exact URL rules, opens warning pages, and records statistics', async () => {

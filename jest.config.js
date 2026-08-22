@@ -4,6 +4,14 @@ module.exports = {
     bail: false,
     collectCoverageFrom: ['src/**/*.{js,ts}', '!**/node_modules/**'],
     coverageDirectory: '<rootDir>/reports/coverage',
+    coverageThreshold: {
+        global: {
+            statements: 95,
+            branches: 95,
+            functions: 95,
+            lines: 95,
+        },
+    },
     coveragePathIgnorePatterns: ['node_modules', '<rootDir>/src/main.ts', '.d.ts', '.module.ts'],
     moduleFileExtensions: ['ts', 'js', 'json', 'jsx', 'node'],
     moduleNameMapper: {

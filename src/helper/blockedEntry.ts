@@ -1,11 +1,18 @@
 export type BlockScope = 'domain' | 'url';
 
+export type RuleSchedule = {
+    days: number[];
+    start: string;
+    end: string;
+};
+
 export type BlockedEntry = {
     name: string;
     enabled: boolean;
     scope?: BlockScope;
     title?: string;
     description?: string;
+    schedule?: RuleSchedule;
 };
 
 export type NormalizedBlockedEntry = {
@@ -60,6 +67,23 @@ export function normalizeUrlForMatch(input: string): string | null {
         pathname = pathname.slice(0, -1);
     }
     return `${url.origin}${pathname}${url.search}${url.hash}`;
+}
+
+export function blockedEntriesOverlap(
+    first: Pick<BlockedEntry, 'name' | 'scope'>,
+    second: Pick<BlockedEntry, 'name' | 'scope'>,
+): boolean {
+    const normalizedFirst = normalizeBlockedEntry(first.name, first.scope);
+    const normalizedSecond = normalizeBlockedEntry(second.name, second.scope);
+    if (!normalizedFirst || !normalizedSecond) {
+        return false;
+    }
+    if (normalizedFirst.scope === normalizedSecond.scope) {
+        return normalizedFirst.name === normalizedSecond.name;
+    }
+    const domain = normalizedFirst.scope === 'domain' ? normalizedFirst : normalizedSecond;
+    const url = normalizedFirst.scope === 'url' ? normalizedFirst : normalizedSecond;
+    return toUrl(url.name)?.hostname.replace(/^www\./, '') === domain.name;
 }
 
 function toUrl(input: string): URL | null {

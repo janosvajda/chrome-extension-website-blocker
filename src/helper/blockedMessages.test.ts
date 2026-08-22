@@ -40,13 +40,13 @@ describe('blockedMessages', () => {
             if (index === 0) {
                 expect(message.message).toEqual('Oops! The site you wanted to open is blocked.');
             } else if (index === 1) {
-                expect(message.message).toMatch(/Sorry, access to the requested site is restricted, but I have a quote for you:/);
+                expect(message.message).toEqual('Access to this site is blocked.');
             } else if (index === 2) {
-                expect(message.message).toMatch(/This site is blocked, but here's a joke instead:/);
+                expect(message.message).toEqual('This site is blocked.');
             } else if (index === 3) {
-                expect(message.message).toMatch(/Blocked! But don't worry, I've got a joke for you./);
+                expect(message.message).toEqual('This distraction has been blocked.');
             } else if (index === 4) {
-                expect(message.message).toMatch(/The website is under construction, but our humor isn't:/);
+                expect(message.message).toEqual('This site is unavailable because it matches a blocking rule.');
             }
         });
     });

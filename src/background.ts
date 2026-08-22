@@ -1,6 +1,7 @@
 import {getPureHostname} from './helper/getPureHostname';
-import {BlockedEntry, normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
+import {BlockedEntry, RuleSchedule, normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
 import {incrementStatistics, STORAGE_KEYS} from './helper/extensionState';
+import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRules} from './helper/schedules';
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(['blocked', 'enabled'], (local) => {
@@ -15,14 +16,14 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Initialize a dictionary to keep track of blocked tabs
 const blockedTabs: Record<number, boolean> = {};
-let blockedHostnames = new Set<string>();
-let blockedUrls = new Set<string>();
+let blockedHostnames = new Map<string, RuleSchedule | undefined>();
+let blockedUrls = new Map<string, RuleSchedule | undefined>();
 let blockingEnabled = true;
 
 export function rebuildBlockedHostnames(blockedList) {
-    blockedHostnames = new Set<string>();
-    blockedUrls = new Set<string>();
-    (blockedList || []).forEach((website) => {
+    blockedHostnames = new Map<string, RuleSchedule | undefined>();
+    blockedUrls = new Map<string, RuleSchedule | undefined>();
+    normalizeRules(blockedList).forEach((website) => {
         if (!website || !website.enabled) {
             return;
         }
@@ -31,20 +32,20 @@ export function rebuildBlockedHostnames(blockedList) {
             return;
         }
         if (normalized.scope === 'url') {
-            blockedUrls.add(normalized.name);
+            blockedUrls.set(normalized.name, website.schedule);
             return;
         }
-        blockedHostnames.add(normalized.name);
+        blockedHostnames.set(normalized.name, website.schedule);
     });
 }
 
-export function shouldBlockHostname(hostname: string): boolean {
-    return blockedHostnames.has(hostname);
+export function shouldBlockHostname(hostname: string, date = new Date()): boolean {
+    return blockedHostnames.has(hostname) && isScheduleActive(blockedHostnames.get(hostname), date);
 }
 
 export function resetBlockedStateForTest(): void {
-    blockedHostnames = new Set<string>();
-    blockedUrls = new Set<string>();
+    blockedHostnames = new Map<string, RuleSchedule | undefined>();
+    blockedUrls = new Map<string, RuleSchedule | undefined>();
     blockingEnabled = true;
     Object.keys(blockedTabs).forEach((key) => {
         delete blockedTabs[Number(key)];
@@ -60,8 +61,14 @@ chrome.runtime.onInstalled.addListener(function() {
     });
 });
 
-chrome.storage.local.get({ blocked: [], enabled: true }, (data) => {
-    rebuildBlockedHostnames(data.blocked);
+let storedBlocked: BlockedEntry[] = [];
+chrome.storage.local.get({ blocked: [], enabled: true, schedules: [] }, (data) => {
+    const migrated = migrateLegacyScheduleGroups(data.blocked, data.schedules);
+    storedBlocked = migrated.blocked;
+    if (migrated.migrated) {
+        chrome.storage.local.set({blocked: storedBlocked, schedules: []});
+    }
+    rebuildBlockedHostnames(storedBlocked);
     blockingEnabled = data.enabled !== false;
 });
 
@@ -70,8 +77,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         return;
     }
     if (changes.blocked) {
-        const newBlocked = Array.isArray(changes.blocked.newValue) ? changes.blocked.newValue : [];
-        rebuildBlockedHostnames(newBlocked);
+        storedBlocked = Array.isArray(changes.blocked.newValue) ? changes.blocked.newValue : [];
+        rebuildBlockedHostnames(storedBlocked);
     }
     if (changes.enabled) {
         blockingEnabled = changes.enabled.newValue !== false;
@@ -85,7 +92,7 @@ export function blockPage(tabId, pageUrl) {
     }
     const hostname = getPureHostname(pageUrl);
     const normalizedUrl = normalizeUrlForMatch(pageUrl);
-    if (normalizedUrl && blockedUrls.has(normalizedUrl)) {
+    if (normalizedUrl && blockedUrls.has(normalizedUrl) && isScheduleActive(blockedUrls.get(normalizedUrl))) {
         blockTabWithReason(tabId, pageUrl, hostname, 'url', normalizedUrl);
         return;
     }

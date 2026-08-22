@@ -1,11 +1,13 @@
-import {getRandomBlockedMessage} from './helper/blockMessages';
+import {BlockedMessageType, getRandomBlockedMessage} from './helper/blockMessages';
 
-const { message, randomItem } = getRandomBlockedMessage();
+const {message, randomItem, type} = getRandomBlockedMessage();
 
 const messageDiv = document.getElementById('message') as HTMLDivElement;
 const randomItemDiv = document.getElementById('randomItem') as HTMLDivElement;
 const blockedReasonDiv = document.getElementById('blockedReason') as HTMLDivElement | null;
 const blockedValueDiv = document.getElementById('blockedValue') as HTMLDivElement | null;
+const randomSectionDiv = document.getElementById('randomSection') as HTMLDivElement | null;
+const randomItemLabelDiv = document.getElementById('randomItemLabel') as HTMLDivElement | null;
 
 messageDiv.innerText = '';
 randomItemDiv.innerText = '';
@@ -14,6 +16,15 @@ messageDiv.innerText = message;
 
 if (randomItem) {
     randomItemDiv.innerText = randomItem;
+    if (randomItemLabelDiv) {
+        randomItemLabelDiv.innerText = type === BlockedMessageType.ScientificQuotes
+            ? 'A quote for you'
+            : 'A joke for you';
+    }
+    if (randomSectionDiv) {
+        randomSectionDiv.classList.toggle('quote', type === BlockedMessageType.ScientificQuotes);
+        randomSectionDiv.hidden = false;
+    }
 }
 
 const params = new URLSearchParams(window.location.search);

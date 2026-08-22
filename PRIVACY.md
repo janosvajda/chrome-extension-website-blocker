@@ -10,6 +10,7 @@ To provide its blocking features, the extension processes the URLs of pages open
 
 - Domain and URL blocking rules chosen by the user.
 - Whether blocking is globally enabled.
+- Optional day and time schedules attached to individual blocking rules.
 - Daily and lifetime counts of blocked navigation attempts.
 
 The extension does not store a general browsing history. Only rules deliberately added by the user and aggregate blocking counts are retained. A blocked page's URL is used to display the warning page but is not added to the statistics or retained as browsing history.
@@ -18,11 +19,11 @@ The extension does not store a general browsing history. Only rules deliberately
 
 All extension data is stored locally through `chrome.storage.local`. Tiny Website Blocker has no analytics, advertising, tracking, account system, external API, or server communication. It does not sell, share, or transmit user data to the developer or any third party.
 
-Configuration export happens only when the user selects **Export JSON**. Exported files contain blocking rules and the global enabled setting. They do not contain statistics. Import occurs only when the user selects a local JSON file.
+Configuration export happens only when the user selects **Export JSON**. Exported files contain blocking rules, their optional schedules, and the global enabled setting. They do not contain statistics. Import occurs only when the user selects a local JSON file.
 
 ## Permissions
 
-- `storage`: saves rules, settings, and aggregate statistics locally.
+- `storage`: saves rules, schedules, settings, and aggregate statistics locally.
 - `tabs`: reads navigation URLs so configured sites can be blocked and manages the blocked tab and local warning page.
 - `activeTab` and `scripting`: after the user selects the context-menu command, displays the domain-or-URL choice on that page.
 - `contextMenus`: provides the user-invoked **Block this page** command.

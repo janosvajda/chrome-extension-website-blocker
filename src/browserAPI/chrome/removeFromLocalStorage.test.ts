@@ -52,4 +52,12 @@ describe('removeFromLocalStorage', () => {
             ],
         });
     });
+
+    it('ignores invalid input and handles malformed stored data', () => {
+        removeFromLocalStorage('invalid');
+        expect(mockStorageLocal.get).not.toHaveBeenCalled();
+        mockStorageLocal.get.mockImplementationOnce((_defaults, callback) => callback({blocked: 'invalid'}));
+        removeFromLocalStorage('example.com');
+        expect(mockStorageLocal.set).toHaveBeenCalledWith({blocked: []});
+    });
 });
