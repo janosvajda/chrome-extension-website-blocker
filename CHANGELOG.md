@@ -8,6 +8,17 @@
 - Validate websites before adding or importing rules: accept valid domains and HTTP(S) URLs such as `abcd.com`, `http://abcd.com`, and `https://abcd.co.uk`, while rejecting malformed addresses, unsupported protocols, and single-label values such as `abcd`.
 - Show a clear validation message when a website cannot be added.
 - Add regression coverage for context-menu URL restrictions and website validation.
+- Add DOM-level Jest coverage for all extension UIs and enforce 95% minimum statement, branch, function, and line coverage in local publishing and pull-request CI.
+- Add a real Chromium round-trip test for importing and exporting scheduled rules.
+
+### Features
+
+- Add an optional Schedule button to every rule in the single main list, with a focused dialog for selecting active days and start/end times.
+- Show an `Always` or day/time summary directly beneath each website and allow its schedule to be removed from the same dialog.
+- Make the main checkbox authoritative: disabled rules never block, enabled unscheduled rules always block, and enabled scheduled rules block only during their configured period.
+- Warn users and prevent duplicate or overlapping entries in the main always-blocked list.
+- Support selected weekdays, local start/end times, and overnight blocking periods.
+- Include per-rule schedules in validated version 3 JSON backups, retain older backup compatibility, and migrate the earlier version 2 group format when encountered.
 
 ## 1.0.0 - 2026-08-21
 

@@ -17,6 +17,8 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 - **Domain or URL Scopes**: When blocking from the context menu, choose whether to block the whole domain or only the exact URL.
 
+- **Per-site Schedules**: Keep every website in one list and optionally give any rule its own active days and local start/end time through the row's Schedule dialog. Rules without a schedule block at all times.
+
 - **Context Menu Quick Block**: Right-click any page and choose “Block this page by Tiny Blocker” to add it instantly.
 
   <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">

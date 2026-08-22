@@ -180,6 +180,91 @@ h1 {
     font-size: 15px;
 }
 
+.websiteSchedule {
+    color: var(--muted);
+    font-size: 11px;
+}
+
+.scheduleButton {
+    margin-right: 8px;
+}
+
+.scheduleDialog {
+    align-items: center;
+    background: rgba(31, 27, 22, 0.55);
+    display: flex;
+    inset: 0;
+    justify-content: center;
+    padding: 18px;
+    position: fixed;
+    z-index: 20;
+}
+
+.scheduleDialogCard {
+    background: var(--card);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 16px;
+    max-width: 520px;
+    padding: 20px;
+    width: 100%;
+}
+
+.scheduleDialog fieldset {
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.scheduleDialog legend {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.dayChoices,
+.timeFields,
+.scheduleDialogActions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.dayChoices label {
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 7px 9px;
+}
+
+.dayChoices input,
+.timeFields input {
+    accent-color: var(--accent);
+}
+
+.timeFields input {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font: inherit;
+    padding: 8px;
+}
+
+.scheduleDialogActions .actionSpacer {
+    flex: 1;
+}
+
+.dangerButton {
+    background: transparent;
+    border: 1px solid #a33226;
+    color: #a33226;
+}
+
+#scheduleStatus.error {
+    color: #a33226;
+}
+
 .websiteTitle {
     font-size: 12px;
     color: var(--muted);

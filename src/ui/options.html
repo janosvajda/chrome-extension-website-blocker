@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
     <title>Tiny Website Blocker</title>
     <link rel="stylesheet" href="options.css">
 </head>
@@ -35,6 +36,40 @@
         <button id="addButton">Add site</button>
         <p id="addWebsiteStatus" class="formHint" aria-live="polite"></p>
     </div>
+    <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" hidden>
+        <div class="scheduleDialogCard">
+            <h2 id="scheduleDialogTitle" class="sectionTitle">Edit schedule</h2>
+            <p id="scheduleRuleName" class="subtitle"></p>
+            <fieldset>
+                <legend>Active days</legend>
+                <div class="dayChoices">
+                    <label><input type="checkbox" name="scheduleDay" value="1">Mon</label>
+                    <label><input type="checkbox" name="scheduleDay" value="2">Tue</label>
+                    <label><input type="checkbox" name="scheduleDay" value="3">Wed</label>
+                    <label><input type="checkbox" name="scheduleDay" value="4">Thu</label>
+                    <label><input type="checkbox" name="scheduleDay" value="5">Fri</label>
+                    <label><input type="checkbox" name="scheduleDay" value="6">Sat</label>
+                    <label><input type="checkbox" name="scheduleDay" value="0">Sun</label>
+                </div>
+            </fieldset>
+            <fieldset>
+                <legend>Blocking period</legend>
+                <div class="timeFields">
+                    <label>From <input id="scheduleStart" type="time" value="09:00"></label>
+                    <span>to</span>
+                    <label><input id="scheduleEnd" type="time" value="17:00"></label>
+                </div>
+                <p class="formHint">Overnight periods are supported.</p>
+            </fieldset>
+            <p id="scheduleStatus" class="formHint" aria-live="polite"></p>
+            <div class="scheduleDialogActions">
+                <button id="removeScheduleButton" class="dangerButton" type="button">Remove schedule</button>
+                <span class="actionSpacer"></span>
+                <button id="cancelScheduleButton" class="ghostButton" type="button">Cancel</button>
+                <button id="saveScheduleButton" type="button">Save schedule</button>
+            </div>
+        </div>
+    </section>
     <section class="transferCard" aria-labelledby="transferTitle">
         <div>
             <h2 id="transferTitle" class="sectionTitle">Backup and restore</h2>

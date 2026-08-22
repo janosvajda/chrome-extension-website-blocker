@@ -1,22 +1,15 @@
-import {BlockedEntry, normalizeBlockedEntry} from './blockedEntry';
+import {BlockedEntry} from './blockedEntry';
+import {migrateLegacyScheduleGroups, normalizeRules} from './schedules';
 
 export const STORAGE_KEYS = {
     blocked: 'blocked',
     enabled: 'enabled',
     statistics: 'statistics',
+    schedules: 'schedules',
 } as const;
 
-export type BlockingStatistics = {
-    total: number;
-    today: number;
-    date: string;
-};
-
-export type ExportedConfiguration = {
-    version: 1;
-    enabled: boolean;
-    blocked: BlockedEntry[];
-};
+export type BlockingStatistics = {total: number; today: number; date: string};
+export type ExportedConfiguration = {version: 3; enabled: boolean; blocked: BlockedEntry[]};
 
 export function getLocalDateKey(date = new Date()): string {
     const year = date.getFullYear();
@@ -27,63 +20,25 @@ export function getLocalDateKey(date = new Date()): string {
 
 export function normalizeStatistics(value: unknown, date = new Date()): BlockingStatistics {
     const currentDate = getLocalDateKey(date);
-    const stored = value && typeof value === 'object'
-        ? value as Partial<BlockingStatistics>
-        : {};
-    const total = Number.isSafeInteger(stored.total) && Number(stored.total) >= 0
-        ? Number(stored.total)
-        : 0;
-    const storedToday = Number.isSafeInteger(stored.today) && Number(stored.today) >= 0
-        ? Number(stored.today)
-        : 0;
-
-    return {
-        total,
-        today: stored.date === currentDate ? storedToday : 0,
-        date: currentDate,
-    };
+    const stored = value && typeof value === 'object' ? value as Partial<BlockingStatistics> : {};
+    const total = Number.isSafeInteger(stored.total) && Number(stored.total) >= 0 ? Number(stored.total) : 0;
+    const storedToday = Number.isSafeInteger(stored.today) && Number(stored.today) >= 0 ? Number(stored.today) : 0;
+    return {total, today: stored.date === currentDate ? storedToday : 0, date: currentDate};
 }
 
 export function incrementStatistics(value: unknown, date = new Date()): BlockingStatistics {
     const statistics = normalizeStatistics(value, date);
-    return {
-        ...statistics,
-        total: statistics.total + 1,
-        today: statistics.today + 1,
-    };
+    return {...statistics, total: statistics.total + 1, today: statistics.today + 1};
 }
 
 export function parseImportedConfiguration(value: unknown): ExportedConfiguration {
-    if (!value || typeof value !== 'object') {
-        throw new Error('The selected file does not contain a configuration object.');
-    }
-    const input = value as Partial<ExportedConfiguration>;
-    if (input.version !== 1 || !Array.isArray(input.blocked)) {
+    if (!value || typeof value !== 'object') throw new Error('The selected file does not contain a configuration object.');
+    const input = value as {version?: number; enabled?: boolean; blocked?: unknown; schedules?: unknown};
+    if (![1, 2, 3].includes(input.version || 0) || !Array.isArray(input.blocked)) {
         throw new Error('Unsupported or invalid Tiny Blocker configuration file.');
     }
-
-    const seen = new Set<string>();
-    const blocked: BlockedEntry[] = [];
-    input.blocked.forEach((entry) => {
-        const normalized = normalizeBlockedEntry(entry?.name || '', entry?.scope);
-        if (!normalized) {
-            return;
-        }
-        const key = `${normalized.scope}:${normalized.name}`;
-        if (seen.has(key)) {
-            return;
-        }
-        seen.add(key);
-        blocked.push({
-            name: normalized.name,
-            scope: normalized.scope,
-            enabled: Boolean(entry.enabled),
-        });
-    });
-
-    return {
-        version: 1,
-        enabled: input.enabled !== false,
-        blocked,
-    };
+    const blocked = input.version === 2
+        ? migrateLegacyScheduleGroups(input.blocked, input.schedules).blocked
+        : normalizeRules(input.blocked);
+    return {version: 3, enabled: input.enabled !== false, blocked};
 }

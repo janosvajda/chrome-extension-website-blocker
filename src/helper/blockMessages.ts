@@ -20,19 +20,19 @@ const baseMessages: BlockedMessage[] = [
         type: BlockedMessageType.SingleSentence,
     },
     {
-        message: 'Sorry, access to the requested site is restricted, but I have a quote for you: ',
+        message: 'Access to this site is blocked.',
         type: BlockedMessageType.ScientificQuotes,
     },
     {
-        message: 'This site is blocked, but here\'s a joke instead: ',
+        message: 'This site is blocked.',
         type: BlockedMessageType.Joke,
     },
     {
-        message: 'Blocked! But don\'t worry, I\'ve got a joke for you. ',
+        message: 'This distraction has been blocked.',
         type: BlockedMessageType.Joke,
     },
     {
-        message: 'The website is under construction, but our humor isn\'t: ',
+        message: 'This site is unavailable because it matches a blocking rule.',
         type: BlockedMessageType.Joke,
     },
 ];

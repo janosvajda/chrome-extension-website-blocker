@@ -96,6 +96,18 @@ describe('background blocked hostnames cache', () => {
         expect(shouldBlockHostname('disabled.com')).toBe(false);
     });
 
+    it('blocks scheduled rules only during their active local period', () => {
+        rebuildBlockedHostnames(
+            [{
+                name: 'example.com', scope: 'domain', enabled: true,
+                schedule: {days: [1], start: '09:00', end: '17:00'},
+            }],
+        );
+
+        expect(shouldBlockHostname('example.com', new Date(2026, 7, 24, 10, 0))).toBe(true);
+        expect(shouldBlockHostname('example.com', new Date(2026, 7, 24, 18, 0))).toBe(false);
+    });
+
     it('blocks a tab when hostname is cached as blocked', () => {
         rebuildBlockedHostnames([{ name: 'example.com', enabled: true }]);
 

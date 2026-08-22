@@ -1,5 +1,6 @@
-import {normalizeBlockedEntry} from './helper/blockedEntry';
+import {RuleSchedule, blockedEntriesOverlap, normalizeBlockedEntry} from './helper/blockedEntry';
 import {parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
+import {migrateLegacyScheduleGroups, normalizeRuleSchedule} from './helper/schedules';
 
 const websiteList = document.getElementById('websiteList');
 const addButton = document.getElementById('addButton');
@@ -14,19 +15,27 @@ const exportButton = document.getElementById('exportButton');
 const importButton = document.getElementById('importButton');
 const importFileInput = document.getElementById('importFile') as HTMLInputElement;
 const transferStatus = document.getElementById('transferStatus');
+const scheduleDialog = document.getElementById('scheduleDialog') as HTMLElement;
+const scheduleRuleName = document.getElementById('scheduleRuleName');
+const scheduleStart = document.getElementById('scheduleStart') as HTMLInputElement;
+const scheduleEnd = document.getElementById('scheduleEnd') as HTMLInputElement;
+const scheduleStatus = document.getElementById('scheduleStatus');
+const removeScheduleButton = document.getElementById('removeScheduleButton') as HTMLButtonElement;
 type BlockedEntry = {
     name: string;
     scope: 'domain' | 'url';
     enabled: boolean;
+    schedule?: RuleSchedule;
 };
 
 // Pagination defaults keep the list readable on smaller screens.
 const pageSize = 5;
 let currentPage = 1;
 let blockedEntries: BlockedEntry[] = [];
+let editingScheduleIndex: number | null = null;
 
 // Render a single entry row and wire its UI events.
-function createWebsiteItem(website, enabled, scope) {
+function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
     const normalizedWebsite = normalizeBlockedEntry(website, scope);
     if (!normalizedWebsite) {
         return null;
@@ -43,6 +52,11 @@ function createWebsiteItem(website, enabled, scope) {
     websiteName.textContent = normalizedWebsite.name;
     websiteDetails.appendChild(websiteName);
 
+    const scheduleSummary = document.createElement('div');
+    scheduleSummary.className = 'websiteSchedule';
+    scheduleSummary.textContent = formatSchedule(schedule);
+    websiteDetails.appendChild(scheduleSummary);
+
     const websiteScope = document.createElement('span');
     websiteScope.className = 'websiteScope';
     websiteScope.textContent = normalizedWebsite.scope === 'url' ? 'URL' : 'Domain';
@@ -51,6 +65,16 @@ function createWebsiteItem(website, enabled, scope) {
     websiteCheckbox.type = 'checkbox';
     websiteCheckbox.className = 'websiteCheckbox';
     websiteCheckbox.checked = enabled;
+
+    const scheduleButton = document.createElement('button');
+    scheduleButton.className = 'ghostButton scheduleButton';
+    scheduleButton.textContent = schedule ? 'Edit schedule' : 'Schedule';
+    scheduleButton.addEventListener('click', () => {
+        const index = blockedEntries.findIndex((entry) =>
+            entry.name === normalizedWebsite.name && entry.scope === normalizedWebsite.scope
+        );
+        if (index >= 0) openScheduleEditor(index);
+    });
 
     // Add an event listener to the checkbox to update local storage when checked or unchecked
     websiteCheckbox.addEventListener('change', () => {
@@ -75,6 +99,7 @@ function createWebsiteItem(website, enabled, scope) {
 
     websiteItem.appendChild(websiteDetails);
     websiteItem.appendChild(websiteScope);
+    websiteItem.appendChild(scheduleButton);
     websiteItem.appendChild(websiteCheckbox);
     websiteItem.appendChild(deleteButton);
     websiteList.appendChild(websiteItem);
@@ -84,8 +109,10 @@ function createWebsiteItem(website, enabled, scope) {
 
 // Load and normalize the list once, then render the first page.
 function loadAndPopulateWebsiteList() {
-    chrome.storage.local.get({ blocked: [] }, (data) => {
-        blockedEntries = normalizeBlockedEntries(data.blocked || []);
+    chrome.storage.local.get({ blocked: [], schedules: [] }, (data) => {
+        const migrated = migrateLegacyScheduleGroups(data.blocked, data.schedules);
+        blockedEntries = normalizeBlockedEntries(migrated.blocked);
+        if (migrated.migrated) chrome.storage.local.set({blocked: blockedEntries, schedules: []});
         currentPage = 1;
         renderPage(currentPage);
     });
@@ -114,6 +141,14 @@ addButton.addEventListener('click', () => {
 
 function submitBlockedEntry() {
     const websiteName = newWebsiteInput.value.toString().trim();
+    const normalized = normalizeBlockedEntry(websiteName, 'domain');
+    const existsInMainList = normalized && blockedEntries.some((entry) =>
+        blockedEntriesOverlap(entry, normalized)
+    );
+    if (existsInMainList) {
+        showAddWebsiteStatus('This website is already in the always-blocked list.', true);
+        return;
+    }
     if (!websiteName || !addBlockedEntry(websiteName)) {
         showAddWebsiteStatus('Enter a valid website, such as example.com or https://example.co.uk.', true);
         return;
@@ -139,7 +174,7 @@ if (refreshButton) {
 exportButton?.addEventListener('click', () => {
     chrome.storage.local.get({ blocked: [], enabled: true }, (data) => {
         const configuration = {
-            version: 1,
+            version: 3,
             enabled: data.enabled !== false,
             blocked: normalizeBlockedEntries(Array.isArray(data.blocked) ? data.blocked : []),
         };
@@ -166,6 +201,7 @@ importFileInput?.addEventListener('change', async () => {
         await setLocalStorage({
             [STORAGE_KEYS.blocked]: configuration.blocked,
             [STORAGE_KEYS.enabled]: configuration.enabled,
+            [STORAGE_KEYS.schedules]: [],
         });
         blockedEntries = normalizeBlockedEntries(configuration.blocked);
         renderPage(1);
@@ -211,7 +247,8 @@ function renderPage(page) {
         createWebsiteItem(
             website.name,
             website.enabled,
-            website.scope
+            website.scope,
+            website.schedule
         );
     });
 
@@ -290,8 +327,69 @@ function normalizeBlockedEntries(entries) {
             name: normalized.name,
             scope: normalized.scope,
             enabled: Boolean(entry?.enabled),
+            ...(normalizeRuleSchedule(entry?.schedule) ? {schedule: normalizeRuleSchedule(entry.schedule)} : {}),
         } as BlockedEntry;
     }).filter((entry) => entry !== null) as BlockedEntry[];
 
     return sortBlockedEntries(normalizedEntries);
+}
+
+function openScheduleEditor(index: number) {
+    const entry = blockedEntries[index];
+    editingScheduleIndex = index;
+    if (scheduleRuleName) scheduleRuleName.textContent = entry.name;
+    const schedule = entry.schedule;
+    scheduleStart.value = schedule?.start || '09:00';
+    scheduleEnd.value = schedule?.end || '17:00';
+    document.querySelectorAll<HTMLInputElement>('input[name="scheduleDay"]').forEach((input) => {
+        input.checked = schedule ? schedule.days.includes(Number(input.value)) : [1, 2, 3, 4, 5].includes(Number(input.value));
+    });
+    removeScheduleButton.hidden = !schedule;
+    showScheduleStatus('');
+    scheduleDialog.hidden = false;
+}
+
+document.getElementById('cancelScheduleButton')?.addEventListener('click', closeScheduleEditor);
+document.getElementById('saveScheduleButton')?.addEventListener('click', () => {
+    if (editingScheduleIndex === null) return;
+    const schedule = normalizeRuleSchedule({
+        days: [...document.querySelectorAll<HTMLInputElement>('input[name="scheduleDay"]:checked')]
+            .map((input) => Number(input.value)),
+        start: scheduleStart.value,
+        end: scheduleEnd.value,
+    });
+    if (!schedule) {
+        showScheduleStatus('Select at least one day and choose different valid start and end times.', true);
+        return;
+    }
+    blockedEntries[editingScheduleIndex] = {...blockedEntries[editingScheduleIndex], schedule};
+    persistBlockedEntries();
+    closeScheduleEditor();
+    renderPage(currentPage);
+});
+removeScheduleButton.addEventListener('click', () => {
+    if (editingScheduleIndex === null) return;
+    const entry = {...blockedEntries[editingScheduleIndex]};
+    delete entry.schedule;
+    blockedEntries[editingScheduleIndex] = entry;
+    persistBlockedEntries();
+    closeScheduleEditor();
+    renderPage(currentPage);
+});
+
+function closeScheduleEditor() {
+    scheduleDialog.hidden = true;
+    editingScheduleIndex = null;
+}
+
+function showScheduleStatus(message: string, isError = false) {
+    if (!scheduleStatus) return;
+    scheduleStatus.textContent = message;
+    scheduleStatus.classList.toggle('error', isError);
+}
+
+function formatSchedule(schedule?: RuleSchedule): string {
+    if (!schedule) return 'Always';
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return `${schedule.days.map((day) => dayNames[day]).join(', ')} | ${schedule.start}-${schedule.end}`;
 }

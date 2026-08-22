@@ -38,16 +38,58 @@ body {
     margin-bottom: 12px;
 }
 
+.extensionName {
+    color: #c45a1f;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+}
+
 #message {
-    margin: 18px 0 8px;
+    margin: 10px 0 8px;
     font-size: clamp(18px, 2.4vw, 24px);
     line-height: 1.5;
 }
 
+.randomSection {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(107, 95, 82, 0.25);
+}
+
+.randomItemLabel {
+    margin-bottom: 6px;
+    color: #c45a1f;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
 #randomItem {
-    display: inline-block;
-    font-size: 14px;
+    display: block;
+    font-size: clamp(16px, 1.8vw, 18px);
+    line-height: 1.55;
     color: #6b5f52;
+}
+
+.randomSection.quote #randomItem::before {
+    content: "\201C";
+    margin-right: 2px;
+    color: var(--accent);
+    font-size: 1.35em;
+    font-weight: 700;
+    line-height: 0;
+}
+
+.randomSection.quote #randomItem::after {
+    content: "\201D";
+    margin-left: 2px;
+    color: var(--accent);
+    font-size: 1.35em;
+    font-weight: 700;
+    line-height: 0;
 }
 
 .blockedReason {

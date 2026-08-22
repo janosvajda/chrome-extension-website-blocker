@@ -37,7 +37,7 @@ jobs:
         run: npm run lint
 
       - name: Run unit and integration tests
-        run: npm test -- --runInBand --no-watchman
+        run: npm run test:coverage
 
       - name: Run browser end-to-end tests
         run: npm run test:e2e

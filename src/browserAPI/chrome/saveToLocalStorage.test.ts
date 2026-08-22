@@ -82,4 +82,11 @@ describe('saveToLocalStorage', () => {
             ],
         });
     });
+
+    it('filters invalid rows and uses safe text defaults', () => {
+        const invalid = createWebsiteItem('invalid', true, 'domain');
+        const emptyName = createWebsiteItem('', false);
+        saveToLocalStorage([invalid, emptyName] as unknown as NodeListOf<Element>);
+        expect(mockStorageLocal.set).toHaveBeenCalledWith({blocked: []});
+    });
 });
