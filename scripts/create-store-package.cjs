@@ -29,6 +29,7 @@ if (Array.isArray(manifest.host_permissions) && manifest.host_permissions.length
 }
 
 const requiredFiles = [
+    'LICENSE',
     'manifest.json',
     'background.js',
     'options.html',
@@ -39,7 +40,8 @@ const requiredFiles = [
     'content.js',
 ];
 requiredFiles.forEach((file) => {
-    if (!fs.existsSync(path.join(builtDirectory, file))) {
+    const requiredPath = path.join(builtDirectory, file);
+    if (!fs.existsSync(requiredPath) || !fs.statSync(requiredPath).isFile()) {
         throw new Error(`Production package is missing ${file}.`);
     }
 });

@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.2 - 2026-08-22
+
+### Changed
+
+- Redesign the per-site schedule dialog with clearer visual grouping, a balanced day grid, improved spacing, separated actions, and a responsive layout without changing scheduling behavior.
+- Curate jokes and scientific quotes for a neutral, family-friendly Store audience by removing stereotypes, body-shaming, violent or dark punchlines, profanity, and potentially hurtful wording.
+- Make Chrome Web Store installation the primary README guide and separate source installation for developers.
+
+### Licence and packaging
+
+- License Tiny Website Blocker under the GNU General Public License v3.0 only (`GPL-3.0-only`).
+- Add the complete GPLv3 text, show a licence and warranty notice in Settings, and include `LICENSE` at the root of production Store packages.
+- Strengthen Store-package validation so required package entries must be files rather than directories.
+
 ## 1.0.1 - 2026-08-21
 
 ### Fixed

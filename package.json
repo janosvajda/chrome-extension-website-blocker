@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
@@ -31,7 +31,7 @@
     "website"
   ],
   "author": "Janos Vajda",
-  "license": "ISC",
+  "license": "GPL-3.0-only",
   "bugs": {
     "url": "https://github.com/janosvajda/chrome-extension-website-blocker/issues"
   },
