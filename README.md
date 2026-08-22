@@ -27,32 +27,27 @@ The Tiny Website Blocker Chrome Extension is a simple and lightweight extension 
 
 ## Installation Guide
 
-To install the Tiny Website Blocker Chrome Extension, follow these simple steps:
+### Install from the Chrome Web Store
 
-1. **Download the Extension**: Download the extension package from [GitHub](https://github.com/janosvajda/chrome-extension-website-blocker.git).
+1. Open the [Chrome Web Store](https://chromewebstore.google.com/).
+2. Search for **Tiny Website Blocker** and open its listing.
+3. Select **Add to Chrome**, then confirm by selecting **Add extension**.
+4. Open Chrome's puzzle-piece **Extensions** menu and pin Tiny Website Blocker if you want its global on/off control to remain visible in the toolbar.
+5. Open Tiny Website Blocker, select **Options**, and add the websites you want to block.
 
-2. **Install Dependencies**:
-    - Run `npm install` in the project root to install dependencies.
+The extension is now ready. When a website matches an enabled rule, Tiny Website Blocker displays its blocking page and records the event locally.
 
-3. **Build the Extension**:
-    - Run `npm run build` to generate the `built` directory.
+### Install from source for development
 
-4. **Enable Developer Mode in Chrome**:
-    - Open Google Chrome.
-    - Click the three dots menu icon in the top right corner of the browser.
-    - Navigate to `More tools` > `Extensions`.
-    - Enable the `Developer mode` toggle in the top right corner of the Extensions page.
+The source installation is intended for contributors and developers:
 
-5. **Load the Extension**:
-    - Click the `Load unpacked` button after enabling Developer mode.
-    - Select the `built` folder and click `Select Folder`.
+1. Clone the [GitHub repository](https://github.com/janosvajda/chrome-extension-website-blocker.git).
+2. Run `npm ci` in the project root.
+3. Run `npm run build` to generate the `built` directory.
+4. Open `chrome://extensions` in Chrome and enable **Developer mode**.
+5. Select **Load unpacked** and choose the generated `built` directory.
 
-6. **Configure the Extension**:
-    - A new icon (like the one shown above) will appear in your Chrome toolbar after loading the extension.
-    - Right-click the extension icon and select `Options`.
-    - Add the websites you want to block in the options page and save your settings.
-
-7. **Start Blocking Websites**: The extension is now ready. You'll be redirected to an error page whenever you visit a blocked website, and the tab will be closed.
+Use the Chrome Web Store version for normal installation so Chrome can deliver published updates automatically.
 
 ## Licence and security
 
@@ -60,7 +55,7 @@ To install the Tiny Website Blocker Chrome Extension, follow these simple steps:
 
 - **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
 
-- **Freeware**: The Tiny Website Blocker Chrome Extension is completely free to use. There are no hidden fees or premium versions.
+- **Free and Open Source**: Tiny Website Blocker is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, modify, and distribute it; distributed modified versions must remain under the GPL and provide their corresponding source code. There are no hidden fees or premium versions.
 
 - **Data**: It does not call any external API or use the network. Blocking rules, settings, and aggregate statistics are stored only in your browser's local extension storage. Removing the extension deletes that locally stored data.
 
@@ -72,7 +67,7 @@ If you encounter any issues or have suggestions for improving the Tiny Website B
 
 Thank you for using this extension! I hope it helps you maintain your focus and productivity while browsing the web.
 
-## Chrome Web Store package
+## Release packaging for maintainers
 
 Create a fully verified, versioned Chrome Web Store ZIP with:
 
@@ -81,5 +76,3 @@ npm run publish
 ```
 
 This runs the dependency audit, linting, Jest tests, real Chromium end-to-end tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.
-
-See [STORE_SUBMISSION.md](STORE_SUBMISSION.md) for the single-purpose statement, permission justifications, and privacy-practices notes to use in the Chrome Web Store dashboard.

@@ -43,7 +43,10 @@ module.exports = {
     },
     plugins: [
         new CopyPlugin({
-            patterns: [{ from: "src/ui", to: "../built", context: "" }],
+            patterns: [
+                { from: "src/ui", to: "../built", context: "" },
+                { from: path.join(__dirname, "..", "LICENSE"), to: "../built/LICENSE", toType: "file" },
+            ],
             options: {},
         }),
     ],
