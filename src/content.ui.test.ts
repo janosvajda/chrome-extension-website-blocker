@@ -54,11 +54,11 @@ describe('warning page UI', () => {
         expect(document.getElementById('randomSection')?.classList.contains('quote')).toBe(true);
     });
 
-    it('renders safely when optional reason details are absent', () => {
-        document.getElementById('blockedReason')?.remove();
-        document.getElementById('blockedValue')?.remove();
+    it('renders safely when optional details and random-item wrappers are absent', () => {
+        document.body.innerHTML = '<div id="message"></div><div id="randomItem"></div>';
         window.history.replaceState({}, '', '/warning.html?reason=url&blocked=example.com');
         jest.isolateModules(() => require('./content'));
         expect((document.getElementById('message') as HTMLElement).innerText).toBe('Blocked message');
+        expect((document.getElementById('randomItem') as HTMLElement).innerText).toBe('Helpful joke');
     });
 });
