@@ -48,6 +48,12 @@ I created Tiny Website Blocker for myself after finding that other website block
 
 The following information is intended for maintainers, contributors, and developers.
 
+### Project principles and contribution policy
+
+Tiny Website Blocker has no runtime library dependencies. The only package listed under `dependencies` is `@types/chrome`, which provides compile-time TypeScript definitions for Chrome's extension APIs and is not included or executed in the published extension. Build tools, test frameworks, and other tooling are development-only dependencies.
+
+I intend to keep this project simple, clean, private, and easy to audit. I will not accept pull requests that introduce external services, external APIs, network communication, or additional runtime dependencies. Contributions should preserve the extension's local-only architecture and use browser-native capabilities wherever possible.
+
 ### Local development setup
 
 This project is developed and tested with Node.js 24, npm, and Google Chrome.
