@@ -1,73 +1,75 @@
 # Tiny Website Blocker Chrome Extension
 
+Tiny Website Blocker is a lightweight, open-source Chrome extension that helps you reduce distractions by blocking websites you choose. It supports domain and exact-URL rules, per-site schedules, local statistics, and JSON backups while keeping all data in your browser with no tracking or external services.
 
-The Tiny Website Blocker Chrome Extension is a simple and lightweight extension designed to help you block access to specific websites within the Google Chrome browser. Whether you need to increase productivity, limit distractions, or maintain focus time, this extension provides a convenient way to control your web browsing experience.
+**[Install Tiny Website Blocker from the Chrome Web Store](https://chromewebstore.google.com/detail/tiny-website-blocker/jggdghoiihbbflfhlaeaedbgemdcjpik)**
 
 ## Features
 
-- **Website Blocking**: Block access to specific websites from the options page; URLs with or without `http(s)` are supported.
+- **Domain and Exact-URL Blocking**: Block an entire website or one specific HTTP(S) page. Domain entries such as `example.com` and `https://example.com` are validated and normalized automatically.
 
-- **Simple Management UI**: A clean options page makes it easy to add, remove, and toggle blocked sites.
+- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list.
 
-- **Toolbar Controls**: Open the extension from Chrome's toolbar to turn all blocking on or off, view the number of active rules, and jump to the options page. **To keep it visible, click Chrome's puzzle-piece Extensions icon, find Tiny Website Blocker, and click the pin icon. Then click the Tiny Website Blocker toolbar icon to open the popup.**
+- **Toolbar Controls**: Pause or resume all blocking, view the number of enabled rules and local statistics, and open the options page from the extension popup. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
-- **Local Blocking Statistics**: See how many blocking attempts Tiny Website Blocker stopped today and across all time. Statistics remain in local browser storage and are not sent anywhere.
+- **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block.
 
-- **Import and Export**: Back up blocked-site rules and the global blocking setting to a JSON file, then restore them later or move them to another Chrome installation. Statistics are never included in exports.
+- **Local Blocking Statistics**: View how many blocking attempts were stopped today and across all time. These aggregate counts remain in local browser storage and are never sent anywhere. Tiny Website Blocker does not use external APIs, make external network requests, or transmit locally stored data.
 
-- **Domain or URL Scopes**: When blocking from the context menu, choose whether to block the whole domain or only the exact URL.
+- **JSON Backup and Restore**: Export and import rules, per-site schedules, and the global blocking setting. **Export a backup before reinstalling Chrome, removing the extension, resetting your browser profile, or moving to another device. Without a backup, your locally stored configuration may be permanently lost.** Statistics remain private and are never included in backups.
 
-- **Per-site Schedules**: Keep every website in one list and optionally give any rule its own active days and local start/end time through the row's Schedule dialog. Rules without a schedule block at all times.
-
-- **Context Menu Quick Block**: Right-click any page and choose “Block this page by Tiny Blocker” to add it instantly.
+- **Context Menu Quick Block**: On supported HTTP(S) pages, right-click and choose **Block this page by Tiny Blocker**, then select whether to block the domain or exact URL.
 
   <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 
-- **Error Page**: When you try to access a blocked website, the extension will display an error page, and the blocked tab will be automatically closed to help you stay on track.
+- **Friendly Blocking Page**: When a rule matches, the original tab is closed and a local page explains what was blocked. It may also show a joke or scientific quote.
 
-## Installation Guide
-
-### Install from the Chrome Web Store
-
-1. Open the [Chrome Web Store](https://chromewebstore.google.com/).
-2. Search for **Tiny Website Blocker** and open its listing.
-3. Select **Add to Chrome**, then confirm by selecting **Add extension**.
-4. Open Chrome's puzzle-piece **Extensions** menu and pin Tiny Website Blocker if you want its global on/off control to remain visible in the toolbar.
-5. Open Tiny Website Blocker, select **Options**, and add the websites you want to block.
-
-The extension is now ready. When a website matches an enabled rule, Tiny Website Blocker displays its blocking page and records the event locally.
-
-### Install from source for development
-
-The source installation is intended for contributors and developers:
-
-1. Clone the [GitHub repository](https://github.com/janosvajda/chrome-extension-website-blocker.git).
-2. Run `npm ci` in the project root.
-3. Run `npm run build` to generate the `built` directory.
-4. Open `chrome://extensions` in Chrome and enable **Developer mode**.
-5. Select **Load unpacked** and choose the generated `built` directory.
-
-Use the Chrome Web Store version for normal installation so Chrome can deliver published updates automatically.
-
-## Licence and security
-
-- **Privacy Policy**: See [PRIVACY.md](PRIVACY.md) for the extension's local data handling, retention, permissions, and Chrome Web Store Limited Use disclosure.
-
-- **User Responsibility**: Please note that using this extension is your responsibility. It is intended to be a tool to help you manage your online activities, and you should use it responsibly.
-
-- **Free and Open Source**: Tiny Website Blocker is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, modify, and distribute it; distributed modified versions must remain under the GPL and provide their corresponding source code. There are no hidden fees or premium versions.
-
-- **Data**: It does not call any external API or use the network. Blocking rules, settings, and aggregate statistics are stored only in your browser's local extension storage. Removing the extension deletes that locally stored data.
-
-- **Created for Personal Use**: I created this extension for myself because I found only non-free or overcomplicated extensions with this function in the Chrome Web Store. It's my way of making a useful tool available to others with the same need.
+- **Local and Private by Design**: Rules, schedules, settings, and statistics stay in Chrome's local extension storage. Tiny Website Blocker makes no external network requests or API calls and requires no account.
 
 ## Feedback and Support
 
-If you encounter any issues or have suggestions for improving the Tiny Website Blocker Chrome Extension, please feel free to [open an issue](https://github.com/janosvajda/chrome-extension-website-blocker/issues) on our GitHub repository. I appreciate your feedback and will do our best to address any concerns.
+If you encounter an issue or have a suggestion for Tiny Website Blocker, please [open an issue](https://github.com/janosvajda/chrome-extension-website-blocker/issues) in this GitHub repository. I appreciate your feedback and will do my best to address it.
 
 Thank you for using this extension! I hope it helps you maintain your focus and productivity while browsing the web.
 
-## Release packaging for maintainers
+## Privacy, Licence, and Security
+
+- **Privacy Policy**: See [PRIVACY.md](PRIVACY.md) for details about local data handling, retention, and Chrome permissions.
+
+- **Free and Open Source**: Tiny Website Blocker is licensed under the [GNU General Public License v3.0](LICENSE). You may use, study, modify, and distribute it; distributed modified versions must remain under the GPL and provide their corresponding source code. There are no hidden fees or premium versions.
+
+- **Local Data Only**: Blocking rules, schedules, settings, and aggregate statistics are stored only in your browser's local extension storage. Tiny Website Blocker does not use external APIs, make external network requests, or send this data anywhere. Removing the extension deletes its locally stored data.
+
+## About
+
+I created Tiny Website Blocker for myself after finding that other website blockers were paid or more complicated than I needed. I made it freely available for anyone looking for a simple, private way to reduce online distractions.
+
+## Development and Maintenance
+
+The following information is intended for maintainers, contributors, and developers.
+
+### Local development setup
+
+This project is developed and tested with Node.js 24, npm, and Google Chrome.
+
+1. Clone the [GitHub repository](https://github.com/janosvajda/chrome-extension-website-blocker.git).
+2. Run `npm ci` in the project root.
+3. Run `npx playwright install chromium` to install the browser used by end-to-end tests. On Linux CI systems, use `npx playwright install --with-deps chromium`.
+4. Run `npm run build` to generate the `built` directory.
+5. Open `chrome://extensions` in Chrome and enable **Developer mode**.
+6. Select **Load unpacked** and choose the generated `built` directory.
+
+### Quality checks
+
+```bash
+npm run lint
+npm run test:coverage
+npm run test:e2e
+```
+
+These commands run static analysis, the Jest unit and integration suites with coverage thresholds, a production build, and the real Chromium extension tests.
+
+### Release packaging
 
 Create a fully verified, versioned Chrome Web Store ZIP with:
 
