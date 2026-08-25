@@ -12,6 +12,8 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 - **Toolbar Controls**: Pause or resume all blocking, view the number of enabled rules and local statistics, and open the options page from the extension popup. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
+- **Temporary Pause**: Pause all blocking for 15 minutes, 30 minutes, or one hour from the toolbar popup. The popup shows the remaining minutes and local resume time, and blocking resumes automatically.
+
 - **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block.
 
 - **Local Blocking Statistics**: View how many blocking attempts were stopped today and across all time. These aggregate counts remain in local browser storage and are never sent anywhere. Tiny Website Blocker does not use external APIs, make external network requests, or transmit locally stored data.

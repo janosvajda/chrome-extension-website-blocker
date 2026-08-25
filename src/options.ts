@@ -201,6 +201,7 @@ importFileInput?.addEventListener('change', async () => {
         await setLocalStorage({
             [STORAGE_KEYS.blocked]: configuration.blocked,
             [STORAGE_KEYS.enabled]: configuration.enabled,
+            [STORAGE_KEYS.pausedUntil]: 0,
             [STORAGE_KEYS.schedules]: [],
         });
         blockedEntries = normalizeBlockedEntries(configuration.blocked);

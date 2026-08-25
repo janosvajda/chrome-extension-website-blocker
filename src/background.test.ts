@@ -51,6 +51,7 @@ let blockPage: typeof import('./background').blockPage;
 let rebuildBlockedHostnames: typeof import('./background').rebuildBlockedHostnames;
 let resetBlockedStateForTest: typeof import('./background').resetBlockedStateForTest;
 let shouldBlockHostname: typeof import('./background').shouldBlockHostname;
+let isBlockingActive: typeof import('./background').isBlockingActive;
 let onContextMenuClicked: (info: any, tab: any) => void;
 let onStorageChanged: (changes: any, areaName: string) => void;
 let createContextMenu: () => void;
@@ -63,6 +64,7 @@ beforeAll(() => {
         rebuildBlockedHostnames = background.rebuildBlockedHostnames;
         resetBlockedStateForTest = background.resetBlockedStateForTest;
         shouldBlockHostname = background.shouldBlockHostname;
+        isBlockingActive = background.isBlockingActive;
         onContextMenuClicked = mockChrome.contextMenus.onClicked.addListener.mock.calls[0][0];
         onStorageChanged = mockChrome.storage.onChanged.addListener.mock.calls[0][0];
         createContextMenu = mockChrome.runtime.onInstalled.addListener.mock.calls[1][0];
@@ -140,6 +142,20 @@ describe('background blocked hostnames cache', () => {
 
         expect(mockChrome.tabs.remove).not.toHaveBeenCalled();
         expect(mockChrome.tabs.create).not.toHaveBeenCalled();
+    });
+
+    it('temporarily pauses blocking until the stored expiry time', () => {
+        const now = new Date(2026, 7, 25, 10, 0).getTime();
+        rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
+        onStorageChanged({pausedUntil: {newValue: now + 15 * 60_000}}, 'local');
+
+        expect(isBlockingActive(now)).toBe(false);
+        expect(isBlockingActive(now + 15 * 60_000)).toBe(true);
+
+        jest.spyOn(Date, 'now').mockReturnValue(now);
+        blockPage(8, 'https://example.com/paused');
+        expect(mockChrome.tabs.remove).not.toHaveBeenCalled();
+        jest.restoreAllMocks();
     });
 
     it('re-enables an existing disabled context-menu rule and reloads the tab', async () => {

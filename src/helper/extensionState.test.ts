@@ -1,6 +1,10 @@
 import {
     getLocalDateKey,
+    getRemainingPauseMinutes,
     incrementStatistics,
+    incrementDailyPauseUsage,
+    normalizeDailyPauseUsage,
+    normalizePausedUntil,
     normalizeStatistics,
     parseImportedConfiguration,
 } from './extensionState';
@@ -31,6 +35,29 @@ describe('extensionState', () => {
             today: 0,
             date: '2026-08-21',
         });
+    });
+
+    it('normalizes temporary pauses and calculates remaining minutes', () => {
+        const now = new Date(2026, 7, 25, 10, 0).getTime();
+        expect(normalizePausedUntil(now + 90_000, now)).toBe(now + 90_000);
+        expect(getRemainingPauseMinutes(now + 90_000, now)).toBe(2);
+        expect(getRemainingPauseMinutes(now + 30_000, now)).toBe(1);
+        expect(getRemainingPauseMinutes(now, now)).toBe(0);
+        expect(normalizePausedUntil(now, now)).toBe(0);
+        expect(normalizePausedUntil('later', now)).toBe(0);
+        expect(normalizePausedUntil(Number.MAX_SAFE_INTEGER + 1, now)).toBe(0);
+    });
+
+    it('counts temporary pauses per local day and resets invalid or old counts', () => {
+        expect(incrementDailyPauseUsage({count: 3, date: '2026-08-21'}, today)).toEqual({
+            count: 4,
+            date: '2026-08-21',
+        });
+        expect(normalizeDailyPauseUsage({count: 8, date: '2026-08-20'}, today)).toEqual({
+            count: 0,
+            date: '2026-08-21',
+        });
+        expect(normalizeDailyPauseUsage({count: -1, date: '2026-08-21'}, today).count).toBe(0);
     });
 
     it('validates, normalizes, and deduplicates imported rules', () => {

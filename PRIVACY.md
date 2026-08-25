@@ -17,7 +17,7 @@ The extension does not store a general browsing history. Only rules deliberately
 
 ## Storage, transmission, and sharing
 
-All extension data is stored locally through `chrome.storage.local`. Tiny Website Blocker has no analytics, advertising, tracking, account system, external API, or server communication. It does not sell, share, or transmit user data to the developer or any third party.
+All extension data, including the current day's blocking-pause count, is stored locally through `chrome.storage.local`. Tiny Website Blocker has no analytics, advertising, tracking, account system, external API, or server communication. It does not sell, share, or transmit user data to the developer or any third party.
 
 Configuration export happens only when the user selects **Export JSON**. Exported files contain blocking rules, their optional schedules, and the global enabled setting. They do not contain statistics. Import occurs only when the user selects a local JSON file.
 

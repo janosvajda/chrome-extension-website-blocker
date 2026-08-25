@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.0.3 - 2026-08-25
+
+### Features
+
+- Add temporary 15-minute, 30-minute, and one-hour blocking pauses to the toolbar popup.
+- Show the remaining minutes and local automatic-resume time while blocking is paused, with a **Resume now** action.
+- Clearly distinguish temporary pauses from manually turning blocking off.
+- Randomly show one of three gentle, non-blocking messages from the fourth daily pause, counting both timed pauses and switching blocking off; keep the message stable during a countdown and reset the local counter on the next day.
+- Present playful pause reminders as larger highlighted cards with a lively multi-step bounce-in effect and a reduced-motion fallback.
+- Show each reminder only in the popup session where the pause was started; closing and reopening the popup dismisses it while preserving the active timed pause.
+- Use the complete **Tiny Website Blocker** product name in the toolbar popup.
+- Slightly widen the toolbar popup so the complete extension name remains readable on one line.
+
+### Privacy and quality
+
+- Store only the local pause expiry timestamp; add no permissions, runtime dependencies, external services, API calls, or network communication.
+- Add unit, UI, background, and real-browser integration coverage for starting, displaying, resuming, and automatically expiring a pause.
+
 ## 1.0.2 - 2026-08-22
 
 ### Changed
