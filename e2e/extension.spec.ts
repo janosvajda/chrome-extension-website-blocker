@@ -95,9 +95,26 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(popup.locator('#blockedToday')).toHaveText('3');
         await expect(popup.locator('#blockedTotal')).toHaveText('9');
         await expect(popup.locator('#statusText')).toHaveText('Blocking is on');
+
+        await popup.locator('[data-pause-minutes="15"]').click();
+        await expect(popup.locator('#statusText')).toHaveText('Blocking is temporarily paused');
+        await expect(popup.locator('#pauseRemaining')).toHaveText('15 minutes remaining');
+        await expect(popup.locator('#pauseResumeTime')).toContainText('Resumes automatically at');
+        const pausedState = await serviceWorker.evaluate(() => chrome.storage.local.get(['enabled', 'pausedUntil']));
+        expect(pausedState.enabled).toBe(true);
+        expect(pausedState.pausedUntil).toBeGreaterThan(Date.now());
+
+        await popup.locator('#resumeButton').click();
+        await expect(popup.locator('#statusText')).toHaveText('Blocking is on');
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('pausedUntil'))).toEqual({pausedUntil: 0});
+
         await popup.locator('.slider').click();
-        await expect(popup.locator('#statusText')).toHaveText('Blocking is paused');
-        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('enabled'))).toEqual({enabled: false});
+        await expect(popup.locator('#statusText')).toHaveText('Blocking is off');
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get(['enabled', 'pausedUntil', 'pauseUsage']))).toEqual({
+            enabled: false,
+            pausedUntil: 0,
+            pauseUsage: expect.objectContaining({count: 2}),
+        });
         await popup.close();
     });
 
@@ -174,10 +191,11 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         expect(statistics.statistics).toEqual(expect.objectContaining({total: 2, today: 2}));
     });
 
-    test('allows matching pages while global blocking is paused', async () => {
+    test('allows matching pages while blocking is manually or temporarily paused', async () => {
         await serviceWorker.evaluate(async () => {
             await chrome.storage.local.set({
-                enabled: false,
+                enabled: true,
+                pausedUntil: Date.now() + 60_000,
                 blocked: [{name: 'paused.invalid', scope: 'domain', enabled: true}],
             });
         });
@@ -186,6 +204,15 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         expect(page.isClosed()).toBe(false);
         expect(page.url()).not.toContain('warning.html');
         await page.close();
+
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({enabled: false, pausedUntil: 0});
+        });
+        const manuallyPausedPage = await context.newPage();
+        await manuallyPausedPage.goto('https://paused.invalid/other', {waitUntil: 'commit'}).catch(() => undefined);
+        expect(manuallyPausedPage.isClosed()).toBe(false);
+        expect(manuallyPausedPage.url()).not.toContain('warning.html');
+        await manuallyPausedPage.close();
     });
 });
 

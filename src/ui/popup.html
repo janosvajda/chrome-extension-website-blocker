@@ -11,7 +11,7 @@
     <header>
         <img src="icons/website_blocker_icon_48x48.png" alt="" width="42" height="42">
         <div>
-            <h1>Tiny Blocker</h1>
+            <h1>Tiny Website Blocker</h1>
             <p id="statusText">Loading…</p>
         </div>
         <label class="switch" aria-label="Enable website blocking">
@@ -19,6 +19,22 @@
             <span class="slider"></span>
         </label>
     </header>
+    <section id="pausePanel" class="pausePanel" aria-label="Temporary blocking pause" hidden>
+        <div id="pauseChoices">
+            <p class="pauseLabel">Pause for</p>
+            <div class="pauseButtons">
+                <button type="button" data-pause-minutes="15">15 min</button>
+                <button type="button" data-pause-minutes="30">30 min</button>
+                <button type="button" data-pause-minutes="60">1 hour</button>
+            </div>
+        </div>
+        <div id="activePause" class="activePause" hidden>
+            <strong id="pauseRemaining"></strong>
+            <span id="pauseResumeTime"></span>
+            <button id="resumeButton" type="button">Resume now</button>
+        </div>
+    </section>
+    <p id="pauseNudge" class="pauseNudge" hidden></p>
     <section class="stats" aria-label="Blocking statistics">
         <div><strong id="activeRules">0</strong><span>Active rules</span></div>
         <div><strong id="blockedToday">0</strong><span>Blocked today</span></div>

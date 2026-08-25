@@ -1,6 +1,6 @@
 import {getPureHostname} from './helper/getPureHostname';
 import {BlockedEntry, RuleSchedule, normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
-import {incrementStatistics, STORAGE_KEYS} from './helper/extensionState';
+import {incrementStatistics, normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
 import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRules} from './helper/schedules';
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -19,6 +19,7 @@ const blockedTabs: Record<number, boolean> = {};
 let blockedHostnames = new Map<string, RuleSchedule | undefined>();
 let blockedUrls = new Map<string, RuleSchedule | undefined>();
 let blockingEnabled = true;
+let blockingPausedUntil = 0;
 
 export function rebuildBlockedHostnames(blockedList) {
     blockedHostnames = new Map<string, RuleSchedule | undefined>();
@@ -47,6 +48,7 @@ export function resetBlockedStateForTest(): void {
     blockedHostnames = new Map<string, RuleSchedule | undefined>();
     blockedUrls = new Map<string, RuleSchedule | undefined>();
     blockingEnabled = true;
+    blockingPausedUntil = 0;
     Object.keys(blockedTabs).forEach((key) => {
         delete blockedTabs[Number(key)];
     });
@@ -62,7 +64,7 @@ chrome.runtime.onInstalled.addListener(function() {
 });
 
 let storedBlocked: BlockedEntry[] = [];
-chrome.storage.local.get({ blocked: [], enabled: true, schedules: [] }, (data) => {
+chrome.storage.local.get({ blocked: [], enabled: true, pausedUntil: 0, schedules: [] }, (data) => {
     const migrated = migrateLegacyScheduleGroups(data.blocked, data.schedules);
     storedBlocked = migrated.blocked;
     if (migrated.migrated) {
@@ -70,6 +72,7 @@ chrome.storage.local.get({ blocked: [], enabled: true, schedules: [] }, (data) =
     }
     rebuildBlockedHostnames(storedBlocked);
     blockingEnabled = data.enabled !== false;
+    blockingPausedUntil = normalizePausedUntil(data.pausedUntil);
 });
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -83,11 +86,14 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     if (changes.enabled) {
         blockingEnabled = changes.enabled.newValue !== false;
     }
+    if (changes.pausedUntil) {
+        blockingPausedUntil = normalizePausedUntil(changes.pausedUntil.newValue);
+    }
 });
 
 // Function to block the page
 export function blockPage(tabId, pageUrl) {
-    if (!blockingEnabled || pageUrl.startsWith('chrome-extension://')) {
+    if (!isBlockingActive() || pageUrl.startsWith('chrome-extension://')) {
         return;
     }
     const hostname = getPureHostname(pageUrl);
@@ -100,6 +106,10 @@ export function blockPage(tabId, pageUrl) {
         blockTabWithReason(tabId, pageUrl, hostname, 'domain', hostname);
         return;
     }
+}
+
+export function isBlockingActive(now = Date.now()): boolean {
+    return blockingEnabled && normalizePausedUntil(blockingPausedUntil, now) === 0;
 }
 
 // Add a listener for context menu item clicks
