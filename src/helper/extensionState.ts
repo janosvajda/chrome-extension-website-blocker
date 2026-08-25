@@ -6,6 +6,8 @@ export const STORAGE_KEYS = {
     enabled: 'enabled',
     pausedUntil: 'pausedUntil',
     pauseUsage: 'pauseUsage',
+    passphraseProtection: 'passphraseProtection',
+    magicWordForSettings: 'magicWordForSettings',
     statistics: 'statistics',
     schedules: 'schedules',
 } as const;

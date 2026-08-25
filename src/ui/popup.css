@@ -62,3 +62,10 @@ button:hover { background: #c45a1f; }
     .pauseNudge { animation: none; }
 }
 .activePause button { margin-top: 7px; }
+.passphrasePrompt { position: fixed; inset: 0; z-index: 10; padding: 24px; background: #f6f2eb; }
+.passphrasePrompt h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 21px; }
+.passphrasePrompt > p { margin-bottom: 14px; color: #6b5f52; }
+.passphrasePrompt input { width: 100%; border: 1px solid #e7dccf; border-radius: 11px; padding: 10px; font: inherit; }
+.passphrasePrompt .promptStatus { min-height: 18px; margin: 8px 0; color: #a33226; }
+.passphrasePrompt div { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.passphrasePrompt .outlineButton { border: 1px solid #e0702f; background: transparent; color: #c45a1f; }

@@ -2,21 +2,29 @@
 
 ## 1.0.3 - 2026-08-25
 
-### Features
+### Added
 
-- Add temporary 15-minute, 30-minute, and one-hour blocking pauses to the toolbar popup.
-- Show the remaining minutes and local automatic-resume time while blocking is paused, with a **Resume now** action.
-- Clearly distinguish temporary pauses from manually turning blocking off.
-- Randomly show one of three gentle, non-blocking messages from the fourth daily pause, counting both timed pauses and switching blocking off; keep the message stable during a countdown and reset the local counter on the next day.
-- Present playful pause reminders as larger highlighted cards with a lively multi-step bounce-in effect and a reduced-motion fallback.
-- Show each reminder only in the popup session where the pause was started; closing and reopening the popup dismisses it while preserving the active timed pause.
-- Use the complete **Tiny Website Blocker** product name in the toolbar popup.
-- Slightly widen the toolbar popup so the complete extension name remains readable on one line.
+- Add temporary 15-minute, 30-minute, and one-hour pauses to the toolbar popup, with a remaining-time display, automatic local resume time, and **Resume now** action.
+- Show one of three playful reminders from the fourth daily pause; the local counter includes timed pauses and manually switching blocking off, resets each day, and does not repeat after reopening the popup.
+- Add optional password protection for pausing or turning off blocking from the toolbar. Passwords can be created from 6 characters, changed only after verifying the current password, or freely removed in Settings.
+- Optionally require the password once when opening Tiny Website Blocker Settings; unlocked Settings remain available for that session without repeated prompts.
+- Add focused Backup and restore dialogs with overwrite confirmation, imported-rule counts, clear failure feedback, and export confirmation showing the generated filename and Chrome-managed Downloads location.
+- Ask whether to block a whole domain or one full URL when Add Site receives a path, query, or fragment, matching the right-click flow.
+- Add prominent validation alerts, directional duplicate detection, and deletion confirmation showing the exact rule being removed.
+
+### Changed
+
+- Reorganize Settings into a responsive full-height layout that keeps Add Site and the GPL notice visible while the rule list scrolls independently.
+- Remove the redundant manual refresh control because rule changes update immediately.
+- Improve the toolbar popup layout and use the complete **Tiny Website Blocker** name.
+- Make forms and dialogs keyboard-friendly: Enter submits the active form or password prompt, and Escape closes dismissible dialogs without saving unintended changes.
+- Improve password, domain-or-URL, confirmation, and error-dialog wording and visual organization.
 
 ### Privacy and quality
 
-- Store only the local pause expiry timestamp; add no permissions, runtime dependencies, external services, API calls, or network communication.
-- Add unit, UI, background, and real-browser integration coverage for starting, displaying, resuming, and automatically expiring a pause.
+- Keep all new state and verification inside `chrome.storage.local` without new permissions, runtime dependencies, external services, API calls, or network communication.
+- Derive password-verification keys with PBKDF2-SHA-256 and 600,000 iterations, then store only an AES-256-GCM encrypted verifier with a fresh random salt and IV—never the password or derived key.
+- Extend unit, UI, background, and real-browser integration coverage for pauses, password flows, rule scope choices, backups, schedules, confirmations, and blocking behavior.
 
 ## 1.0.2 - 2026-08-22
 

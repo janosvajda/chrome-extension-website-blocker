@@ -1,5 +1,12 @@
 import {getPureHostname} from './helper/getPureHostname';
-import {BlockedEntry, RuleSchedule, normalizeBlockedEntry, normalizeUrlForMatch} from './helper/blockedEntry';
+import {
+    BlockedEntry,
+    RuleSchedule,
+    blockedEntryCovers,
+    normalizeBlockedEntry,
+    normalizeUrlForMatch,
+    requiresBlockScopeChoice,
+} from './helper/blockedEntry';
 import {incrementStatistics, normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
 import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRules} from './helper/schedules';
 
@@ -151,6 +158,11 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                     return;
                 }
 
+                if (currentBlocked.some((item) => item.enabled && blockedEntryCovers(item, normalizedEntry))) {
+                    chrome.tabs.reload(tabId);
+                    return;
+                }
+
                 const newBlocked = [
                     ...currentBlocked,
                     {
@@ -205,16 +217,7 @@ function recordBlockedAttempt() {
 }
 
 function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
-    const isTopDomain = (() => {
-        try {
-            const url = new URL(pageUrl);
-            return url.pathname === '/' && !url.search && !url.hash;
-        } catch {
-            return true;
-        }
-    })();
-
-    if (isTopDomain) {
+    if (!requiresBlockScopeChoice(pageUrl)) {
         return Promise.resolve('domain');
     }
 
@@ -275,7 +278,7 @@ function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
                         const domainButton = document.createElement('button');
                         domainButton.textContent = 'Block domain';
                         const urlButton = document.createElement('button');
-                        urlButton.textContent = 'Block URL';
+                        urlButton.textContent = 'Block this full URL';
 
                         [cancelButton, domainButton, urlButton].forEach((button) => {
                             button.style.border = 'none';

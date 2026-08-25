@@ -6,7 +6,7 @@
     <link rel="stylesheet" href="options.css">
 </head>
 <body>
-<main id="appContent">
+<main id="appContent" class="settingsPending">
     <header class="pageHeader">
         <div class="titleBlock">
             <img class="appIcon" src="icons/website_blocker_icon_48x48.png" alt="Tiny Website Blocker icon">
@@ -16,7 +16,8 @@
             </div>
         </div>
         <div class="headerActions">
-            <button id="refreshButton" class="ghostButton">Refresh list</button>
+            <button id="openPassphraseSettingsButton" class="ghostButton" type="button">Password</button>
+            <button id="openTransferDialogButton" class="ghostButton" type="button">Backup and restore</button>
         </div>
     </header>
     <div id="websiteList">
@@ -31,11 +32,43 @@
         <button id="nextPageButton" class="ghostButton">Next</button>
         <div id="pageInfo" class="pageInfo"></div>
     </div>
-    <div id="addWebsite">
+    <form id="addWebsite">
         <input type="text" id="newWebsite" placeholder="Enter a website (example.com)" aria-describedby="addWebsiteStatus">
-        <button id="addButton">Add site</button>
+        <button id="addButton" type="submit">Add site</button>
         <p id="addWebsiteStatus" class="formHint" aria-live="polite"></p>
-    </div>
+    </form>
+    <section id="blockScopeDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="blockScopeTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="blockScopeTitle" class="sectionTitle">Block this page</h2>
+            <p class="subtitle blockScopePrompt">Choose how you want to block this page:</p>
+            <div id="blockScopeValue" class="blockScopeUrl"></div>
+            <div class="dialogActions">
+                <button id="cancelBlockScopeButton" class="ghostButton" type="button">Cancel</button>
+                <button id="blockDomainButton" type="button">Block domain</button>
+                <button id="blockUrlButton" type="button">Block this full URL</button>
+            </div>
+        </div>
+    </section>
+    <section id="deleteConfirmationDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="deleteConfirmationTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="deleteConfirmationTitle" class="sectionTitle">Delete this rule?</h2>
+            <p class="subtitle">This website will no longer be blocked:</p>
+            <p id="deleteRuleValue" class="dialogRuleValue"></p>
+            <div class="dialogActions">
+                <button id="cancelDeleteButton" class="ghostButton" type="button">Cancel</button>
+                <button id="confirmDeleteButton" class="dangerButton" type="button">Delete rule</button>
+            </div>
+        </div>
+    </section>
+    <section id="addWebsiteErrorDialog" class="scheduleDialog confirmationDialog" role="alertdialog" aria-modal="true" aria-labelledby="addWebsiteErrorTitle" aria-describedby="addWebsiteErrorMessage" hidden>
+        <div class="passphraseDialogCard errorDialogCard">
+            <h2 id="addWebsiteErrorTitle" class="sectionTitle">Website not added</h2>
+            <p id="addWebsiteErrorMessage" class="subtitle"></p>
+            <div class="dialogActions">
+                <button id="closeAddWebsiteErrorButton" type="button">OK</button>
+            </div>
+        </div>
+    </section>
     <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" hidden>
         <div class="scheduleDialogCard">
             <h2 id="scheduleDialogTitle" class="sectionTitle">Edit schedule</h2>
@@ -70,17 +103,97 @@
             </div>
         </div>
     </section>
-    <section class="transferCard" aria-labelledby="transferTitle">
-        <div>
-            <h2 id="transferTitle" class="sectionTitle">Backup and restore</h2>
-            <p class="subtitle">Export or import rules and the global blocking setting. Statistics stay private.</p>
+    <section id="transferDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="transferTitle" hidden>
+        <div class="transferCard transferDialogCard">
+            <div>
+                <h2 id="transferTitle" class="sectionTitle">Backup and restore</h2>
+                <p class="subtitle">Export or import rules and the global blocking setting. Statistics stay private.</p>
+            </div>
+            <div class="transferActions">
+                <button id="exportButton" type="button" class="ghostButton">Export JSON</button>
+                <button id="importButton" type="button">Import JSON</button>
+                <input id="importFile" type="file" accept="application/json,.json" hidden>
+            </div>
+            <p id="transferStatus" class="formHint" aria-live="polite"></p>
+            <div class="dialogActions transferDialogActions">
+                <button id="closeTransferDialogButton" type="button" class="ghostButton">Close</button>
+            </div>
         </div>
-        <div class="transferActions">
-            <button id="exportButton" type="button" class="ghostButton">Export JSON</button>
-            <button id="importButton" type="button">Import JSON</button>
-            <input id="importFile" type="file" accept="application/json,.json" hidden>
+    </section>
+    <section id="passphraseSettingsDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="passphraseTitle" hidden>
+        <div class="passphraseDialogCard passphraseSettingsCard">
+            <h2 id="passphraseTitle" class="sectionTitle">Password protection</h2>
+            <p id="passphraseDescription" class="subtitle">Add a password before pausing blocking or changing protected settings.</p>
+            <form id="passwordProtectionForm" class="passwordChangeSection">
+                <fieldset class="passwordFieldGroup">
+                    <legend id="passwordFieldsLegend">Create password</legend>
+                    <div class="passphraseFields">
+                        <input id="currentPassphrase" type="password" autocomplete="current-password" placeholder="Current password" aria-label="Current password" hidden>
+                        <input id="newPassphrase" type="password" autocomplete="new-password" placeholder="New password (6+ characters)" aria-label="New password">
+                        <input id="confirmPassphrase" type="password" autocomplete="new-password" placeholder="Confirm new password" aria-label="Confirm new password">
+                    </div>
+                </fieldset>
+                <p id="passphraseStatus" class="formHint passwordFormStatus" aria-live="polite"></p>
+                <div class="passwordChangeActions">
+                    <button id="removePassphraseButton" type="button" class="dangerButton" hidden>Remove password</button>
+                    <span class="actionSpacer"></span>
+                    <button id="savePassphraseButton" type="submit">Set password</button>
+                </div>
+            </form>
+            <section class="settingsAccessSection" aria-labelledby="settingsAccessTitle">
+                <h3 id="settingsAccessTitle">Settings access</h3>
+                <label class="settingsGateChoice">
+                    <input id="magicWordForSettings" type="checkbox">
+                    <span><strong>Ask for password when opening Tiny Website Blocker Settings</strong><small id="settingsGateDescription">When selected, the password will be required to open Settings.</small></span>
+                </label>
+                <p id="settingsGateStatus" class="formHint settingsGateStatus" aria-live="polite"></p>
+            </section>
+            <div class="dialogActions passwordDialogFooter">
+                <button id="closePassphraseSettingsButton" type="button" class="ghostButton">Close</button>
+            </div>
         </div>
-        <p id="transferStatus" class="formHint" aria-live="polite"></p>
+    </section>
+    <section id="importConfirmationDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="importConfirmationTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="importConfirmationTitle" class="sectionTitle">Replace existing rules?</h2>
+            <p class="subtitle">Importing this backup will overwrite your existing rules, schedules, and global blocking setting. This cannot be undone unless you exported a backup first.</p>
+            <div class="dialogActions">
+                <button id="cancelImportButton" class="ghostButton" type="button">Cancel</button>
+                <button id="confirmImportButton" type="button">Import and replace</button>
+            </div>
+        </div>
+    </section>
+    <section id="exportSuccessDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="exportSuccessTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="exportSuccessTitle" class="sectionTitle">Backup exported</h2>
+            <p class="subtitle">Your backup was saved successfully.</p>
+            <dl class="exportDetails">
+                <div><dt>File name</dt><dd id="exportedFileName"></dd></div>
+                <div><dt>Location</dt><dd>Chrome’s configured Downloads folder</dd></div>
+            </dl>
+            <p class="formHint">Chrome does not share the full filesystem path with this extension.</p>
+            <div class="dialogActions">
+                <button id="closeExportSuccessButton" type="button">Done</button>
+            </div>
+        </div>
+    </section>
+    <section id="importResultDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="importResultTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="importResultTitle" class="sectionTitle"></h2>
+            <p id="importResultMessage" class="subtitle"></p>
+            <div class="dialogActions">
+                <button id="closeImportResultButton" type="button">OK</button>
+            </div>
+        </div>
+    </section>
+    <section id="passwordSuccessDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="passwordSuccessTitle" hidden>
+        <div class="passphraseDialogCard">
+            <h2 id="passwordSuccessTitle" class="sectionTitle">Password updated</h2>
+            <p id="passwordSuccessMessage" class="subtitle"></p>
+            <div class="dialogActions">
+                <button id="closePasswordSuccessButton" type="button">OK</button>
+            </div>
+        </div>
     </section>
     <footer class="licenseFooter">
         Tiny Website Blocker is free and open-source software under the
@@ -89,6 +202,17 @@
         Copyright &copy; 2021&ndash;2026 Janos Vajda.
     </footer>
 </main>
+<section id="settingsUnlockDialog" class="scheduleDialog settingsUnlockDialog" role="dialog" aria-modal="true" aria-labelledby="settingsUnlockTitle" hidden>
+    <div class="passphraseDialogCard">
+        <h2 id="settingsUnlockTitle" class="sectionTitle">Password required</h2>
+        <p class="subtitle">Enter your password to open Settings.</p>
+        <input id="settingsUnlockMagicWord" type="password" autocomplete="current-password" placeholder="Password">
+        <p id="settingsUnlockStatus" class="formHint" aria-live="polite"></p>
+        <div class="dialogActions">
+            <button id="unlockSettingsButton" type="button">Open Settings</button>
+        </div>
+    </div>
+</section>
 <script src="../options.js"></script>
 </body>
 </html>

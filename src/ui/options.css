@@ -16,20 +16,26 @@
 [hidden] {
     display: none !important;
 }
+.settingsPending { visibility: hidden; }
 
 body {
     font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
     color: var(--ink);
     background: var(--bg);
     margin: 0;
-    padding: 36px 18px 48px;
-    min-height: 100vh;
+    padding: 20px 18px;
+    height: 100vh;
+    overflow: hidden;
     display: flex;
     justify-content: center;
 }
 
 main {
     width: min(760px, 100%);
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .pageHeader {
@@ -37,7 +43,8 @@ main {
     justify-content: space-between;
     align-items: center;
     gap: 18px;
-    margin-bottom: 24px;
+    margin-bottom: 14px;
+    flex: 0 0 auto;
 }
 
 .titleBlock {
@@ -57,7 +64,8 @@ main {
 
 .headerActions {
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: flex-end;
     gap: 6px;
 }
@@ -87,10 +95,15 @@ h1 {
     border-radius: 16px;
     padding: 16px 16px 8px;
     box-shadow: var(--shadow);
+    flex: 1 1 auto;
+    min-height: 150px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
 }
 
 .pagination {
-    margin: 14px 0 0;
+    margin: 10px 0 0;
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: auto 1fr auto;
     gap: 10px;
@@ -137,6 +150,10 @@ h1 {
     text-transform: uppercase;
     letter-spacing: 1.4px;
     font-size: 11px;
+    background: var(--card);
+    position: sticky;
+    top: 0;
+    z-index: 2;
 }
 
 .websiteHeader {
@@ -372,7 +389,9 @@ button:hover {
 }
 
 #addWebsite {
-    margin: 18px auto 0;
+    margin: 10px auto 0;
+    width: 100%;
+    flex: 0 0 auto;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -385,7 +404,6 @@ button:hover {
 }
 
 .transferCard {
-    margin-top: 18px;
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 12px 18px;
@@ -396,6 +414,76 @@ button:hover {
     border: 1px solid var(--line);
     box-shadow: var(--shadow);
 }
+
+.transferDialogCard { margin: 0; max-width: 620px; width: 100%; }
+.transferDialogActions { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 14px; }
+
+.passphraseFields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.passphraseFields:not(.changingPassword) { grid-template-columns: repeat(2, 1fr); }
+.passwordFieldGroup { border: 0; margin: 0; padding: 0; }
+.passwordFieldGroup legend { color: var(--text); font-size: 14px; font-weight: 700; margin-bottom: 9px; padding: 0; }
+#passphraseDescription.protectionActive { color: #24733b; font-weight: 700; }
+.passwordFormStatus { margin: -3px 0 0; min-height: 18px; }
+.passphraseFields input,
+.passphraseDialogCard input { border: 1px solid var(--line); border-radius: 10px; font: inherit; padding: 10px; min-width: 0; }
+.passwordChangeActions, .dialogActions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.passwordChangeActions .actionSpacer { flex: 1; }
+.dialogRuleValue { margin: -4px 0 2px; font-weight: 700; overflow-wrap: anywhere; }
+.blockScopePrompt { margin-bottom: -4px; }
+.blockScopeUrl {
+    background: #f8eee6;
+    border: 1px solid #edcdb9;
+    border-radius: 12px;
+    color: #493d32;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    padding: 12px 14px;
+}
+.errorDialogCard {
+    border: 1px solid #ead8c8;
+    box-shadow: 0 22px 50px rgba(42, 32, 24, 0.2);
+}
+.errorDialogCard .sectionTitle {
+    align-items: center;
+    color: var(--text);
+    display: flex;
+    gap: 12px;
+}
+.errorDialogCard .sectionTitle::before {
+    align-items: center;
+    background: #fbe5d5;
+    border-radius: 50%;
+    color: #c9571b;
+    content: '!';
+    display: inline-flex;
+    flex: 0 0 36px;
+    font-family: inherit;
+    font-size: 24px;
+    height: 36px;
+    justify-content: center;
+}
+.settingsGateChoice { align-items: flex-start; background: #fffaf5; border: 1px solid #e6d6c7; border-radius: 12px; color: var(--text); cursor: pointer; display: flex; gap: 12px; padding: 13px 14px; }
+.settingsGateChoice input { accent-color: var(--accent); height: 18px; margin-top: 1px; width: 18px; }
+.settingsGateChoice span { display: grid; gap: 4px; }
+.settingsGateChoice strong { color: var(--text); }
+.settingsGateChoice small { color: #716457; line-height: 1.4; }
+.passphraseDialogCard { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); display: grid; gap: 14px; max-width: 420px; padding: 24px; width: 100%; }
+.passphraseSettingsCard { max-width: 620px; }
+.passwordChangeSection, .settingsAccessSection { border: 1px solid var(--line); border-radius: 14px; display: grid; gap: 12px; padding: 16px; }
+.settingsAccessSection h3 { color: var(--text); font-size: 14px; margin: 0; }
+.settingsGateStatus { min-height: 17px; }
+.settingsGateStatus.error { color: #a33226; }
+.passwordDialogFooter { border-top: 1px solid var(--line); padding-top: 14px; }
+.confirmationDialog { z-index: 30; }
+.settingsUnlockDialog { z-index: 50; }
+#settingsUnlockStatus.error { color: #a33226; }
+.exportDetails { display: grid; gap: 8px; margin: 0; }
+.exportDetails div { background: #fdfaf6; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; }
+.exportDetails dt { color: var(--muted); font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.7px; }
+.exportDetails dd { margin: 4px 0 0; overflow-wrap: anywhere; }
+#passphraseStatus.error { color: #a33226; }
 
 .transferActions {
     display: flex;
@@ -443,7 +531,8 @@ button:hover {
 }
 
 .licenseFooter {
-    margin-top: 24px;
+    margin-top: 10px;
+    flex: 0 0 auto;
     color: var(--muted);
     font-size: 11px;
     line-height: 1.6;
@@ -456,12 +545,11 @@ button:hover {
 
 @media (max-width: 640px) {
     body {
-        padding-top: 28px;
+        padding: 12px;
     }
 
     .pageHeader {
-        flex-direction: column;
-        align-items: flex-start;
+        margin-bottom: 10px;
     }
 
     .header {
@@ -479,8 +567,7 @@ button:hover {
     }
 
     #addWebsite {
-        flex-direction: column;
-        align-items: stretch;
+        padding: 10px;
     }
 
     .scheduleDialogCard {
@@ -500,6 +587,11 @@ button:hover {
         display: none;
     }
 
+    .passphraseFields { grid-template-columns: 1fr; }
+
+    .transferCard { grid-template-columns: 1fr; }
+    .transferActions { flex-direction: column; }
+
     .scheduleDialogActions {
         align-items: stretch;
         flex-direction: column;
@@ -516,4 +608,18 @@ button:hover {
     .pageInfo {
         grid-column: 1 / -1;
     }
+
+    .licenseFooter { font-size: 10px; line-height: 1.35; }
+}
+
+@media (max-height: 720px) {
+    body { padding-block: 10px; }
+    .pageHeader { margin-bottom: 8px; }
+    .appIcon { width: 46px; height: 46px; }
+    h1 { font-size: 25px; margin-bottom: 2px; }
+    #websiteList { min-height: 100px; }
+    .websiteItem { margin: 7px 0; padding-block: 7px; }
+    .pagination { margin-top: 7px; }
+    #addWebsite { margin-top: 7px; padding-block: 9px; }
+    .licenseFooter { margin-top: 7px; line-height: 1.35; }
 }

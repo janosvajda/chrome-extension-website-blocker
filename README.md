@@ -6,9 +6,9 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 ## Features
 
-- **Domain and Exact-URL Blocking**: Block an entire website or one specific HTTP(S) page. Domain entries such as `example.com` and `https://example.com` are validated and normalized automatically.
+- **Domain and Exact-URL Blocking**: Block an entire website or one specific HTTP(S) page. When an entered address contains a path, query, or fragment, Tiny Website Blocker asks whether to block the domain or that full URL. Plain domains and origin-only URLs are normalized automatically.
 
-- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list.
+- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. Invalid or redundant rules are rejected clearly, and deletion requires confirmation.
 
 - **Toolbar Controls**: Pause or resume all blocking, view the number of enabled rules and local statistics, and open the options page from the extension popup. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
@@ -16,11 +16,13 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 - **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block.
 
+- **Optional Password Protection**: Require a password before pausing or turning off blocking from the toolbar. You can also require it once when opening Tiny Website Blocker Settings; after Settings is unlocked, its controls remain available for that session. The current password is required to change it, while protection can be removed freely in Settings. The password is never stored, displayed, exported, or sent anywhere; verification happens entirely inside the browser using locally stored encrypted verification data.
+
 - **Local Blocking Statistics**: View how many blocking attempts were stopped today and across all time. These aggregate counts remain in local browser storage and are never sent anywhere. Tiny Website Blocker does not use external APIs, make external network requests, or transmit locally stored data.
 
-- **JSON Backup and Restore**: Export and import rules, per-site schedules, and the global blocking setting. **Export a backup before reinstalling Chrome, removing the extension, resetting your browser profile, or moving to another device. Without a backup, your locally stored configuration may be permanently lost.** Statistics remain private and are never included in backups.
+- **JSON Backup and Restore**: Export and import rules, per-site schedules, and the global blocking setting. Imports require confirmation because they replace the existing configuration. **Export a backup before reinstalling Chrome, removing the extension, resetting your browser profile, or moving to another device. Without a backup, your locally stored configuration may be permanently lost.** Statistics and password-protection data remain private and are never included in backups.
 
-- **Context Menu Quick Block**: On supported HTTP(S) pages, right-click and choose **Block this page by Tiny Blocker**, then select whether to block the domain or exact URL.
+- **Context Menu Quick Block**: On supported HTTP(S) pages, right-click and choose **Block this page by Tiny Blocker**, then select whether to block the domain or the full URL.
 
   <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 

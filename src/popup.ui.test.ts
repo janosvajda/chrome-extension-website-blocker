@@ -1,5 +1,12 @@
 /** @jest-environment jsdom */
 
+jest.mock('./helper/passphraseProtection', () => {
+    const actual = jest.requireActual('./helper/passphraseProtection');
+    return {...actual, verifyPassphrase: jest.fn()};
+});
+
+const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ciphertext: 'Aw=='};
+
 function setup(data: Record<string, any>, minimal = false) {
     document.body.innerHTML = `
         <input id="enabledToggle" type="checkbox">
@@ -19,7 +26,20 @@ function setup(data: Record<string, any>, minimal = false) {
             </div>
         </section>
         <p id="pauseNudge" hidden></p>
+        <section id="passphrasePrompt" hidden>
+            <p id="passphrasePromptDescription"></p>
+            <input id="popupPassphrase"><span id="popupPassphraseStatus"></span>
+            <button id="cancelPassphraseButton"></button><button id="confirmPassphraseButton"></button>
+        </section>
         <button id="openOptionsButton"></button>`}`;
+    if (minimal) {
+        document.body.insertAdjacentHTML('beforeend', `
+            <section id="passphrasePrompt" hidden>
+                <p id="passphrasePromptDescription"></p>
+                <input id="popupPassphrase"><span id="popupPassphraseStatus"></span>
+                <button id="cancelPassphraseButton"></button><button id="confirmPassphraseButton"></button>
+            </section>`);
+    }
     const chromeMock = {
         storage: {local: {
             get: jest.fn((_defaults, callback) => callback(data)),
@@ -33,7 +53,9 @@ function setup(data: Record<string, any>, minimal = false) {
 }
 
 describe('popup UI', () => {
-    beforeEach(() => jest.resetModules());
+    beforeEach(() => {
+        jest.resetModules();
+    });
     afterEach(() => {
         jest.useRealTimers();
         delete (global as any).chrome;
@@ -220,5 +242,62 @@ describe('popup UI', () => {
         (document.querySelector('[data-pause-minutes="invalid"]') as HTMLButtonElement).click();
         (document.querySelector('[data-pause-minutes="0"]') as HTMLButtonElement).click();
         expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('requires the configured passphrase before turning blocking off', async () => {
+        const mocked = require('./helper/passphraseProtection');
+        mocked.verifyPassphrase.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+        const chromeMock = setup({
+            enabled: true,
+            passphraseProtection: protection,
+            blocked: [],
+            statistics: {},
+        });
+        const toggle = document.getElementById('enabledToggle') as HTMLInputElement;
+        toggle.checked = false;
+        toggle.dispatchEvent(new Event('change'));
+        expect(toggle.checked).toBe(true);
+        expect((document.getElementById('passphrasePrompt') as HTMLElement).hidden).toBe(false);
+        expect(document.getElementById('confirmPassphraseButton')?.textContent).toBe('Turn blocking off');
+        (document.getElementById('popupPassphrase') as HTMLInputElement)
+            .dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', cancelable: true}));
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(document.getElementById('popupPassphraseStatus')?.textContent).toBe('Incorrect password.');
+        document.getElementById('confirmPassphraseButton')?.click();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(chromeMock.storage.local.set).toHaveBeenCalledWith(expect.objectContaining({enabled: false}));
+
+        (document.getElementById('popupPassphrase') as HTMLInputElement)
+            .dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', cancelable: true}));
+        expect((document.getElementById('passphrasePrompt') as HTMLElement).hidden).toBe(true);
+        (document.getElementById('popupPassphrase') as HTMLInputElement)
+            .dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', cancelable: true}));
+    });
+
+    it('requires the configured passphrase before starting a timed pause', async () => {
+        jest.useFakeTimers();
+        const now = new Date(2026, 7, 25, 10, 0).getTime();
+        jest.setSystemTime(now);
+        const mocked = require('./helper/passphraseProtection');
+        mocked.verifyPassphrase.mockResolvedValue(true);
+        const chromeMock = setup({
+            enabled: true,
+            passphraseProtection: protection,
+            pausedUntil: 0,
+            blocked: [],
+            statistics: {},
+        });
+        (document.querySelector('[data-pause-minutes="30"]') as HTMLButtonElement).click();
+        expect(document.getElementById('passphrasePromptDescription')?.textContent).toContain('30 minutes');
+        expect(document.getElementById('confirmPassphraseButton')?.textContent).toBe('Pause for 30 minutes');
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+        document.getElementById('confirmPassphraseButton')?.click();
+        await Promise.resolve();
+        await Promise.resolve();
+        expect(chromeMock.storage.local.set).toHaveBeenCalledWith(expect.objectContaining({
+            pausedUntil: now + 30 * 60_000,
+        }));
     });
 });

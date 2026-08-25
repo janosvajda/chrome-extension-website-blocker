@@ -41,6 +41,16 @@
         <div><strong id="blockedTotal">0</strong><span>All time</span></div>
     </section>
     <button id="openOptionsButton" type="button">Manage blocked sites</button>
+    <section id="passphrasePrompt" class="passphrasePrompt" aria-labelledby="passphrasePromptTitle" hidden>
+        <h2 id="passphrasePromptTitle">Password required</h2>
+        <p id="passphrasePromptDescription">Enter your password to continue.</p>
+        <input id="popupPassphrase" type="password" autocomplete="current-password" placeholder="Password">
+        <p id="popupPassphraseStatus" class="promptStatus" aria-live="polite"></p>
+        <div>
+            <button id="cancelPassphraseButton" class="outlineButton" type="button">Cancel</button>
+            <button id="confirmPassphraseButton" type="button">Continue</button>
+        </div>
+    </section>
 </main>
 <script src="../popup.js"></script>
 </body>

@@ -145,7 +145,7 @@ describe('background blocked hostnames cache', () => {
     });
 
     it('temporarily pauses blocking until the stored expiry time', () => {
-        const now = new Date(2026, 7, 25, 10, 0).getTime();
+        const now = Date.now();
         rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
         onStorageChanged({pausedUntil: {newValue: now + 15 * 60_000}}, 'local');
 
