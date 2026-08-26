@@ -57,6 +57,10 @@ export function detectBlockScope(input: string): BlockScope {
     return 'domain';
 }
 
+export function requiresBlockScopeChoice(input: string): boolean {
+    return detectBlockScope(input) === 'url';
+}
+
 export function normalizeUrlForMatch(input: string): string | null {
     const url = toUrl(input);
     if (!url || !isValidHostname(url.hostname)) {
@@ -84,6 +88,20 @@ export function blockedEntriesOverlap(
     const domain = normalizedFirst.scope === 'domain' ? normalizedFirst : normalizedSecond;
     const url = normalizedFirst.scope === 'url' ? normalizedFirst : normalizedSecond;
     return toUrl(url.name)?.hostname.replace(/^www\./, '') === domain.name;
+}
+
+export function blockedEntryCovers(
+    existing: Pick<BlockedEntry, 'name' | 'scope'>,
+    candidate: Pick<BlockedEntry, 'name' | 'scope'>,
+): boolean {
+    const normalizedExisting = normalizeBlockedEntry(existing.name, existing.scope);
+    const normalizedCandidate = normalizeBlockedEntry(candidate.name, candidate.scope);
+    if (!normalizedExisting || !normalizedCandidate) return false;
+    if (normalizedExisting.scope === normalizedCandidate.scope) {
+        return normalizedExisting.name === normalizedCandidate.name;
+    }
+    return normalizedExisting.scope === 'domain'
+        && toUrl(normalizedCandidate.name)?.hostname.replace(/^www\./, '') === normalizedExisting.name;
 }
 
 function toUrl(input: string): URL | null {

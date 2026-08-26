@@ -1,4 +1,11 @@
-import {blockedEntriesOverlap, detectBlockScope, normalizeBlockedEntry, normalizeUrlForMatch} from './blockedEntry';
+import {
+    blockedEntriesOverlap,
+    blockedEntryCovers,
+    detectBlockScope,
+    normalizeBlockedEntry,
+    normalizeUrlForMatch,
+    requiresBlockScopeChoice,
+} from './blockedEntry';
 
 describe('blocked entry validation', () => {
     it.each([
@@ -28,6 +35,14 @@ describe('blocked entry validation', () => {
         expect(detectBlockScope('https://abcd.co.uk/path')).toBe('url');
     });
 
+    it('requires a scope choice only for URLs below the site origin', () => {
+        expect(requiresBlockScopeChoice('chrome.google.com')).toBe(false);
+        expect(requiresBlockScopeChoice('https://chrome.google.com')).toBe(false);
+        expect(requiresBlockScopeChoice('https://chrome.google.com/')).toBe(false);
+        expect(requiresBlockScopeChoice('https://chrome.google.com/webstore')).toBe(true);
+        expect(requiresBlockScopeChoice('https://chrome.google.com/?page=1')).toBe(true);
+    });
+
     it('rejects non-HTTP URL rules and single-label hosts', () => {
         expect(normalizeUrlForMatch('ftp://abcd.com/file')).toBeNull();
         expect(normalizeUrlForMatch('https://abcd/path')).toBeNull();
@@ -41,6 +56,34 @@ describe('blocked entry validation', () => {
         expect(blockedEntriesOverlap(
             {name: 'linkedin.com', scope: 'domain'},
             {name: 'https://example.com/feed', scope: 'url'},
+        )).toBe(false);
+    });
+
+    it('treats rule coverage as directional', () => {
+        const domain = {name: 'example.com', scope: 'domain' as const};
+        const url = {name: 'https://example.com/path', scope: 'url' as const};
+        expect(blockedEntryCovers(domain, url)).toBe(true);
+        expect(blockedEntryCovers(url, domain)).toBe(false);
+        expect(blockedEntryCovers(url, url)).toBe(true);
+        expect(blockedEntryCovers(
+            {name: 'https://other.example/path', scope: 'url'},
+            url,
+        )).toBe(false);
+        expect(blockedEntryCovers({name: 'invalid', scope: 'domain'}, url)).toBe(false);
+        expect(blockedEntryCovers(domain, {name: 'invalid', scope: 'url'})).toBe(false);
+        expect(blockedEntryCovers(domain, {
+            name: 'https://www.example.com/path?tab=1#section', scope: 'url',
+        })).toBe(true);
+        expect(blockedEntryCovers(domain, {
+            name: 'https://sub.example.com/path', scope: 'url',
+        })).toBe(false);
+        expect(blockedEntryCovers(
+            {name: 'https://example.com/path/', scope: 'url'},
+            {name: 'https://example.com/path', scope: 'url'},
+        )).toBe(true);
+        expect(blockedEntryCovers(
+            {name: 'https://example.com/path?tab=1', scope: 'url'},
+            {name: 'https://example.com/path?tab=2', scope: 'url'},
         )).toBe(false);
     });
 
