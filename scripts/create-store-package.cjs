@@ -7,6 +7,7 @@ const builtDirectory = path.join(projectRoot, 'built');
 const releaseDirectory = path.join(projectRoot, 'release');
 const packageJson = require(path.join(projectRoot, 'package.json'));
 const manifestPath = path.join(builtDirectory, 'manifest.json');
+const changelogPath = path.join(projectRoot, 'CHANGELOG.md');
 
 if (!fs.existsSync(manifestPath)) {
     throw new Error('Missing built/manifest.json. Run the production build first.');
@@ -18,6 +19,11 @@ if (manifest.manifest_version !== 3) {
 }
 if (manifest.version !== packageJson.version) {
     throw new Error(`Version mismatch: package.json=${packageJson.version}, manifest=${manifest.version}.`);
+}
+const changelog = fs.readFileSync(changelogPath, 'utf8');
+const escapedVersion = manifest.version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+if (!new RegExp(`^##\\s+${escapedVersion}(?:\\s|$)`, 'm').test(changelog)) {
+    throw new Error(`CHANGELOG.md is missing a heading for version ${manifest.version}.`);
 }
 const allowedPermissions = new Set(['storage', 'tabs', 'activeTab', 'contextMenus', 'scripting']);
 const unexpectedPermission = (manifest.permissions || []).find((permission) => !allowedPermissions.has(permission));
