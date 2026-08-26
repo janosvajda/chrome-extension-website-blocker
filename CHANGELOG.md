@@ -22,8 +22,7 @@
 
 ### Privacy and quality
 
-- Keep all new state and verification inside `chrome.storage.local` without new permissions, runtime dependencies, external services, API calls, or network communication.
-- Derive phrase-verification keys with PBKDF2-SHA-256 and 600,000 iterations, then store only an AES-256-GCM encrypted verifier with a fresh random salt and IV—never the phrase or derived key.
+- Derive confirmation phrase-verification keys with PBKDF2-SHA-256 and 600,000 iterations, then store only an AES-256-GCM encrypted verifier with a fresh random salt and IV—never the phrase or derived key.
 - Extend unit, UI, background, and real-browser integration coverage for pauses, confirmation-phrase flows, rule scope choices, backups, schedules, confirmations, and blocking behavior.
 
 ## 1.0.2 - 2026-08-22
