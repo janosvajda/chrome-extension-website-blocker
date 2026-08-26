@@ -64,6 +64,8 @@ describe('options UI', () => {
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
+        expect(document.querySelector('.scheduleButton')?.getAttribute('aria-label')).toBe('Add schedule');
+        expect(document.querySelector('.deleteButton')?.getAttribute('aria-label')).toBe('Delete');
         (document.getElementById('nextPageButton') as HTMLButtonElement).click();
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(1);
         (document.getElementById('prevPageButton') as HTMLButtonElement).click();
@@ -294,7 +296,8 @@ describe('options UI', () => {
         (document.querySelector('input[name="scheduleDay"][value="1"]') as HTMLInputElement).checked = true;
         document.getElementById('saveScheduleButton')?.click();
         expect(data.blocked[0].schedule).toEqual({days: [1], start: '09:00', end: '17:00'});
-        expect(document.querySelector('.websiteSchedule')?.textContent).toBe('Mon | 09:00-17:00');
+        expect(document.querySelector('.websiteSchedule')?.textContent).toBe('Scheduled Mon | 09:00-17:00');
+        expect(document.querySelector('.scheduleStatusBadge')?.textContent).toBe('Scheduled');
 
         (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
         expect((document.getElementById('removeScheduleButton') as HTMLButtonElement).hidden).toBe(false);
@@ -359,12 +362,12 @@ describe('options UI', () => {
         await flush();
         expect(data.passphraseProtection).toEqual(protection);
         expect(data.magicWordForSettings).toBe(true);
-        expect(document.getElementById('passphraseDescription')?.textContent).toBe('Password protection is on.');
+        expect(document.getElementById('passphraseDescription')?.textContent).toBe('A confirmation phrase is set.');
         expect(document.getElementById('passphraseDescription')?.classList.contains('protectionActive')).toBe(true);
-        expect(document.getElementById('passwordFieldsLegend')?.textContent).toBe('Change password');
+        expect(document.getElementById('passwordFieldsLegend')?.textContent).toBe('Change confirmation phrase');
         expect((document.getElementById('passphraseSettingsDialog') as HTMLElement).hidden).toBe(true);
-        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Password set');
-        expect(document.getElementById('passwordSuccessMessage')?.textContent).toBe('Password protection is now on.');
+        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Phrase set');
+        expect(document.getElementById('passwordSuccessMessage')?.textContent).toBe('Your confirmation phrase is now set.');
         document.getElementById('closePasswordSuccessButton')?.click();
         expect((document.getElementById('passwordSuccessDialog') as HTMLElement).hidden).toBe(true);
         const settingsChoice = document.getElementById('magicWordForSettings') as HTMLInputElement;
@@ -382,7 +385,7 @@ describe('options UI', () => {
         (document.getElementById('confirmPassphrase') as HTMLInputElement).value = 'new password';
         document.getElementById('savePassphraseButton')?.click();
         await flush();
-        expect(document.getElementById('passphraseStatus')?.textContent).toBe('Current password is incorrect.');
+        expect(document.getElementById('passphraseStatus')?.textContent).toBe('Current confirmation phrase is incorrect.');
         expect((document.getElementById('passphraseSettingsDialog') as HTMLElement).hidden).toBe(false);
 
         mocked.verifyPassphrase.mockResolvedValueOnce(true);
@@ -390,8 +393,8 @@ describe('options UI', () => {
         document.getElementById('savePassphraseButton')?.click();
         await flush();
         expect((document.getElementById('passphraseSettingsDialog') as HTMLElement).hidden).toBe(true);
-        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Password changed');
-        expect(document.getElementById('passwordSuccessMessage')?.textContent).toBe('Your password was changed successfully.');
+        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Phrase changed');
+        expect(document.getElementById('passwordSuccessMessage')?.textContent).toBe('Your confirmation phrase was changed successfully.');
         document.getElementById('closePasswordSuccessButton')?.click();
         document.getElementById('openPassphraseSettingsButton')?.click();
         document.getElementById('removePassphraseButton')?.click();
@@ -399,7 +402,7 @@ describe('options UI', () => {
         expect(data.passphraseProtection).toBeUndefined();
         expect(data.magicWordForSettings).toBe(false);
         expect((document.getElementById('passphraseSettingsDialog') as HTMLElement).hidden).toBe(true);
-        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Password removed');
+        expect(document.getElementById('passwordSuccessTitle')?.textContent).toBe('Phrase removed');
     });
 
     it('asks for the password when opening Settings if selected', async () => {
@@ -411,7 +414,7 @@ describe('options UI', () => {
         (document.getElementById('settingsUnlockMagicWord') as HTMLInputElement)
             .dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', cancelable: true}));
         await flush();
-        expect(document.getElementById('settingsUnlockStatus')?.textContent).toBe('Incorrect password.');
+        expect(document.getElementById('settingsUnlockStatus')?.textContent).toBe('Incorrect confirmation phrase.');
         document.getElementById('unlockSettingsButton')?.click();
         await flush();
         expect((document.getElementById('settingsUnlockDialog') as HTMLElement).hidden).toBe(true);
@@ -430,7 +433,7 @@ describe('options UI', () => {
         expect(data.magicWordForSettings).toBe(true);
         expect(choice.checked).toBe(true);
         expect(document.getElementById('settingsGateDescription')?.textContent)
-            .toBe('On — your password is asked once when Settings opens.');
+            .toBe('On — your confirmation phrase is asked once when Settings opens.');
 
         document.getElementById('closePassphraseSettingsButton')?.click();
         choice.checked = false;
@@ -452,7 +455,7 @@ describe('options UI', () => {
         expect(document.getElementById('passphraseStatus')?.textContent).toBe('Encryption failed');
         document.getElementById('savePassphraseButton')?.click();
         await flush();
-        expect(document.getElementById('passphraseStatus')?.textContent).toBe('Unable to set the password.');
+        expect(document.getElementById('passphraseStatus')?.textContent).toBe('Unable to set the confirmation phrase.');
     });
 
     it('does not repeatedly ask for the password while using unlocked Settings', async () => {

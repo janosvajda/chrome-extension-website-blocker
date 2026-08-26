@@ -250,22 +250,36 @@ function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
                         card.style.background = '#ffffff';
                         card.style.color = '#1f1b16';
                         card.style.borderRadius = '14px';
-                        card.style.padding = '18px';
-                        card.style.maxWidth = '420px';
+                        card.style.boxSizing = 'border-box';
+                        card.style.padding = '22px';
+                        card.style.width = 'min(520px, calc(100vw - 40px))';
                         card.style.boxShadow = '0 18px 32px rgba(0, 0, 0, 0.25)';
                         card.style.fontFamily = '\'Trebuchet MS\',\'Lucida Grande\',\'Lucida Sans Unicode\',sans-serif';
 
                         const title = document.createElement('div');
                         title.textContent = 'Block this page';
+                        title.style.fontSize = '20px';
                         title.style.fontWeight = 'bold';
-                        title.style.marginBottom = '8px';
+                        title.style.marginBottom = '14px';
 
                         const subtitle = document.createElement('div');
-                        subtitle.textContent = `Choose how to block: ${url}`;
-                        subtitle.style.fontSize = '12px';
+                        subtitle.textContent = 'Choose how you want to block this page:';
+                        subtitle.style.fontSize = '14px';
                         subtitle.style.color = '#6b5f52';
-                        subtitle.style.marginBottom = '14px';
-                        subtitle.style.wordBreak = 'break-word';
+                        subtitle.style.marginBottom = '8px';
+
+                        const urlBox = document.createElement('div');
+                        urlBox.textContent = url;
+                        urlBox.style.background = '#fff7f1';
+                        urlBox.style.border = '1px solid #edcdb9';
+                        urlBox.style.borderRadius = '10px';
+                        urlBox.style.color = '#493d32';
+                        urlBox.style.fontFamily = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace';
+                        urlBox.style.fontSize = '12px';
+                        urlBox.style.lineHeight = '1.45';
+                        urlBox.style.marginBottom = '18px';
+                        urlBox.style.padding = '11px 12px';
+                        urlBox.style.overflowWrap = 'anywhere';
 
                         const actions = document.createElement('div');
                         actions.style.display = 'flex';
@@ -327,6 +341,7 @@ function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
 
                         card.appendChild(title);
                         card.appendChild(subtitle);
+                        card.appendChild(urlBox);
                         card.appendChild(actions);
                         overlay.appendChild(card);
                         document.body.appendChild(overlay);

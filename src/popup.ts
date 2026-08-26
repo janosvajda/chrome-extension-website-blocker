@@ -138,7 +138,7 @@ enabledToggle.addEventListener('change', () => {
     if (!enabledToggle.checked && passphraseProtection) {
         enabledToggle.checked = true;
         requestPassphrase(
-            'Enter your password to turn blocking off.',
+            'Enter your confirmation phrase to turn blocking off.',
             'Turn blocking off',
             () => setBlockingEnabled(false)
         );
@@ -199,7 +199,7 @@ confirmPassphraseButton.addEventListener('click', async () => {
         pendingProtectedAction = null;
         action?.();
     } else {
-        popupPassphraseStatus.textContent = 'Incorrect password.';
+        popupPassphraseStatus.textContent = 'Incorrect confirmation phrase.';
     }
 });
 
@@ -209,7 +209,7 @@ pauseButtons.forEach((button) => {
         if (!Number.isFinite(minutes) || minutes <= 0) return;
         if (passphraseProtection) {
             requestPassphrase(
-                `Enter your password to pause blocking for ${minutes} minutes.`,
+                `Enter your confirmation phrase to pause blocking for ${minutes} minutes.`,
                 `Pause for ${minutes} minutes`,
                 () => startTemporaryPause(minutes)
             );

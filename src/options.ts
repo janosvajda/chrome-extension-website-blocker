@@ -110,7 +110,16 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
 
     const scheduleSummary = document.createElement('div');
     scheduleSummary.className = 'websiteSchedule';
-    scheduleSummary.textContent = formatSchedule(schedule);
+    if (schedule) {
+        scheduleSummary.classList.add('scheduled');
+        const scheduleBadge = document.createElement('span');
+        scheduleBadge.className = 'scheduleStatusBadge';
+        scheduleBadge.textContent = 'Scheduled';
+        scheduleSummary.appendChild(scheduleBadge);
+        scheduleSummary.append(` ${formatSchedule(schedule)}`);
+    } else {
+        scheduleSummary.textContent = 'Always';
+    }
     websiteDetails.appendChild(scheduleSummary);
 
     const websiteScope = document.createElement('span');
@@ -123,8 +132,12 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
     websiteCheckbox.checked = enabled;
 
     const scheduleButton = document.createElement('button');
-    scheduleButton.className = 'ghostButton scheduleButton';
-    scheduleButton.textContent = schedule ? 'Edit schedule' : 'Schedule';
+    const scheduleLabel = schedule ? 'Edit schedule' : 'Add schedule';
+    scheduleButton.className = 'iconButton scheduleButton';
+    scheduleButton.classList.toggle('hasSchedule', Boolean(schedule));
+    scheduleButton.textContent = '🗓';
+    scheduleButton.setAttribute('aria-label', scheduleLabel);
+    scheduleButton.title = scheduleLabel;
     scheduleButton.addEventListener('click', () => {
         const index = blockedEntries.findIndex((entry) =>
             entry.name === normalizedWebsite.name && entry.scope === normalizedWebsite.scope
@@ -144,7 +157,10 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
     });
 
     const deleteButton = document.createElement('button');
-    deleteButton.textContent = 'Delete';
+    deleteButton.className = 'iconButton deleteButton';
+    deleteButton.textContent = '🗑';
+    deleteButton.setAttribute('aria-label', 'Delete');
+    deleteButton.title = 'Delete rule';
     deleteButton.addEventListener('click', () => {
         pendingDeleteEntry = normalizedWebsite;
         deleteRuleValue.textContent = normalizedWebsite.name;
@@ -153,8 +169,8 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
 
     websiteItem.appendChild(websiteDetails);
     websiteItem.appendChild(websiteScope);
-    websiteItem.appendChild(scheduleButton);
     websiteItem.appendChild(websiteCheckbox);
+    websiteItem.appendChild(scheduleButton);
     websiteItem.appendChild(deleteButton);
     websiteList.appendChild(websiteItem);
 
@@ -377,23 +393,23 @@ function setLocalStorage(values: Record<string, unknown>): Promise<void> {
 
 function renderPassphraseSettings() {
     passphraseDescription.textContent = passphraseProtection
-        ? 'Password protection is on.'
-        : 'Add a password before pausing blocking or changing protected settings.';
+        ? 'A confirmation phrase is set.'
+        : 'Choose a confirmation phrase for pausing or turning off blocking.';
     passphraseDescription.classList.toggle('protectionActive', Boolean(passphraseProtection));
-    passwordFieldsLegend.textContent = passphraseProtection ? 'Change password' : 'Create password';
+    passwordFieldsLegend.textContent = passphraseProtection ? 'Change confirmation phrase' : 'Create confirmation phrase';
     currentPassphrase.hidden = !passphraseProtection;
     passphraseFields.classList.toggle('changingPassword', Boolean(passphraseProtection));
-    savePassphraseButton.textContent = passphraseProtection ? 'Change password' : 'Set password';
+    savePassphraseButton.textContent = passphraseProtection ? 'Change phrase' : 'Set phrase';
     removePassphraseButton.hidden = !passphraseProtection;
     magicWordForSettings.disabled = false;
     magicWordForSettings.checked = requireMagicWordForSettings;
     settingsGateDescription.textContent = requireMagicWordForSettings
         ? passphraseProtection
-            ? 'On — your password is asked once when Settings opens.'
-            : 'This will turn on when you set your password.'
+            ? 'On — your confirmation phrase is asked once when Settings opens.'
+            : 'This will turn on when you set your confirmation phrase.'
         : passphraseProtection
-            ? 'Off — Settings opens without asking for your password.'
-            : 'Select this to ask for your password once when Settings opens.';
+            ? 'Off — Settings opens without asking for confirmation.'
+            : 'Select this to ask for confirmation once when Settings opens.';
 }
 
 function applySettingsGate() {
@@ -413,15 +429,15 @@ magicWordForSettings.addEventListener('change', async () => {
         try {
             await setLocalStorage({[STORAGE_KEYS.magicWordForSettings]: requireMagicWordForSettings});
             settingsGateStatus.textContent = requireMagicWordForSettings
-                ? 'Settings password check turned on.'
-                : 'Settings password check turned off.';
+                ? 'Settings confirmation turned on.'
+                : 'Settings confirmation turned off.';
         } catch {
             requireMagicWordForSettings = !requireMagicWordForSettings;
             settingsGateStatus.textContent = 'Unable to save this setting.';
             settingsGateStatus.classList.add('error');
         }
     } else if (requireMagicWordForSettings) {
-        settingsGateStatus.textContent = 'This choice will be saved when you set your password.';
+        settingsGateStatus.textContent = 'This choice will be saved when you set your confirmation phrase.';
     }
     renderPassphraseSettings();
 });
@@ -432,7 +448,7 @@ magicWordForSettings.addEventListener('change', async () => {
         settingsUnlockStatus.textContent = '';
         applySettingsGate();
     } else {
-        settingsUnlockStatus.textContent = 'Incorrect password.';
+        settingsUnlockStatus.textContent = 'Incorrect confirmation phrase.';
         settingsUnlockStatus.classList.add('error');
     }
 });
@@ -504,13 +520,13 @@ passwordProtectionForm.addEventListener('submit', async (event) => {
     event.preventDefault();
     showPassphraseStatus('');
     if (newPassphrase.value !== confirmPassphrase.value) {
-        showPassphraseStatus('The passwords do not match.', true);
+        showPassphraseStatus('The confirmation phrases do not match.', true);
         return;
     }
     try {
         const changingExistingPassword = Boolean(passphraseProtection);
         if (changingExistingPassword && !await verifyPassphrase(currentPassphrase.value, passphraseProtection)) {
-            showPassphraseStatus('Current password is incorrect.', true);
+            showPassphraseStatus('Current confirmation phrase is incorrect.', true);
             return;
         }
         const protection = await createPassphraseProtection(newPassphrase.value);
@@ -524,13 +540,13 @@ passwordProtectionForm.addEventListener('submit', async (event) => {
         confirmPassphrase.value = '';
         renderPassphraseSettings();
         passphraseSettingsDialog.hidden = true;
-        passwordSuccessTitle.textContent = changingExistingPassword ? 'Password changed' : 'Password set';
+        passwordSuccessTitle.textContent = changingExistingPassword ? 'Phrase changed' : 'Phrase set';
         passwordSuccessMessage.textContent = changingExistingPassword
-            ? 'Your password was changed successfully.'
-            : 'Password protection is now on.';
+            ? 'Your confirmation phrase was changed successfully.'
+            : 'Your confirmation phrase is now set.';
         passwordSuccessDialog.hidden = false;
     } catch (error) {
-        showPassphraseStatus(error instanceof Error ? error.message : 'Unable to set the password.', true);
+        showPassphraseStatus(error instanceof Error ? error.message : 'Unable to set the confirmation phrase.', true);
     }
 });
 
@@ -548,8 +564,8 @@ removePassphraseButton.addEventListener('click', async () => {
     renderPassphraseSettings();
     chrome.storage.local.set({[STORAGE_KEYS.magicWordForSettings]: false});
     passphraseSettingsDialog.hidden = true;
-    passwordSuccessTitle.textContent = 'Password removed';
-    passwordSuccessMessage.textContent = 'Password protection was removed.';
+    passwordSuccessTitle.textContent = 'Phrase removed';
+    passwordSuccessMessage.textContent = 'Your confirmation phrase was removed.';
     passwordSuccessDialog.hidden = false;
 });
 

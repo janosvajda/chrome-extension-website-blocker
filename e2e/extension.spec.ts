@@ -189,12 +189,12 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await options.locator('#confirmPassphrase').fill('correct horse battery staple');
         await options.locator('#confirmPassphrase').press('Enter');
         await expect(options.locator('#passwordSuccessDialog')).toBeVisible();
-        await expect(options.locator('#passwordSuccessMessage')).toHaveText('Password protection is now on.');
+        await expect(options.locator('#passwordSuccessMessage')).toHaveText('Your confirmation phrase is now set.');
         await options.locator('#closePasswordSuccessButton').click();
         await options.locator('#openPassphraseSettingsButton').click();
         await options.locator('#magicWordForSettings').check();
         await expect(options.locator('#settingsGateDescription'))
-            .toHaveText('On — your password is asked once when Settings opens.');
+            .toHaveText('On — your confirmation phrase is asked once when Settings opens.');
         await options.locator('#closePassphraseSettingsButton').click();
         await options.locator('#openPassphraseSettingsButton').click();
         await expect(options.locator('#magicWordForSettings')).toBeChecked();
@@ -219,7 +219,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(lockedOptions.locator('#settingsUnlockDialog')).toBeVisible();
         await lockedOptions.locator('#settingsUnlockMagicWord').fill('wrong password');
         await lockedOptions.locator('#unlockSettingsButton').click();
-        await expect(lockedOptions.locator('#settingsUnlockStatus')).toHaveText('Incorrect password.');
+        await expect(lockedOptions.locator('#settingsUnlockStatus')).toHaveText('Incorrect confirmation phrase.');
         await lockedOptions.locator('#settingsUnlockMagicWord').fill('correct horse battery staple');
         await lockedOptions.locator('#settingsUnlockMagicWord').press('Enter');
         await expect(lockedOptions.locator('#settingsUnlockDialog')).toBeHidden();
@@ -230,7 +230,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(popup.locator('#passphrasePrompt')).toBeVisible();
         await popup.locator('#popupPassphrase').fill('wrong passphrase');
         await popup.locator('#confirmPassphraseButton').click();
-        await expect(popup.locator('#popupPassphraseStatus')).toHaveText('Incorrect password.');
+        await expect(popup.locator('#popupPassphraseStatus')).toHaveText('Incorrect confirmation phrase.');
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('enabled'))).toEqual({enabled: true});
 
         await popup.locator('#popupPassphrase').fill('correct horse battery staple');
@@ -250,7 +250,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await page.locator('.scheduleButton').click();
         await expect(page.locator('#scheduleDialog')).toBeVisible();
         await page.locator('#saveScheduleButton').click();
-        await expect(page.locator('.websiteSchedule')).toHaveText('Mon, Tue, Wed, Thu, Fri | 09:00-17:00');
+        await expect(page.locator('.websiteSchedule')).toHaveText('Scheduled Mon, Tue, Wed, Thu, Fri | 09:00-17:00');
         const stored = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
         expect(stored.blocked).toEqual([{
             name: 'focus.example', scope: 'domain', enabled: true,
@@ -285,7 +285,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(page.locator('#transferStatus')).toHaveText('Imported 2 rules.');
         await expect(page.locator('#importResultMessage')).toHaveText('Imported 2 rules successfully.');
         await page.locator('#closeImportResultButton').click();
-        await expect(page.locator('.websiteSchedule')).toHaveText(['Always', 'Mon, Tue, Wed, Thu, Fri | 09:00-17:00']);
+        await expect(page.locator('.websiteSchedule')).toHaveText(['Always', 'Scheduled Mon, Tue, Wed, Thu, Fri | 09:00-17:00']);
 
         const downloadPromise = page.waitForEvent('download');
         await page.locator('#exportButton').click();

@@ -6,8 +6,8 @@
 
 - Add temporary 15-minute, 30-minute, and one-hour pauses to the toolbar popup, with a remaining-time display, automatic local resume time, and **Resume now** action.
 - Show one of three playful reminders from the fourth daily pause; the local counter includes timed pauses and manually switching blocking off, resets each day, and does not repeat after reopening the popup.
-- Add optional password protection for pausing or turning off blocking from the toolbar. Passwords can be created from 6 characters, changed only after verifying the current password, or freely removed in Settings.
-- Optionally require the password once when opening Tiny Website Blocker Settings; unlocked Settings remain available for that session without repeated prompts.
+- Add an optional confirmation phrase for pausing or turning off blocking from the toolbar. Phrases can be created from 6 characters, changed only after verifying the current phrase, or freely removed in Settings.
+- Optionally require confirmation once when opening Tiny Website Blocker Settings; confirmed Settings remain available for that session without repeated prompts.
 - Add focused Backup and restore dialogs with overwrite confirmation, imported-rule counts, clear failure feedback, and export confirmation showing the generated filename and Chrome-managed Downloads location.
 - Ask whether to block a whole domain or one full URL when Add Site receives a path, query, or fragment, matching the right-click flow.
 - Add prominent validation alerts, directional duplicate detection, and deletion confirmation showing the exact rule being removed.
@@ -17,14 +17,14 @@
 - Reorganize Settings into a responsive full-height layout that keeps Add Site and the GPL notice visible while the rule list scrolls independently.
 - Remove the redundant manual refresh control because rule changes update immediately.
 - Improve the toolbar popup layout and use the complete **Tiny Website Blocker** name.
-- Make forms and dialogs keyboard-friendly: Enter submits the active form or password prompt, and Escape closes dismissible dialogs without saving unintended changes.
-- Improve password, domain-or-URL, confirmation, and error-dialog wording and visual organization.
+- Make forms and dialogs keyboard-friendly: Enter submits the active form or confirmation prompt, and Escape closes dismissible dialogs without saving unintended changes.
+- Improve confirmation-phrase, domain-or-URL, confirmation, and error-dialog wording and visual organization.
 
 ### Privacy and quality
 
 - Keep all new state and verification inside `chrome.storage.local` without new permissions, runtime dependencies, external services, API calls, or network communication.
-- Derive password-verification keys with PBKDF2-SHA-256 and 600,000 iterations, then store only an AES-256-GCM encrypted verifier with a fresh random salt and IV—never the password or derived key.
-- Extend unit, UI, background, and real-browser integration coverage for pauses, password flows, rule scope choices, backups, schedules, confirmations, and blocking behavior.
+- Derive phrase-verification keys with PBKDF2-SHA-256 and 600,000 iterations, then store only an AES-256-GCM encrypted verifier with a fresh random salt and IV—never the phrase or derived key.
+- Extend unit, UI, background, and real-browser integration coverage for pauses, confirmation-phrase flows, rule scope choices, backups, schedules, confirmations, and blocking behavior.
 
 ## 1.0.2 - 2026-08-22
 

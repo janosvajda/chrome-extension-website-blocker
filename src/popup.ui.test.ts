@@ -263,7 +263,7 @@ describe('popup UI', () => {
             .dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', cancelable: true}));
         await Promise.resolve();
         await Promise.resolve();
-        expect(document.getElementById('popupPassphraseStatus')?.textContent).toBe('Incorrect password.');
+        expect(document.getElementById('popupPassphraseStatus')?.textContent).toBe('Incorrect confirmation phrase.');
         document.getElementById('confirmPassphraseButton')?.click();
         await Promise.resolve();
         await Promise.resolve();

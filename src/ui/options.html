@@ -16,7 +16,7 @@
             </div>
         </div>
         <div class="headerActions">
-            <button id="openPassphraseSettingsButton" class="ghostButton" type="button">Password</button>
+            <button id="openPassphraseSettingsButton" class="ghostButton" type="button">Confirmation phrase</button>
             <button id="openTransferDialogButton" class="ghostButton" type="button">Backup and restore</button>
         </div>
     </header>
@@ -107,7 +107,7 @@
         <div class="transferCard transferDialogCard">
             <div>
                 <h2 id="transferTitle" class="sectionTitle">Backup and restore</h2>
-                <p class="subtitle">Export or import rules and the global blocking setting. Statistics stay private.</p>
+                <p class="subtitle">Export or import rules and the global blocking setting.</p>
             </div>
             <div class="transferActions">
                 <button id="exportButton" type="button" class="ghostButton">Export JSON</button>
@@ -122,29 +122,29 @@
     </section>
     <section id="passphraseSettingsDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="passphraseTitle" hidden>
         <div class="passphraseDialogCard passphraseSettingsCard">
-            <h2 id="passphraseTitle" class="sectionTitle">Password protection</h2>
-            <p id="passphraseDescription" class="subtitle">Add a password before pausing blocking or changing protected settings.</p>
+            <h2 id="passphraseTitle" class="sectionTitle">Confirmation phrase</h2>
+            <p id="passphraseDescription" class="subtitle">Choose a confirmation phrase for pausing or turning off blocking.</p>
             <form id="passwordProtectionForm" class="passwordChangeSection">
                 <fieldset class="passwordFieldGroup">
-                    <legend id="passwordFieldsLegend">Create password</legend>
+                    <legend id="passwordFieldsLegend">Create confirmation phrase</legend>
                     <div class="passphraseFields">
-                        <input id="currentPassphrase" type="password" autocomplete="current-password" placeholder="Current password" aria-label="Current password" hidden>
-                        <input id="newPassphrase" type="password" autocomplete="new-password" placeholder="New password (6+ characters)" aria-label="New password">
-                        <input id="confirmPassphrase" type="password" autocomplete="new-password" placeholder="Confirm new password" aria-label="Confirm new password">
+                        <input id="currentPassphrase" type="password" autocomplete="current-password" placeholder="Current confirmation phrase" aria-label="Current confirmation phrase" hidden>
+                        <input id="newPassphrase" type="password" autocomplete="new-password" placeholder="New phrase (6+ characters)" aria-label="New confirmation phrase">
+                        <input id="confirmPassphrase" type="password" autocomplete="new-password" placeholder="Confirm new phrase" aria-label="Confirm new confirmation phrase">
                     </div>
                 </fieldset>
                 <p id="passphraseStatus" class="formHint passwordFormStatus" aria-live="polite"></p>
                 <div class="passwordChangeActions">
-                    <button id="removePassphraseButton" type="button" class="dangerButton" hidden>Remove password</button>
+                    <button id="removePassphraseButton" type="button" class="dangerButton" hidden>Remove phrase</button>
                     <span class="actionSpacer"></span>
-                    <button id="savePassphraseButton" type="submit">Set password</button>
+                    <button id="savePassphraseButton" type="submit">Set phrase</button>
                 </div>
             </form>
             <section class="settingsAccessSection" aria-labelledby="settingsAccessTitle">
                 <h3 id="settingsAccessTitle">Settings access</h3>
                 <label class="settingsGateChoice">
                     <input id="magicWordForSettings" type="checkbox">
-                    <span><strong>Ask for password when opening Tiny Website Blocker Settings</strong><small id="settingsGateDescription">When selected, the password will be required to open Settings.</small></span>
+                    <span><strong>Ask for confirmation phrase when opening Tiny Website Blocker Settings</strong><small id="settingsGateDescription">When selected, your confirmation phrase will be required to open Settings.</small></span>
                 </label>
                 <p id="settingsGateStatus" class="formHint settingsGateStatus" aria-live="polite"></p>
             </section>
@@ -171,7 +171,6 @@
                 <div><dt>File name</dt><dd id="exportedFileName"></dd></div>
                 <div><dt>Location</dt><dd>Chrome’s configured Downloads folder</dd></div>
             </dl>
-            <p class="formHint">Chrome does not share the full filesystem path with this extension.</p>
             <div class="dialogActions">
                 <button id="closeExportSuccessButton" type="button">Done</button>
             </div>
@@ -188,7 +187,7 @@
     </section>
     <section id="passwordSuccessDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="passwordSuccessTitle" hidden>
         <div class="passphraseDialogCard">
-            <h2 id="passwordSuccessTitle" class="sectionTitle">Password updated</h2>
+            <h2 id="passwordSuccessTitle" class="sectionTitle">Confirmation phrase updated</h2>
             <p id="passwordSuccessMessage" class="subtitle"></p>
             <div class="dialogActions">
                 <button id="closePasswordSuccessButton" type="button">OK</button>
@@ -199,14 +198,14 @@
         Tiny Website Blocker is free and open-source software under the
         <a href="LICENSE" target="_blank" rel="noopener">GNU GPL v3.0</a>.<br>
         You may redistribute and modify it under the licence terms. It is provided without warranty.<br>
-        Copyright &copy; 2021&ndash;2026 Janos Vajda.
+        Copyright &copy; 2021&ndash;2026 Janos.
     </footer>
 </main>
 <section id="settingsUnlockDialog" class="scheduleDialog settingsUnlockDialog" role="dialog" aria-modal="true" aria-labelledby="settingsUnlockTitle" hidden>
     <div class="passphraseDialogCard">
-        <h2 id="settingsUnlockTitle" class="sectionTitle">Password required</h2>
-        <p class="subtitle">Enter your password to open Settings.</p>
-        <input id="settingsUnlockMagicWord" type="password" autocomplete="current-password" placeholder="Password">
+        <h2 id="settingsUnlockTitle" class="sectionTitle">Confirmation phrase required</h2>
+        <p class="subtitle">Enter your confirmation phrase to open Settings.</p>
+        <input id="settingsUnlockMagicWord" type="password" autocomplete="current-password" placeholder="Confirmation phrase">
         <p id="settingsUnlockStatus" class="formHint" aria-live="polite"></p>
         <div class="dialogActions">
             <button id="unlockSettingsButton" type="button">Open Settings</button>
