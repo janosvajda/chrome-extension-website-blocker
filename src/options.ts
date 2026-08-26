@@ -71,6 +71,7 @@ const settingsGateStatus = document.getElementById('settingsGateStatus') as HTML
 const settingsUnlockDialog = document.getElementById('settingsUnlockDialog') as HTMLElement;
 const settingsUnlockMagicWord = document.getElementById('settingsUnlockMagicWord') as HTMLInputElement;
 const settingsUnlockStatus = document.getElementById('settingsUnlockStatus') as HTMLElement;
+const extensionVersion = document.getElementById('extensionVersion') as HTMLElement;
 type BlockedEntry = {
     name: string;
     scope: 'domain' | 'url';
@@ -89,6 +90,8 @@ let passphraseProtection: PassphraseProtection | null = null;
 let pendingImportFile: File | null = null;
 let requireMagicWordForSettings = false;
 let settingsAccessGranted = false;
+
+extensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
 
 // Render a single entry row and wire its UI events.
 function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {

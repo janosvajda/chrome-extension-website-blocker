@@ -16,7 +16,10 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     missingIds.forEach((id) => document.getElementById(id)?.remove());
     const data: Data = {blocked: [], enabled: true, schedules: [], ...initial};
     const chromeMock = {
-        runtime: {lastError: undefined as undefined | {message: string}},
+        runtime: {
+            lastError: undefined as undefined | {message: string},
+            getManifest: jest.fn(() => ({version: '1.0.3'})),
+        },
         storage: {local: {
             get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
                 callback({...defaults, ...data});
@@ -61,6 +64,7 @@ describe('options UI', () => {
 
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
+        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.3');
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');

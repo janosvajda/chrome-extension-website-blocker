@@ -70,6 +70,27 @@ main {
     gap: 6px;
 }
 
+.titleHeading {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.titleHeading h1 {
+    margin-bottom: 6px;
+}
+
+.versionBadge {
+    background: rgba(224, 112, 47, 0.12);
+    border-radius: 999px;
+    color: var(--accent-deep);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 3px 7px;
+}
+
 h1 {
     font-family: "Georgia", "Times New Roman", serif;
     font-size: clamp(26px, 3vw, 34px);
@@ -476,6 +497,7 @@ button:hover {
 }
 
 .transferDialogCard { margin: 0; max-width: 620px; width: 100%; }
+.transferDialogCard > div:first-child .subtitle { padding-top: 12px; }
 .transferDialogActions { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 14px; }
 
 .passphraseFields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
