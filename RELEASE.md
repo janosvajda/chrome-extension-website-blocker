@@ -1,4 +1,4 @@
-# Tiny Website Blocker 1.0.3
+# Tiny Website Blocker 1.0.4
 
 ## What’s new
 

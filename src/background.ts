@@ -61,12 +61,16 @@ export function resetBlockedStateForTest(): void {
     });
 }
 chrome.runtime.onInstalled.addListener(function() {
-    // Create context menu item
-    chrome.contextMenus.create({
-        id: 'blockPage',
-        title: 'Block this page by Tiny Blocker',
-        contexts: ['page'],
-        documentUrlPatterns: ['http://*/*', 'https://*/*']
+    chrome.contextMenus.removeAll(() => {
+        void chrome.runtime.lastError;
+        chrome.contextMenus.create({
+            id: 'blockPage',
+            title: 'Block this page by Tiny Blocker',
+            contexts: ['page'],
+            documentUrlPatterns: ['http://*/*', 'https://*/*']
+        }, () => {
+            void chrome.runtime.lastError;
+        });
     });
 });
 
@@ -127,13 +131,18 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
         if (!pageUrl || pageUrl.startsWith('chrome://') || pageUrl.startsWith('chrome-extension://')) {
             return;
         }
-        decideBlockScope(tabId, pageUrl).then((scope) => {
-            if (!scope) {
-                return;
-            }
-            chrome.storage.local.get({ blocked: [] }, function(result) {
-                const currentBlocked = Array.isArray(result.blocked)
-                    ? result.blocked as BlockedEntry[]
+        chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
+            const warning = state.enabled === false
+                ? 'The blocking rule was saved, but Tiny Website Blocker is currently off. Turn blocking on for the rule to take effect.'
+                : normalizePausedUntil(state.pausedUntil) > 0
+                    ? 'The blocking rule was saved, but Tiny Website Blocker is temporarily paused. Resume blocking for the rule to take effect.'
+                    : '';
+            decideBlockScope(tabId, pageUrl).then((scope) => {
+                if (!scope) {
+                    return;
+                }
+                const currentBlocked = Array.isArray(state.blocked)
+                    ? state.blocked as BlockedEntry[]
                     : [];
                 const normalizedEntry = normalizeBlockedEntry(pageUrl, scope);
                 if (!normalizedEntry) {
@@ -150,16 +159,16 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                         const updatedBlocked = [...currentBlocked];
                         updatedBlocked[existingIndex] = { ...existingEntry, enabled: true };
                         chrome.storage.local.set({ blocked: updatedBlocked }, () => {
-                            chrome.tabs.reload(tabId);
+                            finishContextMenuRule(tabId, warning);
                         });
                         return;
                     }
-                    chrome.tabs.reload(tabId);
+                    finishContextMenuRule(tabId, warning);
                     return;
                 }
 
                 if (currentBlocked.some((item) => item.enabled && blockedEntryCovers(item, normalizedEntry))) {
-                    chrome.tabs.reload(tabId);
+                    finishContextMenuRule(tabId, warning);
                     return;
                 }
 
@@ -172,12 +181,27 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                     },
                 ];
 
-                chrome.storage.local.set({ blocked: newBlocked });
-                chrome.tabs.reload(tabId);
+                chrome.storage.local.set({ blocked: newBlocked }, () => {
+                    finishContextMenuRule(tabId, warning);
+                });
             });
         });
     }
 });
+
+function finishContextMenuRule(tabId: number, warning: string) {
+    if (!warning) {
+        chrome.tabs.reload(tabId);
+        return;
+    }
+    chrome.scripting.executeScript({
+        target: {tabId},
+        args: [warning],
+        func: (message) => window.alert(message),
+    }, () => {
+        void chrome.runtime.lastError;
+    });
+}
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     const url = tab.pendingUrl || tab.url;

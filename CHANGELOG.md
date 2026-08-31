@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.4 - 2026-08-30
+
+### Fixed
+
+- Prevent the persisted context-menu item from being created twice during extension installation or update, avoiding the `Cannot create item with duplicate id blockPage` startup error.
+- Save new rules while warning that they will take effect only after blocking is turned on or resumed, both from Settings and the page context menu.
+
 ## 1.0.3 - 2026-08-25
 
 ### Added
