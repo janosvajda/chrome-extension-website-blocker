@@ -6,7 +6,7 @@ import {
     normalizeBlockedEntry,
     requiresBlockScopeChoice,
 } from './helper/blockedEntry';
-import {parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
+import {normalizePausedUntil, parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
 import {migrateLegacyScheduleGroups, normalizeRuleSchedule} from './helper/schedules';
 import {
     createPassphraseProtection,
@@ -38,6 +38,7 @@ const deleteRuleValue = document.getElementById('deleteRuleValue') as HTMLElemen
 const cancelDeleteButton = document.getElementById('cancelDeleteButton') as HTMLButtonElement;
 const confirmDeleteButton = document.getElementById('confirmDeleteButton') as HTMLButtonElement;
 const addWebsiteErrorDialog = document.getElementById('addWebsiteErrorDialog') as HTMLElement;
+const addWebsiteErrorTitle = document.getElementById('addWebsiteErrorTitle') as HTMLElement;
 const addWebsiteErrorMessage = document.getElementById('addWebsiteErrorMessage') as HTMLElement;
 const scheduleRuleName = document.getElementById('scheduleRuleName');
 const scheduleStart = document.getElementById('scheduleStart') as HTMLInputElement;
@@ -223,12 +224,7 @@ function submitBlockedEntry() {
         blockScopeDialog.hidden = false;
         return;
     }
-    if (!addBlockedEntry(normalized)) {
-        showAddWebsiteStatus('This website is already covered by an existing rule.', true);
-        return;
-    }
-    newWebsiteInput.value = '';
-    showAddWebsiteStatus('Website added.');
+    addWebsiteWithBlockingWarning(normalized);
 }
 
 function closeBlockScopeDialog() {
@@ -240,12 +236,24 @@ function addPendingWebsite(scope: BlockScope) {
     if (!pendingWebsiteInput) return;
     const websiteName = pendingWebsiteInput;
     closeBlockScopeDialog();
-    if (!addBlockedEntry(normalizeBlockedEntry(websiteName, scope) as NormalizedBlockedEntry)) {
-        showAddWebsiteStatus('This website is already covered by an existing rule.', true);
-        return;
-    }
-    newWebsiteInput.value = '';
-    showAddWebsiteStatus('Website added.');
+    addWebsiteWithBlockingWarning(normalizeBlockedEntry(websiteName, scope) as NormalizedBlockedEntry);
+}
+
+function addWebsiteWithBlockingWarning(normalized: NormalizedBlockedEntry) {
+    chrome.storage.local.get({enabled: true, pausedUntil: 0}, (data) => {
+        if (!addBlockedEntry(normalized)) {
+            showAddWebsiteStatus('This website is already covered by an existing rule.', true);
+            return;
+        }
+        newWebsiteInput.value = '';
+        if (data.enabled === false) {
+            showAddWebsiteWarning('The website was added, but blocking is currently off. Turn blocking on for the rule to take effect.');
+        } else if (normalizePausedUntil(data.pausedUntil) > 0) {
+            showAddWebsiteWarning('The website was added, but blocking is temporarily paused. Resume blocking for the rule to take effect.');
+        } else {
+            showAddWebsiteStatus('Website added.');
+        }
+    });
 }
 
 cancelBlockScopeButton.addEventListener('click', closeBlockScopeDialog);
@@ -276,10 +284,19 @@ function showAddWebsiteStatus(message: string, isError = false) {
         addWebsiteStatus.classList.toggle('error', isError);
     }
     if (isError) {
+        addWebsiteErrorTitle.textContent = 'Website not added';
         addWebsiteErrorMessage.textContent = message;
         addWebsiteErrorDialog.hidden = false;
         (document.getElementById('closeAddWebsiteErrorButton') as HTMLButtonElement).focus();
     }
+}
+
+function showAddWebsiteWarning(message: string) {
+    newWebsiteInput.setAttribute('aria-invalid', 'false');
+    addWebsiteErrorTitle.textContent = 'Website added';
+    addWebsiteErrorMessage.textContent = message;
+    addWebsiteErrorDialog.hidden = false;
+    (document.getElementById('closeAddWebsiteErrorButton') as HTMLButtonElement).focus();
 }
 
 document.getElementById('closeAddWebsiteErrorButton')?.addEventListener('click', () => {

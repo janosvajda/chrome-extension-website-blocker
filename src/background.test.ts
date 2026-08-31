@@ -8,7 +8,8 @@ const mockChrome = {
         },
     },
     contextMenus: {
-        create: jest.fn(),
+        create: jest.fn((_properties, callback) => callback?.()),
+        removeAll: jest.fn((callback) => callback()),
         onClicked: {
             addListener: jest.fn(),
         },
@@ -80,12 +81,20 @@ describe('background blocked hostnames cache', () => {
     it('shows the block-page context menu only on HTTP and HTTPS pages', () => {
         createContextMenu();
 
-        expect(mockChrome.contextMenus.create).toHaveBeenCalledWith({
-            id: 'blockPage',
-            title: 'Block this page by Tiny Blocker',
-            contexts: ['page'],
-            documentUrlPatterns: ['http://*/*', 'https://*/*'],
-        });
+        expect(mockChrome.contextMenus.removeAll).toHaveBeenCalledTimes(1);
+        expect(mockChrome.contextMenus.create).toHaveBeenCalledWith(
+            {
+                id: 'blockPage',
+                title: 'Block this page by Tiny Blocker',
+                contexts: ['page'],
+                documentUrlPatterns: ['http://*/*', 'https://*/*'],
+            },
+            expect.any(Function)
+        );
+
+        createContextMenu();
+        expect(mockChrome.contextMenus.removeAll).toHaveBeenCalledTimes(2);
+        expect(mockChrome.contextMenus.create).toHaveBeenCalledTimes(2);
     });
 
     it('tracks only enabled hostnames and normalizes them', () => {
@@ -178,5 +187,28 @@ describe('background blocked hostnames cache', () => {
             expect.any(Function)
         );
         expect(mockChrome.tabs.reload).toHaveBeenCalledWith(7);
+    });
+
+    it.each([
+        [{enabled: false, pausedUntil: 0, blocked: []}, 'currently off'],
+        [{enabled: true, pausedUntil: Date.now() + 60_000, blocked: []}, 'temporarily paused'],
+    ])('adds a context-menu rule and warns when blocking is unavailable', async (state, message) => {
+        mockChrome.storage.local.get.mockImplementationOnce((_keys, callback) => callback(state));
+
+        onContextMenuClicked(
+            {menuItemId: 'blockPage'},
+            {id: 8, url: 'https://example.com', title: 'Example'}
+        );
+        await Promise.resolve();
+
+        expect(mockChrome.scripting.executeScript).toHaveBeenCalledWith(
+            expect.objectContaining({target: {tabId: 8}, args: [expect.stringContaining(message)]}),
+            expect.any(Function)
+        );
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith(
+            {blocked: [{name: 'example.com', scope: 'domain', enabled: true}]},
+            expect.any(Function)
+        );
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
     });
 });

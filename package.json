@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {

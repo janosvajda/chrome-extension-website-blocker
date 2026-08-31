@@ -18,7 +18,7 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     const chromeMock = {
         runtime: {
             lastError: undefined as undefined | {message: string},
-            getManifest: jest.fn(() => ({version: '1.0.3'})),
+            getManifest: jest.fn(() => ({version: '1.0.4'})),
         },
         storage: {local: {
             get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
@@ -64,7 +64,7 @@ describe('options UI', () => {
 
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
-        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.3');
+        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.4');
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
@@ -111,6 +111,22 @@ describe('options UI', () => {
         input.value = 'keyboard.example';
         document.getElementById('addWebsite')?.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
         expect(document.getElementById('addWebsiteStatus')?.textContent).toBe('Website added.');
+    });
+
+    it.each([
+        [{enabled: false}, 'currently off'],
+        [{enabled: true, pausedUntil: Date.now() + 60_000}, 'temporarily paused'],
+    ])('adds a Settings rule and warns when blocking is unavailable', (state, message) => {
+        const {data} = setup(state);
+
+        addWebsite('example.com');
+
+        expect(data.blocked).toEqual([
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]);
+        expect((document.getElementById('addWebsiteErrorDialog') as HTMLElement).hidden).toBe(false);
+        expect(document.getElementById('addWebsiteErrorTitle')?.textContent).toBe('Website added');
+        expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toContain(message);
     });
 
     it('asks whether a path URL should block its domain or only the URL', () => {
