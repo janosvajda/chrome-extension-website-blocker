@@ -1,19 +1,15 @@
-# Tiny Website Blocker 1.0.4
+# Tiny Website Blocker 1.0.5
 
 ## What’s new
 
-- Pause all blocking from the toolbar popup for 15 minutes, 30 minutes, or one hour.
-- See the remaining pause time and the exact local time when blocking will resume automatically.
-- Resume blocking immediately with **Resume now**.
-- From the fourth pause in one day, see one of three randomly selected funny reminders with a playful bounce animation.
-- Both timed pauses and turning blocking off with the main switch count toward the daily reminder total.
-- Optionally protect actions that weaken blocking with a password configured in Settings. The password is never stored or recoverable.
+- Configure blocking independently for each day of the week.
+- Choose **All day** or **Specific hours** for every enabled day.
+- Use different blocking hours on different days.
+- Continue using overnight blocking periods when needed.
+- See clearer wording explaining that schedules define when a website is blocked.
 
-The pause counter resets automatically for each new local calendar day. The first pause on a new day starts the count at one, so reminders do not appear again until the fourth pause that day.
-Funny reminders are shown only when a qualifying pause is started. Closing the popup dismisses the reminder; reopening it still shows the active pause and countdown without repeating the message.
+## Compatibility
 
-## Privacy
+Existing per-site schedules and older JSON backups continue to work and are converted to the new daily schedule format automatically. New exports use backup format version 4 so older extension versions cannot silently discard the more detailed schedules.
 
-The pause expiry time and daily pause count stay in local extension storage. Tiny Website Blocker does not transmit them or use an external API, service, analytics system, or network request.
-
-Password protection stores only a locally encrypted verifier with a fresh random salt and IV. It cannot stop someone from clearing the extension’s local data or uninstalling the extension.
+All schedules and settings remain stored locally in the browser. Tiny Website Blocker does not use an external API, service, analytics system, or network request.

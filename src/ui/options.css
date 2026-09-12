@@ -266,7 +266,7 @@ h1 {
     display: grid;
     gap: 20px;
     max-height: calc(100vh - 36px);
-    max-width: 480px;
+    max-width: 720px;
     overflow-y: auto;
     padding: 26px;
     width: 100%;
@@ -288,6 +288,12 @@ h1 {
     padding: 6px 11px;
 }
 
+.scheduleExplanation {
+    color: var(--text);
+    line-height: 1.45;
+    margin: -4px 0 0;
+}
+
 .scheduleDialog fieldset {
     background: #fdfaf6;
     border: 1px solid var(--line);
@@ -303,51 +309,60 @@ h1 {
     padding: 0 5px;
 }
 
-.dayChoices {
+.dailySchedule {
     display: grid;
     gap: 8px;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
     margin-top: 4px;
 }
 
-.timeFields {
+.dailyScheduleHeader,
+.dailyScheduleRow {
     align-items: center;
     display: grid;
     gap: 10px;
-    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-    margin-top: 4px;
+    grid-template-columns: 110px 130px minmax(190px, 1fr);
 }
 
-.dayChoices label {
-    align-items: center;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    cursor: pointer;
-    display: flex;
-    gap: 5px;
-    justify-content: center;
-    min-width: 0;
-    padding: 8px 7px;
+.dailyScheduleHeader {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: bold;
+    padding: 0 8px;
+    text-transform: uppercase;
 }
 
-.dayChoices input,
-.timeFields input {
-    accent-color: var(--accent);
-}
-
-.timeFields input {
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    font: inherit;
+.dailyScheduleRow {
+    border-top: 1px solid var(--line);
     padding: 8px;
-    width: 100%;
 }
 
-.timeFields label {
+.dailyScheduleRow label,
+.scheduleDayTimes {
     align-items: center;
     display: flex;
     gap: 7px;
     min-width: 0;
+}
+
+.dailyScheduleRow.disabled {
+    color: var(--muted);
+}
+
+.dailyScheduleRow input,
+.dailyScheduleRow select {
+    accent-color: var(--accent);
+}
+
+.dailyScheduleRow select,
+.scheduleDayTimes input {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font: inherit;
+    padding: 7px;
+}
+
+.scheduleDayTimes input {
+    width: 100%;
 }
 
 .scheduleDialog fieldset .formHint {
@@ -658,16 +673,16 @@ button:hover {
         padding: 20px;
     }
 
-    .dayChoices {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+    .dailyScheduleHeader {
+        display: none;
     }
 
-    .timeFields {
+    .dailyScheduleRow {
         grid-template-columns: 1fr;
     }
 
-    .timeFields > span {
-        display: none;
+    .scheduleDayTimes {
+        grid-column: 1;
     }
 
     .passphraseFields { grid-template-columns: 1fr; }

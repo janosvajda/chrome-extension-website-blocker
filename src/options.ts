@@ -6,8 +6,10 @@ import {
     normalizeBlockedEntry,
     requiresBlockScopeChoice,
 } from './helper/blockedEntry';
-import {normalizePausedUntil, parseImportedConfiguration, STORAGE_KEYS} from './helper/extensionState';
+import {normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
 import {migrateLegacyScheduleGroups, normalizeRuleSchedule} from './helper/schedules';
+import {createScheduleEditor, formatSchedule, ScheduledRule} from './options/scheduleEditor';
+import {initializeBackupController} from './options/backupController';
 import {
     createPassphraseProtection,
     normalizePassphraseProtection,
@@ -23,10 +25,6 @@ const prevPageButton = document.getElementById('prevPageButton') as HTMLButtonEl
 const nextPageButton = document.getElementById('nextPageButton') as HTMLButtonElement;
 const pageNumbers = document.getElementById('pageNumbers');
 const pageInfo = document.getElementById('pageInfo');
-const exportButton = document.getElementById('exportButton');
-const importButton = document.getElementById('importButton');
-const importFileInput = document.getElementById('importFile') as HTMLInputElement;
-const transferStatus = document.getElementById('transferStatus');
 const scheduleDialog = document.getElementById('scheduleDialog') as HTMLElement;
 const blockScopeDialog = document.getElementById('blockScopeDialog') as HTMLElement;
 const blockScopeValue = document.getElementById('blockScopeValue') as HTMLElement;
@@ -40,11 +38,6 @@ const confirmDeleteButton = document.getElementById('confirmDeleteButton') as HT
 const addWebsiteErrorDialog = document.getElementById('addWebsiteErrorDialog') as HTMLElement;
 const addWebsiteErrorTitle = document.getElementById('addWebsiteErrorTitle') as HTMLElement;
 const addWebsiteErrorMessage = document.getElementById('addWebsiteErrorMessage') as HTMLElement;
-const scheduleRuleName = document.getElementById('scheduleRuleName');
-const scheduleStart = document.getElementById('scheduleStart') as HTMLInputElement;
-const scheduleEnd = document.getElementById('scheduleEnd') as HTMLInputElement;
-const scheduleStatus = document.getElementById('scheduleStatus');
-const removeScheduleButton = document.getElementById('removeScheduleButton') as HTMLButtonElement;
 const currentPassphrase = document.getElementById('currentPassphrase') as HTMLInputElement;
 const newPassphrase = document.getElementById('newPassphrase') as HTMLInputElement;
 const confirmPassphrase = document.getElementById('confirmPassphrase') as HTMLInputElement;
@@ -59,10 +52,7 @@ const passphraseSettingsDialog = document.getElementById('passphraseSettingsDial
 const transferDialog = document.getElementById('transferDialog') as HTMLElement;
 const importConfirmationDialog = document.getElementById('importConfirmationDialog') as HTMLElement;
 const exportSuccessDialog = document.getElementById('exportSuccessDialog') as HTMLElement;
-const exportedFileName = document.getElementById('exportedFileName') as HTMLElement;
 const importResultDialog = document.getElementById('importResultDialog') as HTMLElement;
-const importResultTitle = document.getElementById('importResultTitle') as HTMLElement;
-const importResultMessage = document.getElementById('importResultMessage') as HTMLElement;
 const passwordSuccessDialog = document.getElementById('passwordSuccessDialog') as HTMLElement;
 const passwordSuccessTitle = document.getElementById('passwordSuccessTitle') as HTMLElement;
 const passwordSuccessMessage = document.getElementById('passwordSuccessMessage') as HTMLElement;
@@ -73,24 +63,33 @@ const settingsUnlockDialog = document.getElementById('settingsUnlockDialog') as 
 const settingsUnlockMagicWord = document.getElementById('settingsUnlockMagicWord') as HTMLInputElement;
 const settingsUnlockStatus = document.getElementById('settingsUnlockStatus') as HTMLElement;
 const extensionVersion = document.getElementById('extensionVersion') as HTMLElement;
-type BlockedEntry = {
-    name: string;
-    scope: 'domain' | 'url';
-    enabled: boolean;
-    schedule?: RuleSchedule;
-};
+type BlockedEntry = ScheduledRule;
 
 // Pagination defaults keep the list readable on smaller screens.
 const pageSize = 5;
 let currentPage = 1;
 let blockedEntries: BlockedEntry[] = [];
-let editingScheduleIndex: number | null = null;
 let pendingWebsiteInput: string | null = null;
 let pendingDeleteEntry: NormalizedBlockedEntry | null = null;
 let passphraseProtection: PassphraseProtection | null = null;
-let pendingImportFile: File | null = null;
 let requireMagicWordForSettings = false;
 let settingsAccessGranted = false;
+
+const scheduleEditor = createScheduleEditor({
+    getRules: () => blockedEntries,
+    saveRule: (index, rule) => {
+        blockedEntries[index] = rule;
+        persistBlockedEntries();
+    },
+    refreshRules: () => renderPage(currentPage),
+});
+initializeBackupController({
+    normalizeRules: normalizeBlockedEntries,
+    replaceRules: (rules) => {
+        blockedEntries = rules;
+        renderPage(1);
+    },
+});
 
 extensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
 
@@ -146,7 +145,7 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
         const index = blockedEntries.findIndex((entry) =>
             entry.name === normalizedWebsite.name && entry.scope === normalizedWebsite.scope
         );
-        if (index >= 0) openScheduleEditor(index);
+        if (index >= 0) scheduleEditor.open(index);
     });
 
     // Add an event listener to the checkbox to update local storage when checked or unchecked
@@ -303,101 +302,6 @@ document.getElementById('closeAddWebsiteErrorButton')?.addEventListener('click',
     addWebsiteErrorDialog.hidden = true;
     newWebsiteInput.focus();
 });
-
-(document.getElementById('openTransferDialogButton') as HTMLButtonElement).addEventListener('click', () => {
-    showTransferStatus('');
-    transferDialog.hidden = false;
-});
-
-function closeTransferDialog() {
-    showTransferStatus('');
-    transferDialog.hidden = true;
-}
-
-(document.getElementById('closeTransferDialogButton') as HTMLButtonElement).addEventListener('click', closeTransferDialog);
-
-exportButton?.addEventListener('click', () => {
-    chrome.storage.local.get({ blocked: [], enabled: true }, (data) => {
-        const configuration = {
-            version: 3,
-            enabled: data.enabled !== false,
-            blocked: normalizeBlockedEntries(Array.isArray(data.blocked) ? data.blocked : []),
-        };
-        const blob = new Blob([JSON.stringify(configuration, null, 2)], { type: 'application/json' });
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = downloadUrl;
-        const fileName = `tiny-blocker-backup-${new Date().toISOString().slice(0, 10)}.json`;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(downloadUrl);
-        showTransferStatus('Configuration exported.');
-        exportedFileName.textContent = fileName;
-        exportSuccessDialog.hidden = false;
-    });
-});
-
-(document.getElementById('closeExportSuccessButton') as HTMLButtonElement).addEventListener('click', () => {
-    exportSuccessDialog.hidden = true;
-});
-
-importButton?.addEventListener('click', () => importFileInput?.click());
-
-importFileInput?.addEventListener('change', async () => {
-    const file = importFileInput.files?.[0];
-    if (!file) return;
-    pendingImportFile = file;
-    importConfirmationDialog.hidden = false;
-});
-
-(document.getElementById('cancelImportButton') as HTMLButtonElement).addEventListener('click', clearPendingImport);
-(document.getElementById('confirmImportButton') as HTMLButtonElement).addEventListener('click', async () => {
-    const file = pendingImportFile;
-    if (!file) return;
-    importConfirmationDialog.hidden = true;
-    try {
-        const configuration = parseImportedConfiguration(JSON.parse(await file.text()));
-        await setLocalStorage({
-            [STORAGE_KEYS.blocked]: configuration.blocked,
-            [STORAGE_KEYS.enabled]: configuration.enabled,
-            [STORAGE_KEYS.pausedUntil]: 0,
-            [STORAGE_KEYS.schedules]: [],
-        });
-        blockedEntries = normalizeBlockedEntries(configuration.blocked);
-        renderPage(1);
-        showTransferStatus(`Imported ${blockedEntries.length} rules.`);
-        showImportResult(true, `Imported ${blockedEntries.length} ${blockedEntries.length === 1 ? 'rule' : 'rules'} successfully.`);
-    } catch (error) {
-        const message = error instanceof Error ? error.message : 'Unable to import this file.';
-        showTransferStatus(message, true);
-        showImportResult(false, message);
-    } finally {
-        clearPendingImport();
-    }
-});
-
-function clearPendingImport() {
-    pendingImportFile = null;
-    importConfirmationDialog.hidden = true;
-    importFileInput.value = '';
-}
-
-function showImportResult(success: boolean, message: string) {
-    importResultTitle.textContent = success ? 'Import complete' : 'Import failed';
-    importResultMessage.textContent = message;
-    importResultDialog.hidden = false;
-}
-
-(document.getElementById('closeImportResultButton') as HTMLButtonElement).addEventListener('click', () => {
-    importResultDialog.hidden = true;
-});
-
-function showTransferStatus(message: string, isError = false) {
-    if (transferStatus) {
-        transferStatus.textContent = message;
-        transferStatus.classList.toggle('error', isError);
-    }
-}
 
 function setLocalStorage(values: Record<string, unknown>): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -682,68 +586,4 @@ function normalizeBlockedEntries(entries) {
     }).filter((entry) => entry !== null) as BlockedEntry[];
 
     return sortBlockedEntries(normalizedEntries);
-}
-
-function openScheduleEditor(index: number) {
-    showScheduleEditor(index);
-}
-
-function showScheduleEditor(index: number) {
-    const entry = blockedEntries[index];
-    editingScheduleIndex = index;
-    if (scheduleRuleName) scheduleRuleName.textContent = entry.name;
-    const schedule = entry.schedule;
-    scheduleStart.value = schedule?.start || '09:00';
-    scheduleEnd.value = schedule?.end || '17:00';
-    document.querySelectorAll<HTMLInputElement>('input[name="scheduleDay"]').forEach((input) => {
-        input.checked = schedule ? schedule.days.includes(Number(input.value)) : [1, 2, 3, 4, 5].includes(Number(input.value));
-    });
-    removeScheduleButton.hidden = !schedule;
-    showScheduleStatus('');
-    scheduleDialog.hidden = false;
-}
-
-document.getElementById('cancelScheduleButton')?.addEventListener('click', closeScheduleEditor);
-document.getElementById('saveScheduleButton')?.addEventListener('click', () => {
-    if (editingScheduleIndex === null) return;
-    const schedule = normalizeRuleSchedule({
-        days: [...document.querySelectorAll<HTMLInputElement>('input[name="scheduleDay"]:checked')]
-            .map((input) => Number(input.value)),
-        start: scheduleStart.value,
-        end: scheduleEnd.value,
-    });
-    if (!schedule) {
-        showScheduleStatus('Select at least one day and choose different valid start and end times.', true);
-        return;
-    }
-    blockedEntries[editingScheduleIndex] = {...blockedEntries[editingScheduleIndex], schedule};
-    persistBlockedEntries();
-    closeScheduleEditor();
-    renderPage(currentPage);
-});
-removeScheduleButton.addEventListener('click', () => {
-    if (editingScheduleIndex === null) return;
-    const entry = {...blockedEntries[editingScheduleIndex]};
-    delete entry.schedule;
-    blockedEntries[editingScheduleIndex] = entry;
-    persistBlockedEntries();
-    closeScheduleEditor();
-    renderPage(currentPage);
-});
-
-function closeScheduleEditor() {
-    scheduleDialog.hidden = true;
-    editingScheduleIndex = null;
-}
-
-function showScheduleStatus(message: string, isError = false) {
-    if (!scheduleStatus) return;
-    scheduleStatus.textContent = message;
-    scheduleStatus.classList.toggle('error', isError);
-}
-
-function formatSchedule(schedule?: RuleSchedule): string {
-    if (!schedule) return 'Always';
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return `${schedule.days.map((day) => dayNames[day]).join(', ')} | ${schedule.start}-${schedule.end}`;
 }

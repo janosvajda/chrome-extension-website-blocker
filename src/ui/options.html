@@ -72,37 +72,31 @@
             </div>
         </div>
     </section>
-    <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" hidden>
+    <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" aria-describedby="scheduleExplanation" hidden>
         <div class="scheduleDialogCard">
-            <h2 id="scheduleDialogTitle" class="sectionTitle">Edit schedule</h2>
+            <h2 id="scheduleDialogTitle" class="sectionTitle">Schedule blocking</h2>
             <p id="scheduleRuleName" class="subtitle"></p>
+            <p id="scheduleExplanation" class="scheduleExplanation">When this rule is enabled, the website is blocked during the selected days and times. Outside this schedule, it can be opened.</p>
             <fieldset>
-                <legend>Active days</legend>
-                <div class="dayChoices">
-                    <label><input type="checkbox" name="scheduleDay" value="1">Mon</label>
-                    <label><input type="checkbox" name="scheduleDay" value="2">Tue</label>
-                    <label><input type="checkbox" name="scheduleDay" value="3">Wed</label>
-                    <label><input type="checkbox" name="scheduleDay" value="4">Thu</label>
-                    <label><input type="checkbox" name="scheduleDay" value="5">Fri</label>
-                    <label><input type="checkbox" name="scheduleDay" value="6">Sat</label>
-                    <label><input type="checkbox" name="scheduleDay" value="0">Sun</label>
+                <legend>Blocking times by day</legend>
+                <div id="dailySchedule" class="dailySchedule">
+                    <div class="dailyScheduleHeader"><span>Day</span><span>Blocking</span><span>Hours</span></div>
+                    <div class="dailyScheduleRow" data-schedule-day="1"><label><input type="checkbox" class="scheduleDayEnabled">Monday</label><select class="scheduleDayMode" aria-label="Monday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Monday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Monday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="2"><label><input type="checkbox" class="scheduleDayEnabled">Tuesday</label><select class="scheduleDayMode" aria-label="Tuesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Tuesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Tuesday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="3"><label><input type="checkbox" class="scheduleDayEnabled">Wednesday</label><select class="scheduleDayMode" aria-label="Wednesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Wednesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Wednesday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="4"><label><input type="checkbox" class="scheduleDayEnabled">Thursday</label><select class="scheduleDayMode" aria-label="Thursday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Thursday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Thursday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="5"><label><input type="checkbox" class="scheduleDayEnabled">Friday</label><select class="scheduleDayMode" aria-label="Friday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Friday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Friday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="6"><label><input type="checkbox" class="scheduleDayEnabled">Saturday</label><select class="scheduleDayMode" aria-label="Saturday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Saturday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Saturday end time" type="time" value="17:00"></div></div>
+                    <div class="dailyScheduleRow" data-schedule-day="0"><label><input type="checkbox" class="scheduleDayEnabled">Sunday</label><select class="scheduleDayMode" aria-label="Sunday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Sunday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Sunday end time" type="time" value="17:00"></div></div>
                 </div>
-            </fieldset>
-            <fieldset>
-                <legend>Blocking period</legend>
-                <div class="timeFields">
-                    <label>From <input id="scheduleStart" type="time" value="09:00"></label>
-                    <span>to</span>
-                    <label><input id="scheduleEnd" type="time" value="17:00"></label>
-                </div>
-                <p class="formHint">Overnight periods are supported.</p>
+                <p class="formHint">Specific hours can continue overnight into the following day.</p>
             </fieldset>
             <p id="scheduleStatus" class="formHint" aria-live="polite"></p>
             <div class="scheduleDialogActions">
-                <button id="removeScheduleButton" class="dangerButton" type="button">Remove schedule</button>
+                <button id="removeScheduleButton" class="dangerButton" type="button">Remove blocking schedule</button>
                 <span class="actionSpacer"></span>
                 <button id="cancelScheduleButton" class="ghostButton" type="button">Cancel</button>
-                <button id="saveScheduleButton" type="button">Save schedule</button>
+                <button id="saveScheduleButton" type="button">Save blocking schedule</button>
             </div>
         </div>
     </section>
