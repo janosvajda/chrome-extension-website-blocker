@@ -70,7 +70,7 @@ describe('extensionState', () => {
                 { name: 'https://example.com/page/', scope: 'url', enabled: true },
             ],
         })).toEqual({
-            version: 3,
+            version: 4,
             enabled: false,
             blocked: [
                 { name: 'example.com', scope: 'domain', enabled: true },
@@ -90,11 +90,13 @@ describe('extensionState', () => {
             }],
             blocked: [],
         })).toEqual({
-            version: 3,
+            version: 4,
             enabled: true,
             blocked: [{
                 name: 'example.com', scope: 'domain', enabled: true,
-                schedule: {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'},
+                schedule: {daily: [1, 2, 3, 4, 5].map((day) => ({
+                    day, mode: 'period', start: '09:00', end: '17:00',
+                }))},
             }],
         });
     });
@@ -103,7 +105,7 @@ describe('extensionState', () => {
         expect(() => parseImportedConfiguration(null)).toThrow(
             'The selected file does not contain a configuration object.'
         );
-        expect(() => parseImportedConfiguration({ version: 4, blocked: [] })).toThrow(
+        expect(() => parseImportedConfiguration({ version: 5, blocked: [] })).toThrow(
             'Unsupported or invalid Tiny Blocker configuration file.'
         );
         expect(() => parseImportedConfiguration({blocked: []})).toThrow(

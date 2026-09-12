@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5 - 2026-09-11
+
+### Changed
+
+- Redesign per-site schedules so each day can be disabled, blocked all day, or blocked during its own specific hours, while retaining compatibility with existing schedules and JSON backups.
+- Clarify throughout the schedule dialog that selected periods define when the website is blocked, not when it is available.
+
 ## 1.0.4 - 2026-08-30
 
 ### Fixed

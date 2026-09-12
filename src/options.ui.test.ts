@@ -18,7 +18,7 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     const chromeMock = {
         runtime: {
             lastError: undefined as undefined | {message: string},
-            getManifest: jest.fn(() => ({version: '1.0.4'})),
+            getManifest: jest.fn(() => ({version: '1.0.5'})),
         },
         storage: {local: {
             get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
@@ -64,7 +64,7 @@ describe('options UI', () => {
 
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
-        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.4');
+        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.5');
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
@@ -309,14 +309,27 @@ describe('options UI', () => {
         (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
         expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
         expect(document.getElementById('scheduleRuleName')?.textContent).toBe('focus.example');
-        document.querySelectorAll<HTMLInputElement>('input[name="scheduleDay"]')
+        expect(document.getElementById('scheduleDialogTitle')?.textContent).toBe('Schedule blocking');
+        expect(document.getElementById('scheduleExplanation')?.textContent)
+            .toContain('blocked during the selected days and times');
+        document.querySelectorAll<HTMLInputElement>('.scheduleDayEnabled')
             .forEach((input) => { input.checked = false; });
         document.getElementById('saveScheduleButton')?.click();
         expect(document.getElementById('scheduleStatus')?.classList.contains('error')).toBe(true);
-        (document.querySelector('input[name="scheduleDay"][value="1"]') as HTMLInputElement).checked = true;
+        const monday = document.querySelector<HTMLElement>('[data-schedule-day="1"]') as HTMLElement;
+        (monday.querySelector('.scheduleDayEnabled') as HTMLInputElement).checked = true;
+        (monday.querySelector('.scheduleDayMode') as HTMLSelectElement).value = 'all-day';
+        const tuesday = document.querySelector<HTMLElement>('[data-schedule-day="2"]') as HTMLElement;
+        (tuesday.querySelector('.scheduleDayEnabled') as HTMLInputElement).checked = true;
+        (tuesday.querySelector('.scheduleDayStart') as HTMLInputElement).value = '10:00';
+        (tuesday.querySelector('.scheduleDayEnd') as HTMLInputElement).value = '16:00';
         document.getElementById('saveScheduleButton')?.click();
-        expect(data.blocked[0].schedule).toEqual({days: [1], start: '09:00', end: '17:00'});
-        expect(document.querySelector('.websiteSchedule')?.textContent).toBe('Scheduled Mon | 09:00-17:00');
+        expect(data.blocked[0].schedule).toEqual({daily: [
+            {day: 1, mode: 'all-day'},
+            {day: 2, mode: 'period', start: '10:00', end: '16:00'},
+        ]});
+        expect(document.querySelector('.websiteSchedule')?.textContent)
+            .toBe('Scheduled Mon | all day; Tue | 10:00-16:00');
         expect(document.querySelector('.scheduleStatusBadge')?.textContent).toBe('Scheduled');
 
         (document.querySelector('.scheduleButton') as HTMLButtonElement).click();

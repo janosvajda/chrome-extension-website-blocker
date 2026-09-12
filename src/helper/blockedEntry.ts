@@ -1,10 +1,10 @@
 export type BlockScope = 'domain' | 'url';
 
-export type RuleSchedule = {
-    days: number[];
-    start: string;
-    end: string;
-};
+export type ScheduledDay =
+    | {day: number; mode: 'all-day'}
+    | {day: number; mode: 'period'; start: string; end: string};
+
+export type RuleSchedule = {daily: ScheduledDay[]};
 
 export type BlockedEntry = {
     name: string;

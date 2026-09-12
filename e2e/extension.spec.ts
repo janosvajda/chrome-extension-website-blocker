@@ -249,12 +249,25 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(page.locator('.websiteSchedule')).toHaveText('Always');
         await page.locator('.scheduleButton').click();
         await expect(page.locator('#scheduleDialog')).toBeVisible();
+        for (const checkbox of await page.locator('.scheduleDayEnabled').all()) {
+            await checkbox.uncheck();
+        }
+        const monday = page.locator('[data-schedule-day="1"]');
+        await monday.locator('.scheduleDayEnabled').check();
+        await monday.locator('.scheduleDayMode').selectOption('all-day');
+        const tuesday = page.locator('[data-schedule-day="2"]');
+        await tuesday.locator('.scheduleDayEnabled').check();
+        await tuesday.locator('.scheduleDayStart').fill('10:00');
+        await tuesday.locator('.scheduleDayEnd').fill('16:00');
         await page.locator('#saveScheduleButton').click();
-        await expect(page.locator('.websiteSchedule')).toHaveText('Scheduled Mon, Tue, Wed, Thu, Fri | 09:00-17:00');
+        await expect(page.locator('.websiteSchedule')).toHaveText('Scheduled Mon | all day; Tue | 10:00-16:00');
         const stored = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
         expect(stored.blocked).toEqual([{
             name: 'focus.example', scope: 'domain', enabled: true,
-            schedule: {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'},
+            schedule: {daily: [
+                {day: 1, mode: 'all-day'},
+                {day: 2, mode: 'period', start: '10:00', end: '16:00'},
+            ]},
         }]);
         await page.close();
     });
@@ -268,6 +281,15 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             {
                 name: 'linkedin.com', scope: 'domain', enabled: true,
                 schedule: {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'},
+            },
+        ];
+        const normalizedBlocked = [
+            blocked[0],
+            {
+                name: 'linkedin.com', scope: 'domain', enabled: true,
+                schedule: {daily: [1, 2, 3, 4, 5].map((day) => ({
+                    day, mode: 'period', start: '09:00', end: '17:00',
+                }))},
             },
         ];
 
@@ -294,9 +316,9 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         expect(downloadPath).not.toBeNull();
         const exported = JSON.parse(await readFile(downloadPath as string, 'utf8'));
         expect(exported).toEqual({
-            version: 3,
+            version: 4,
             enabled: true,
-            blocked,
+            blocked: normalizedBlocked,
         });
         await page.close();
     });

@@ -1,16 +1,35 @@
 import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRuleSchedule, normalizeRules} from './schedules';
 
 const workHours = {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'};
+const normalizedWorkHours = {daily: [1, 2, 3, 4, 5].map((day) => ({
+    day, mode: 'period', start: '09:00', end: '17:00',
+}))};
 
 describe('per-rule schedules', () => {
     it('normalizes valid schedules and rejects invalid values', () => {
-        expect(normalizeRuleSchedule(workHours)).toEqual(workHours);
+        expect(normalizeRuleSchedule(workHours)).toEqual(normalizedWorkHours);
         expect(normalizeRuleSchedule(null)).toBeNull();
         expect(normalizeRuleSchedule({...workHours, days: []})).toBeNull();
         expect(normalizeRuleSchedule({...workHours, days: 'weekdays'})).toBeNull();
-        expect(normalizeRuleSchedule({...workHours, days: [1, 1, 9]})).toEqual({...workHours, days: [1]});
+        expect(normalizeRuleSchedule({...workHours, days: [1, 1, 9]})).toEqual({daily: [
+            {day: 1, mode: 'period', start: '09:00', end: '17:00'},
+        ]});
         expect(normalizeRuleSchedule({...workHours, start: '25:00'})).toBeNull();
         expect(normalizeRuleSchedule({...workHours, end: '09:00'})).toBeNull();
+    });
+
+    it('supports different all-day and timed settings for individual days', () => {
+        const schedule = normalizeRuleSchedule({daily: [
+            {day: 1, mode: 'all-day'},
+            {day: 2, mode: 'period', start: '09:00', end: '12:00'},
+        ]});
+        expect(schedule).toEqual({daily: [
+            {day: 1, mode: 'all-day'},
+            {day: 2, mode: 'period', start: '09:00', end: '12:00'},
+        ]});
+        expect(isScheduleActive(schedule!, new Date(2026, 7, 24, 23, 59))).toBe(true);
+        expect(isScheduleActive(schedule!, new Date(2026, 7, 25, 10))).toBe(true);
+        expect(isScheduleActive(schedule!, new Date(2026, 7, 25, 13))).toBe(false);
     });
 
     it('is active only inside selected local days and times', () => {
@@ -37,7 +56,7 @@ describe('per-rule schedules', () => {
             {name: 'example.com', scope: 'domain', enabled: true, schedule: workHours},
             {name: 'https://example.com', scope: 'domain', enabled: false},
             {name: 'bad value', scope: 'domain'},
-        ])).toEqual([{name: 'example.com', scope: 'domain', enabled: true, schedule: workHours}]);
+        ])).toEqual([{name: 'example.com', scope: 'domain', enabled: true, schedule: normalizedWorkHours}]);
     });
 
     it('migrates enabled legacy groups into scheduled rules', () => {
@@ -54,7 +73,7 @@ describe('per-rule schedules', () => {
         expect(migrated.migrated).toBe(true);
         expect(migrated.blocked).toEqual([
             {name: 'always.example', scope: 'domain', enabled: true},
-            {name: 'social.example', scope: 'domain', enabled: true, schedule: workHours},
+            {name: 'social.example', scope: 'domain', enabled: true, schedule: normalizedWorkHours},
         ]);
     });
 
