@@ -18,6 +18,15 @@
 }
 .settingsPending { visibility: hidden; }
 
+.visuallyHidden {
+    clip-path: inset(50%);
+    height: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+    width: 1px;
+}
+
 body {
     font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
     color: var(--ink);
@@ -110,14 +119,213 @@ h1 {
     font-size: 14px;
 }
 
+.ruleListHeading {
+    background: var(--card);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.ruleTools {
+    background: var(--card);
+    align-items: center;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.ruleSearchField,
+.ruleFilterField {
+    min-width: 0;
+}
+
+.ruleSearchField {
+    align-items: center;
+    display: flex;
+    flex: 1 1 200px;
+    gap: 8px;
+}
+
+.ruleSearchLabel {
+    color: var(--ink);
+    cursor: text;
+    flex: 0 0 auto;
+    font-size: 13px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.ruleFilterField {
+    flex: 0 0 145px;
+    position: relative;
+}
+
+.ruleFilterArrow {
+    color: var(--ink);
+    height: 14px;
+    pointer-events: none;
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+}
+
+.ruleSearchControl {
+    align-items: center;
+    background: #fff8f1;
+    border: 1px solid var(--accent-deep);
+    border-radius: 8px;
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+}
+
+.searchIcon {
+    color: var(--accent-deep);
+    height: 18px;
+    left: 10px;
+    pointer-events: none;
+    position: absolute;
+    width: 18px;
+}
+
+#ruleSearch {
+    background: transparent;
+    border: 0;
+    border-radius: inherit;
+    color: var(--ink);
+    font: inherit;
+    font-size: 14px;
+    height: 32px;
+    min-width: 0;
+    padding: 6px 34px 6px 32px;
+    width: 100%;
+}
+
+#ruleSearch::placeholder {
+    color: var(--muted);
+    opacity: 1;
+}
+
+#ruleSearch::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+}
+
+#ruleSearch:focus {
+    outline: none;
+}
+
+.ruleSearchControl:focus-within {
+    border-color: var(--accent-deep);
+    outline: 2px solid rgba(224, 112, 47, 0.25);
+    outline-offset: 1px;
+}
+
+.clearSearchButton {
+    align-items: center;
+    background: transparent;
+    border-radius: 7px;
+    color: var(--muted);
+    display: flex;
+    height: 26px;
+    justify-content: center;
+    padding: 6px;
+    position: absolute;
+    right: 3px;
+    width: 26px;
+}
+
+.clearSearchButton svg {
+    height: 18px;
+    width: 18px;
+}
+
+.clearSearchButton:hover {
+    background: #f3e9df;
+    color: var(--ink);
+    transform: none;
+}
+
+#ruleFilter {
+    appearance: none;
+    background: #fdfaf6;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--ink);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    height: 34px;
+    min-width: 0;
+    padding: 6px 34px 6px 10px;
+    width: 100%;
+}
+
+#ruleFilter:focus-visible,
+.ruleTools button:focus-visible,
+.pagination button:focus-visible {
+    outline: 2px solid var(--accent-deep);
+    outline-offset: 3px;
+}
+
+.ruleResults {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+#ruleResultsCount {
+    color: var(--muted);
+    font-size: 12px;
+    margin: 0;
+}
+
+.clearFiltersButton {
+    background: transparent;
+    border-radius: 5px;
+    color: var(--accent-deep);
+    font-size: 12px;
+    min-height: 28px;
+    padding: 4px 2px;
+}
+
+.clearFiltersButton:hover {
+    background: transparent;
+    color: var(--ink);
+    text-decoration: underline;
+    transform: none;
+}
+
+.ruleEmptyState {
+    padding: 48px 16px;
+    text-align: center;
+}
+
+.ruleEmptyState h2 {
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 22px;
+    margin: 0 0 8px;
+}
+
+.ruleEmptyState p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+}
+
 #websiteList {
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: 16px;
     padding: 16px 16px 8px;
     box-shadow: var(--shadow);
-    flex: 1 1 auto;
-    min-height: 150px;
+    flex: 0 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
 }
@@ -161,32 +369,35 @@ h1 {
     color: var(--muted);
 }
 
+.pagination button:disabled {
+    cursor: default;
+    opacity: 0.45;
+    transform: none;
+}
+
 .header {
     align-items: center;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
     display: grid;
+    font-size: 11px;
+    font-weight: bold;
     gap: 8px;
     grid-template-columns: minmax(0, 1fr) 72px 48px 44px 44px;
-    font-weight: bold;
-    color: var(--muted);
-    padding: 8px 4px 12px;
-    border-bottom: 1px solid var(--line);
-    text-transform: uppercase;
     letter-spacing: 1.4px;
-    font-size: 11px;
-    background: var(--card);
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    line-height: 14px;
+    padding: 3px 12px;
+    text-transform: uppercase;
 }
 
 .websiteHeader {
     grid-column: 1;
-    padding: 4px 8px;
+    padding-inline: 8px;
 }
 
 .actionHeader {
     grid-column: 3;
-    padding: 4px 0;
     text-align: center;
 }
 
@@ -195,10 +406,10 @@ h1 {
     display: grid;
     gap: 8px;
     grid-template-columns: minmax(0, 1fr) 72px 48px 44px 44px;
-    margin: 10px 0;
+    margin: 8px 0;
     border: 1px solid var(--line);
     background-color: #fff;
-    padding: 10px 12px;
+    padding: 9px 12px;
     border-radius: 14px;
     transition: box-shadow 160ms ease;
 }
@@ -259,22 +470,80 @@ h1 {
     z-index: 20;
 }
 
+#scheduleDialog {
+    padding-block: 10.5px;
+}
+
 .scheduleDialogCard {
     background: var(--card);
     border-radius: 20px;
     box-shadow: var(--shadow);
-    display: grid;
-    gap: 20px;
-    max-height: calc(100vh - 36px);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: calc(100vh - 21px);
     max-width: 720px;
-    overflow-y: auto;
+    overflow: hidden;
     padding: 26px;
     width: 100%;
 }
 
 .scheduleDialogCard .sectionTitle {
     font-size: 22px;
-    margin-bottom: -10px;
+    margin: 0;
+}
+
+.scheduleDialogHeader {
+    align-items: flex-start;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 12px;
+    justify-content: space-between;
+    padding-bottom: 12px;
+}
+
+.scheduleDialogTitleGroup {
+    display: grid;
+    flex: 1 1 200px;
+    gap: 6px;
+    min-width: 0;
+}
+
+.schedulePrimaryActions {
+    align-items: center;
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.schedulePrimaryActions button {
+    min-height: 36px;
+    white-space: nowrap;
+}
+
+.schedulePrimaryActions button:focus-visible {
+    outline: 2px solid var(--accent-deep);
+    outline-offset: 3px;
+}
+
+.scheduleDialogBody {
+    display: grid;
+    flex: 0 1 auto;
+    gap: 20px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 4px 2px 0;
+    scrollbar-gutter: stable;
+}
+
+.scheduleExplanation {
+    color: var(--ink);
+    line-height: 1.45;
+    margin: 0;
 }
 
 #scheduleRuleName {
@@ -283,15 +552,125 @@ h1 {
     border-radius: 999px;
     color: var(--accent-deep);
     justify-self: start;
+    line-height: 1.4;
     max-width: 100%;
+    overflow: hidden;
     overflow-wrap: anywhere;
     padding: 6px 11px;
 }
 
-.scheduleExplanation {
-    color: var(--text);
-    line-height: 1.45;
-    margin: -4px 0 0;
+#scheduleRuleNameText {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.scheduleQuickActions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.scheduleQuickActions button {
+    flex: 0 0 auto;
+    font-size: 12px;
+    padding: 6px 10px;
+}
+
+.scheduleRemoveActions {
+    margin-left: auto;
+}
+
+#scheduleCopyDialog,
+#scheduleTemplateDialog {
+    background: rgba(31, 27, 22, 0.28);
+}
+
+.schedulePickerCard {
+    background: var(--card);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 14px;
+    max-height: calc(100vh - 36px);
+    max-width: 520px;
+    overflow-y: auto;
+    padding: 24px;
+    width: 100%;
+}
+
+.schedulePickerCard label {
+    font-size: 13px;
+    font-weight: bold;
+    margin-bottom: -6px;
+}
+
+#scheduleCopySource,
+#scheduleTemplateSource {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    color: var(--ink);
+    font: inherit;
+    min-width: 0;
+    padding: 10px;
+    width: 100%;
+}
+
+.scheduleTemplateSelectField {
+    position: relative;
+    min-width: 0;
+}
+
+#scheduleTemplateSource {
+    appearance: none;
+    padding-right: 36px;
+}
+
+.scheduleTemplateArrow {
+    height: 14px;
+    pointer-events: none;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+}
+
+.scheduleCopyPreview {
+    background: #fff8f1;
+    border: 1px solid #edcdb9;
+    border-radius: 10px;
+    color: var(--ink);
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    padding: 12px;
+}
+
+.schedulePickerCard .formHint {
+    line-height: 1.5;
+}
+
+.schedulePickerCard .dialogActions {
+    border-top: 1px solid var(--line);
+    padding-top: 14px;
+}
+
+.schedulePickerCard :focus-visible,
+.scheduleQuickActions button:focus-visible {
+    outline: 2px solid var(--accent-deep);
+    outline-offset: 3px;
+}
+
+#useCopiedScheduleButton:disabled,
+#useScheduleTemplateButton:disabled {
+    background: #e7dccf;
+    color: var(--muted);
+    cursor: default;
+    transform: none;
 }
 
 .scheduleDialog fieldset {
@@ -369,24 +748,14 @@ h1 {
     margin-top: 10px;
 }
 
-.scheduleDialogActions {
-    align-items: center;
-    border-top: 1px solid var(--line);
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 0;
-    padding-top: 18px;
-}
-
-.scheduleDialogActions .actionSpacer {
-    flex: 1;
-}
-
 .dangerButton {
     background: transparent;
     border: 1px solid #a33226;
     color: #a33226;
+}
+
+.dangerButton:hover {
+    background-color: rgba(163, 50, 38, 0.08);
 }
 
 #scheduleStatus.error {
@@ -646,7 +1015,30 @@ button:hover {
     }
 
     .pageHeader {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
         margin-bottom: 10px;
+    }
+
+    .titleBlock,
+    .titleBlock > div {
+        min-width: 0;
+    }
+
+    .headerActions {
+        align-items: center;
+    }
+
+    .ruleTools {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr) 140px;
+    }
+
+    .ruleResults {
+        grid-column: 1 / -1;
+        justify-content: space-between;
     }
 
     .header {
@@ -654,14 +1046,17 @@ button:hover {
     }
 
     .websiteItem {
-        display: flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
+        gap: 8px;
+        grid-template-columns: minmax(0, 1fr) 40px 38px 38px;
     }
 
-    .actionHeader {
-        width: auto;
+    .websiteDetails {
+        grid-column: 1 / -1;
+        padding: 2px 0;
+    }
+
+    .websiteScope {
+        justify-self: start;
     }
 
     #addWebsite {
@@ -671,6 +1066,15 @@ button:hover {
     .scheduleDialogCard {
         gap: 16px;
         padding: 20px;
+    }
+
+    .scheduleDialogBody {
+        gap: 16px;
+    }
+
+    .schedulePrimaryActions button {
+        font-size: 12px;
+        padding: 7px 10px;
     }
 
     .dailyScheduleHeader {
@@ -690,17 +1094,9 @@ button:hover {
     .transferCard { grid-template-columns: 1fr; }
     .transferActions { flex-direction: column; }
 
-    .scheduleDialogActions {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .scheduleDialogActions .actionSpacer {
-        display: none;
-    }
-
     .pagination {
-        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        grid-template-columns: auto minmax(0, 1fr) auto;
     }
 
     .pageInfo {
@@ -710,14 +1106,47 @@ button:hover {
     .licenseFooter { font-size: 10px; line-height: 1.35; }
 }
 
+@media (max-width: 420px) {
+    .ruleTools {
+        grid-template-columns: 145px minmax(0, 1fr);
+    }
+
+    .ruleSearchField {
+        grid-column: 1 / -1;
+    }
+
+    .ruleResults {
+        flex-wrap: wrap;
+        gap: 0 8px;
+        grid-column: 2;
+        justify-content: flex-end;
+    }
+}
+
 @media (max-height: 720px) {
     body { padding-block: 10px; }
     .pageHeader { margin-bottom: 8px; }
     .appIcon { width: 46px; height: 46px; }
     h1 { font-size: 25px; margin-bottom: 2px; }
-    #websiteList { min-height: 100px; }
-    .websiteItem { margin: 7px 0; padding-block: 7px; }
+    .ruleTools { margin-bottom: 6px; }
+    .websiteItem { margin: 5px 0; padding-block: 4px; }
     .pagination { margin-top: 7px; }
     #addWebsite { margin-top: 7px; padding-block: 9px; }
     .licenseFooter { margin-top: 7px; line-height: 1.35; }
+}
+
+@media (max-width: 640px) and (max-height: 640px) {
+    body {
+        height: auto;
+        min-height: 100vh;
+        overflow-y: auto;
+    }
+
+    main {
+        height: auto;
+    }
+
+    #websiteList {
+        max-height: 240px;
+    }
 }

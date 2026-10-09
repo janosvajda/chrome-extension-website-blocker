@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tiny Website Blocker</title>
     <link rel="stylesheet" href="options.css">
 </head>
@@ -24,17 +25,52 @@
         </div>
     </header>
     <div id="websiteList">
-        <div class="header">
-            <div class="websiteHeader">Website</div>
-            <div class="actionHeader">Blocked</div>
+        <div class="ruleListHeading">
+        <section class="ruleTools" aria-label="Search and filter rules">
+            <div class="ruleSearchField">
+                <label class="ruleSearchLabel" for="ruleSearch">Search rules</label>
+                <div class="ruleSearchControl">
+                    <svg class="searchIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+                    <input id="ruleSearch" type="search" placeholder="Domain or URL" autocomplete="off" spellcheck="false" aria-controls="websiteList">
+                    <button id="clearRuleSearchButton" class="clearSearchButton" type="button" aria-label="Clear search" hidden>
+                        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="ruleFilterField">
+                <label class="visuallyHidden" for="ruleFilter">Show</label>
+                <select id="ruleFilter" aria-controls="websiteList">
+                    <option value="all">All rules</option>
+                    <option value="enabled">Enabled rules</option>
+                    <option value="disabled">Disabled rules</option>
+                    <option value="scheduled">Scheduled rules</option>
+                    <option value="unscheduled">No schedule</option>
+                    <option value="domain">Domain rules</option>
+                    <option value="url">URL rules</option>
+                </select>
+                <svg class="ruleFilterArrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg>
+            </div>
+            <div class="ruleResults">
+                <p id="ruleResultsCount" role="status" aria-live="polite" aria-atomic="true"></p>
+                <button id="clearRuleFiltersButton" class="clearFiltersButton" type="button" hidden>Clear filters</button>
+            </div>
+        </section>
+            <div id="websiteListHeader" class="header" hidden>
+                <div class="websiteHeader">Website</div>
+                <div class="actionHeader">Blocked</div>
+            </div>
+        </div>
+        <div id="ruleEmptyState" class="ruleEmptyState" hidden>
+            <h2 id="ruleEmptyTitle">No rules yet</h2>
+            <p id="ruleEmptyDescription">Add your first website below to get started.</p>
         </div>
     </div>
-    <div id="pagination" class="pagination">
+    <nav id="pagination" class="pagination" aria-label="Rule pages">
         <button id="prevPageButton" class="ghostButton">Prev</button>
         <div id="pageNumbers" class="pageNumbers"></div>
         <button id="nextPageButton" class="ghostButton">Next</button>
         <div id="pageInfo" class="pageInfo"></div>
-    </div>
+    </nav>
     <form id="addWebsite">
         <input type="text" id="newWebsite" placeholder="Enter a website (example.com)" aria-describedby="addWebsiteStatus">
         <button id="addButton" type="submit">Add site</button>
@@ -72,31 +108,73 @@
             </div>
         </div>
     </section>
-    <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" aria-describedby="scheduleExplanation" hidden>
+    <section id="scheduleDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleDialogTitle" aria-describedby="scheduleRuleName scheduleExplanation" hidden>
         <div class="scheduleDialogCard">
-            <h2 id="scheduleDialogTitle" class="sectionTitle">Schedule blocking</h2>
-            <p id="scheduleRuleName" class="subtitle"></p>
-            <p id="scheduleExplanation" class="scheduleExplanation">When this rule is enabled, the website is blocked during the selected days and times. Outside this schedule, it can be opened.</p>
-            <fieldset>
-                <legend>Blocking times by day</legend>
-                <div id="dailySchedule" class="dailySchedule">
-                    <div class="dailyScheduleHeader"><span>Day</span><span>Blocking</span><span>Hours</span></div>
-                    <div class="dailyScheduleRow" data-schedule-day="1"><label><input type="checkbox" class="scheduleDayEnabled">Monday</label><select class="scheduleDayMode" aria-label="Monday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Monday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Monday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="2"><label><input type="checkbox" class="scheduleDayEnabled">Tuesday</label><select class="scheduleDayMode" aria-label="Tuesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Tuesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Tuesday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="3"><label><input type="checkbox" class="scheduleDayEnabled">Wednesday</label><select class="scheduleDayMode" aria-label="Wednesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Wednesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Wednesday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="4"><label><input type="checkbox" class="scheduleDayEnabled">Thursday</label><select class="scheduleDayMode" aria-label="Thursday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Thursday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Thursday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="5"><label><input type="checkbox" class="scheduleDayEnabled">Friday</label><select class="scheduleDayMode" aria-label="Friday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Friday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Friday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="6"><label><input type="checkbox" class="scheduleDayEnabled">Saturday</label><select class="scheduleDayMode" aria-label="Saturday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Saturday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Saturday end time" type="time" value="17:00"></div></div>
-                    <div class="dailyScheduleRow" data-schedule-day="0"><label><input type="checkbox" class="scheduleDayEnabled">Sunday</label><select class="scheduleDayMode" aria-label="Sunday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Sunday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Sunday end time" type="time" value="17:00"></div></div>
+            <div class="scheduleDialogHeader">
+                <div class="scheduleDialogTitleGroup">
+                    <h2 id="scheduleDialogTitle" class="sectionTitle">Schedule blocking</h2>
+                    <p id="scheduleRuleName" class="subtitle"><span id="scheduleRuleNameText"></span></p>
                 </div>
-                <p class="formHint">Specific hours can continue overnight into the following day.</p>
-            </fieldset>
-            <p id="scheduleStatus" class="formHint" aria-live="polite"></p>
-            <div class="scheduleDialogActions">
-                <button id="removeScheduleButton" class="dangerButton" type="button">Remove blocking schedule</button>
-                <span class="actionSpacer"></span>
-                <button id="cancelScheduleButton" class="ghostButton" type="button">Cancel</button>
-                <button id="saveScheduleButton" type="button">Save blocking schedule</button>
+                <div class="schedulePrimaryActions">
+                    <button id="cancelScheduleButton" class="ghostButton" type="button">Cancel</button>
+                    <button id="saveScheduleButton" type="button">Save blocking schedule</button>
+                </div>
+            </div>
+            <div class="scheduleDialogBody">
+                <p id="scheduleExplanation" class="scheduleExplanation">When this rule is enabled, the website is blocked during the selected days and times. Outside this schedule, it can be opened.</p>
+                <div class="scheduleQuickActions">
+                    <button id="scheduleTemplatesButton" class="ghostButton" type="button">Use a template…</button>
+                    <button id="copyScheduleButton" class="ghostButton" type="button" hidden>Copy from another rule…</button>
+                    <div id="scheduleRemoveActions" class="scheduleRemoveActions" hidden>
+                        <button id="removeScheduleButton" class="dangerButton" type="button">Remove blocking schedule</button>
+                    </div>
+                </div>
+                <fieldset>
+                    <legend>Blocking times by day</legend>
+                    <div id="dailySchedule" class="dailySchedule">
+                        <div class="dailyScheduleHeader"><span>Day</span><span>Blocking</span><span>Hours</span></div>
+                        <div class="dailyScheduleRow" data-schedule-day="1"><label><input type="checkbox" class="scheduleDayEnabled">Monday</label><select class="scheduleDayMode" aria-label="Monday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Monday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Monday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="2"><label><input type="checkbox" class="scheduleDayEnabled">Tuesday</label><select class="scheduleDayMode" aria-label="Tuesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Tuesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Tuesday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="3"><label><input type="checkbox" class="scheduleDayEnabled">Wednesday</label><select class="scheduleDayMode" aria-label="Wednesday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Wednesday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Wednesday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="4"><label><input type="checkbox" class="scheduleDayEnabled">Thursday</label><select class="scheduleDayMode" aria-label="Thursday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Thursday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Thursday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="5"><label><input type="checkbox" class="scheduleDayEnabled">Friday</label><select class="scheduleDayMode" aria-label="Friday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Friday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Friday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="6"><label><input type="checkbox" class="scheduleDayEnabled">Saturday</label><select class="scheduleDayMode" aria-label="Saturday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Saturday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Saturday end time" type="time" value="17:00"></div></div>
+                        <div class="dailyScheduleRow" data-schedule-day="0"><label><input type="checkbox" class="scheduleDayEnabled">Sunday</label><select class="scheduleDayMode" aria-label="Sunday blocking mode"><option value="all-day">All day</option><option value="period" selected>Specific hours</option></select><div class="scheduleDayTimes"><input class="scheduleDayStart" aria-label="Sunday start time" type="time" value="09:00"><span>to</span><input class="scheduleDayEnd" aria-label="Sunday end time" type="time" value="17:00"></div></div>
+                    </div>
+                    <p class="formHint">Specific hours can continue overnight into the following day.</p>
+                </fieldset>
+                <p id="scheduleStatus" class="formHint" aria-live="polite"></p>
+            </div>
+        </div>
+    </section>
+    <section id="scheduleCopyDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleCopyTitle" aria-describedby="scheduleCopyDescription" hidden>
+        <div class="scheduleCopyCard schedulePickerCard">
+            <h2 id="scheduleCopyTitle" class="sectionTitle">Copy a schedule</h2>
+            <p id="scheduleCopyDescription" class="subtitle">Choose a saved schedule to fill the editor. Review it before saving.</p>
+            <label for="scheduleCopySource">Copy from</label>
+            <select id="scheduleCopySource" aria-describedby="scheduleCopyPreview"></select>
+            <div id="scheduleCopyPreview" class="scheduleCopyPreview" aria-live="polite" hidden></div>
+            <p class="formHint">The source rule stays unchanged. Nothing is saved until you select Save blocking schedule in the editor.</p>
+            <div class="dialogActions">
+                <button id="cancelCopyScheduleButton" class="ghostButton" type="button">Cancel</button>
+                <button id="useCopiedScheduleButton" type="button" disabled>Use this schedule</button>
+            </div>
+        </div>
+    </section>
+    <section id="scheduleTemplateDialog" class="scheduleDialog confirmationDialog" role="dialog" aria-modal="true" aria-labelledby="scheduleTemplateTitle" aria-describedby="scheduleTemplateDescription" hidden>
+        <div class="scheduleTemplateCard schedulePickerCard">
+            <h2 id="scheduleTemplateTitle" class="sectionTitle">Schedule templates</h2>
+            <p id="scheduleTemplateDescription" class="subtitle">Choose a template to fill the editor. You can adjust its days and times before saving.</p>
+            <label for="scheduleTemplateSource">Template</label>
+            <div class="scheduleTemplateSelectField">
+                <select id="scheduleTemplateSource" aria-describedby="scheduleTemplatePreview"></select>
+                <svg class="scheduleTemplateArrow" viewBox="0 0 16 16" aria-hidden="true"><path d="m3 6 5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div id="scheduleTemplatePreview" class="scheduleCopyPreview" aria-live="polite" hidden></div>
+            <p class="formHint">Times use your local clock. Nothing is saved until you select Save blocking schedule in the editor.</p>
+            <div class="dialogActions">
+                <button id="cancelScheduleTemplateButton" class="ghostButton" type="button">Cancel</button>
+                <button id="useScheduleTemplateButton" type="button" disabled>Use this template</button>
             </div>
         </div>
     </section>
