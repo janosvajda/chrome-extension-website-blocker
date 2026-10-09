@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
@@ -38,6 +38,11 @@
   "homepage": "https://github.com/janosvajda/chrome-extension-website-blocker#readme",
   "dependencies": {
     "@types/chrome": "0.2.6"
+  },
+  "overrides": {
+    "@istanbuljs/load-nyc-config@1.1.0": {
+      "js-yaml": "4.3.2"
+    }
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

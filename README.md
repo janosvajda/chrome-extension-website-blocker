@@ -10,11 +10,17 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 - **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. Invalid or redundant rules are rejected clearly, and deletion requires confirmation.
 
+- **Search and Filter Rules**: Search domains and full URLs across the entire list, or show enabled, disabled, scheduled, unscheduled, domain, or URL rules. Result counts and a clear-filters action make it easy to return to the full list. Searching and filtering do not change which websites are blocked.
+
 - **Toolbar Controls**: Pause or resume all blocking, view the number of enabled rules and local statistics, and open the options page from the extension popup. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
 - **Temporary Pause**: Pause all blocking for 15 minutes, 30 minutes, or one hour from the toolbar popup. The popup shows the remaining minutes and local resume time, and blocking resumes automatically.
 
 - **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block.
+
+  Use **Copy from another rule…** in the schedule editor to reuse a saved schedule. Preview the source, review the copied days and times, then save to apply them. Copying preserves each rule's enabled state and leaves the source rule unchanged.
+
+  Use **Use a template…** to start with common workday, morning, evening, weekend, or all-day blocking times. Preview a template, adjust its days and times in the editor, then save it for the selected rule. Templates use your local time and preserve the rule's enabled state.
 
 - **Optional Confirmation Phrase**: Choose a confirmation phrase for pausing or turning off blocking from the toolbar. You can also require the phrase once when opening Tiny Website Blocker Settings; after Settings is confirmed, its controls remain available for that session. The current phrase is required to change it, while the phrase can be removed freely in Settings. It is never stored, displayed, exported, or sent anywhere; verification happens entirely inside the browser using locally stored encrypted verification data.
 

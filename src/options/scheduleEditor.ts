@@ -1,5 +1,6 @@
 import {RuleSchedule} from '../helper/blockedEntry';
 import {normalizeRuleSchedule} from '../helper/schedules';
+import {SCHEDULE_TEMPLATES} from './scheduleTemplates';
 
 export type ScheduledRule = {
     name: string;
@@ -16,9 +17,24 @@ type ScheduleEditorDependencies = {
 
 export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
     const dialog = document.getElementById('scheduleDialog') as HTMLElement;
+    const dialogBody = document.querySelector('.scheduleDialogBody') as HTMLElement;
     const ruleName = document.getElementById('scheduleRuleName') as HTMLElement;
+    const ruleNameText = document.getElementById('scheduleRuleNameText') as HTMLElement;
     const status = document.getElementById('scheduleStatus') as HTMLElement;
     const removeButton = document.getElementById('removeScheduleButton') as HTMLButtonElement;
+    const removeActions = document.getElementById('scheduleRemoveActions') as HTMLElement;
+    const copyButton = document.getElementById('copyScheduleButton') as HTMLButtonElement;
+    const copyDialog = document.getElementById('scheduleCopyDialog') as HTMLElement;
+    const copySource = document.getElementById('scheduleCopySource') as HTMLSelectElement;
+    const copyPreview = document.getElementById('scheduleCopyPreview') as HTMLElement;
+    const cancelCopyButton = document.getElementById('cancelCopyScheduleButton') as HTMLButtonElement;
+    const useCopyButton = document.getElementById('useCopiedScheduleButton') as HTMLButtonElement;
+    const templateButton = document.getElementById('scheduleTemplatesButton') as HTMLButtonElement;
+    const templateDialog = document.getElementById('scheduleTemplateDialog') as HTMLElement;
+    const templateSource = document.getElementById('scheduleTemplateSource') as HTMLSelectElement;
+    const templatePreview = document.getElementById('scheduleTemplatePreview') as HTMLElement;
+    const cancelTemplateButton = document.getElementById('cancelScheduleTemplateButton') as HTMLButtonElement;
+    const useTemplateButton = document.getElementById('useScheduleTemplateButton') as HTMLButtonElement;
     let editingIndex: number | null = null;
 
     function updateRow(row: HTMLElement) {
@@ -32,10 +48,26 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
     function showStatus(message: string, isError = false) {
         status.textContent = message;
         status.classList.toggle('error', isError);
+        if (isError) status.scrollIntoView?.({block: 'nearest'});
+    }
+
+    function setEditorSuspended(suspended: boolean) {
+        dialog.toggleAttribute('inert', suspended);
+        if (suspended) dialog.setAttribute('aria-hidden', 'true');
+        else dialog.removeAttribute('aria-hidden');
+    }
+
+    function openPicker(picker: HTMLElement, selector: HTMLSelectElement) {
+        picker.hidden = false;
+        selector.focus();
+        setEditorSuspended(true);
     }
 
     function close() {
         dialog.hidden = true;
+        copyDialog.hidden = true;
+        templateDialog.hidden = true;
+        setEditorSuspended(false);
         editingIndex = null;
     }
 
@@ -43,8 +75,22 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
         const entry = dependencies.getRules()[index];
         if (!entry) return;
         editingIndex = index;
-        ruleName.textContent = entry.name;
+        ruleNameText.textContent = entry.name;
+        ruleName.title = entry.name;
         const schedule = normalizeRuleSchedule(entry.schedule);
+        populateSchedule(schedule);
+        removeButton.hidden = !schedule;
+        removeActions.hidden = !schedule;
+        copyButton.hidden = getCopySources().length === 0;
+        copyDialog.hidden = true;
+        templateDialog.hidden = true;
+        setEditorSuspended(false);
+        showStatus('');
+        dialog.hidden = false;
+        dialogBody.scrollTop = 0;
+    }
+
+    function populateSchedule(schedule: RuleSchedule | null) {
         document.querySelectorAll<HTMLElement>('.dailyScheduleRow').forEach((row) => {
             const day = Number(row.dataset.scheduleDay);
             const configured = schedule?.daily.find((item) => item.day === day);
@@ -56,10 +102,115 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
             (row.querySelector('.scheduleDayEnd') as HTMLInputElement).value = configured?.mode === 'period' ? configured.end : '17:00';
             updateRow(row);
         });
-        removeButton.hidden = !schedule;
-        showStatus('');
-        dialog.hidden = false;
     }
+
+    function ruleKey(rule: ScheduledRule): string {
+        return JSON.stringify([rule.scope, rule.name]);
+    }
+
+    function getCopySources(): ScheduledRule[] {
+        return dependencies.getRules().filter((rule, index) =>
+            index !== editingIndex && Boolean(normalizeRuleSchedule(rule.schedule))
+        );
+    }
+
+    function selectedCopySource(): ScheduledRule | undefined {
+        return getCopySources().find((rule) => ruleKey(rule) === copySource.value);
+    }
+
+    function closeCopyDialog() {
+        copyDialog.hidden = true;
+        setEditorSuspended(false);
+        if (editingIndex !== null) {
+            copyButton.focus();
+        }
+    }
+
+    copyButton.addEventListener('click', () => {
+        if (editingIndex === null) return;
+        const sources = getCopySources();
+        if (!sources.length) return;
+        copySource.replaceChildren(new Option('Choose a rule…', ''));
+        sources.forEach((rule) => copySource.add(new Option(rule.name, ruleKey(rule))));
+        copyPreview.textContent = '';
+        copyPreview.hidden = true;
+        useCopyButton.disabled = true;
+        openPicker(copyDialog, copySource);
+    });
+
+    copySource.addEventListener('change', () => {
+        const schedule = normalizeRuleSchedule(selectedCopySource()?.schedule);
+        copyPreview.textContent = schedule ? formatSchedule(schedule) : '';
+        copyPreview.hidden = !schedule;
+        useCopyButton.disabled = !schedule;
+    });
+
+    cancelCopyButton.addEventListener('click', closeCopyDialog);
+    useCopyButton.addEventListener('click', () => {
+        if (editingIndex === null) return;
+        const source = selectedCopySource();
+        const schedule = normalizeRuleSchedule(source?.schedule);
+        if (!schedule) return;
+        populateSchedule(schedule);
+        showStatus(`Copied from ${source.name}. Review the blocking times, then save to apply them.`);
+        closeCopyDialog();
+    });
+
+    function selectedTemplate() {
+        return SCHEDULE_TEMPLATES.find((template) => template.id === templateSource.value);
+    }
+
+    function closeTemplateDialog() {
+        templateDialog.hidden = true;
+        setEditorSuspended(false);
+        if (editingIndex !== null) {
+            templateButton.focus();
+        }
+    }
+
+    templateButton.addEventListener('click', () => {
+        if (editingIndex === null) return;
+        templateSource.replaceChildren(new Option('Choose a template…', ''));
+        SCHEDULE_TEMPLATES.forEach((template) => templateSource.add(new Option(template.label, template.id)));
+        templatePreview.textContent = '';
+        templatePreview.hidden = true;
+        useTemplateButton.disabled = true;
+        openPicker(templateDialog, templateSource);
+    });
+
+    templateSource.addEventListener('change', () => {
+        const template = selectedTemplate();
+        templatePreview.textContent = template ? formatSchedule(template.schedule) : '';
+        templatePreview.hidden = !template;
+        useTemplateButton.disabled = !template;
+    });
+
+    cancelTemplateButton.addEventListener('click', closeTemplateDialog);
+    useTemplateButton.addEventListener('click', () => {
+        if (editingIndex === null) return;
+        const template = selectedTemplate();
+        if (!template) return;
+        populateSchedule(template.schedule);
+        showStatus(`Template applied: ${template.label}. Review the blocking times, then save to apply them.`);
+        closeTemplateDialog();
+    });
+
+    function trapPickerFocus(picker: HTMLElement, selector: HTMLSelectElement, cancel: HTMLButtonElement, use: HTMLButtonElement) {
+        picker.addEventListener('keydown', (event) => {
+            if (event.key !== 'Tab') return;
+            const lastButton = use.disabled ? cancel : use;
+            if (event.shiftKey && document.activeElement === selector) {
+                event.preventDefault();
+                lastButton.focus();
+            } else if (!event.shiftKey && document.activeElement === lastButton) {
+                event.preventDefault();
+                selector.focus();
+            }
+        });
+    }
+
+    trapPickerFocus(copyDialog, copySource, cancelCopyButton, useCopyButton);
+    trapPickerFocus(templateDialog, templateSource, cancelTemplateButton, useTemplateButton);
 
     function readSchedule(): RuleSchedule | null {
         return normalizeRuleSchedule({

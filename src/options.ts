@@ -26,6 +26,8 @@ const nextPageButton = document.getElementById('nextPageButton') as HTMLButtonEl
 const pageNumbers = document.getElementById('pageNumbers');
 const pageInfo = document.getElementById('pageInfo');
 const scheduleDialog = document.getElementById('scheduleDialog') as HTMLElement;
+const scheduleCopyDialog = document.getElementById('scheduleCopyDialog') as HTMLElement;
+const scheduleTemplateDialog = document.getElementById('scheduleTemplateDialog') as HTMLElement;
 const blockScopeDialog = document.getElementById('blockScopeDialog') as HTMLElement;
 const blockScopeValue = document.getElementById('blockScopeValue') as HTMLElement;
 const cancelBlockScopeButton = document.getElementById('cancelBlockScopeButton') as HTMLButtonElement;
@@ -63,6 +65,16 @@ const settingsUnlockDialog = document.getElementById('settingsUnlockDialog') as 
 const settingsUnlockMagicWord = document.getElementById('settingsUnlockMagicWord') as HTMLInputElement;
 const settingsUnlockStatus = document.getElementById('settingsUnlockStatus') as HTMLElement;
 const extensionVersion = document.getElementById('extensionVersion') as HTMLElement;
+const ruleSearch = document.getElementById('ruleSearch') as HTMLInputElement;
+const ruleFilter = document.getElementById('ruleFilter') as HTMLSelectElement;
+const clearRuleSearchButton = document.getElementById('clearRuleSearchButton') as HTMLButtonElement;
+const clearRuleFiltersButton = document.getElementById('clearRuleFiltersButton') as HTMLButtonElement;
+const ruleResultsCount = document.getElementById('ruleResultsCount') as HTMLElement;
+const ruleEmptyState = document.getElementById('ruleEmptyState') as HTMLElement;
+const ruleEmptyTitle = document.getElementById('ruleEmptyTitle') as HTMLElement;
+const ruleEmptyDescription = document.getElementById('ruleEmptyDescription') as HTMLElement;
+const websiteListHeader = document.getElementById('websiteListHeader') as HTMLElement;
+const pagination = document.getElementById('pagination') as HTMLElement;
 type BlockedEntry = ScheduledRule;
 
 // Pagination defaults keep the list readable on smaller screens.
@@ -87,7 +99,7 @@ initializeBackupController({
     normalizeRules: normalizeBlockedEntries,
     replaceRules: (rules) => {
         blockedEntries = rules;
-        renderPage(1);
+        resetRuleFilters();
     },
 });
 
@@ -133,6 +145,7 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
     websiteCheckbox.type = 'checkbox';
     websiteCheckbox.className = 'websiteCheckbox';
     websiteCheckbox.checked = enabled;
+    websiteCheckbox.setAttribute('aria-label', `Block ${normalizedWebsite.name}`);
 
     const scheduleButton = document.createElement('button');
     const scheduleLabel = schedule ? 'Edit schedule' : 'Add schedule';
@@ -156,6 +169,12 @@ function createWebsiteItem(website, enabled, scope, schedule?: RuleSchedule) {
         if (index >= 0) {
             blockedEntries[index] = { ...blockedEntries[index], enabled: websiteCheckbox.checked };
             persistBlockedEntries();
+            if (ruleFilter.value === 'enabled' || ruleFilter.value === 'disabled') {
+                const visibleIndex = Array.from(websiteList.querySelectorAll('.websiteCheckbox')).indexOf(websiteCheckbox);
+                renderPage(currentPage);
+                const visibleCheckboxes = websiteList.querySelectorAll<HTMLInputElement>('.websiteCheckbox');
+                (visibleCheckboxes[Math.min(visibleIndex, visibleCheckboxes.length - 1)] || ruleFilter).focus();
+            }
         }
     });
 
@@ -423,6 +442,8 @@ document.addEventListener('keydown', (event) => {
         [importConfirmationDialog, 'cancelImportButton'],
         [deleteConfirmationDialog, 'cancelDeleteButton'],
         [blockScopeDialog, 'cancelBlockScopeButton'],
+        [scheduleCopyDialog, 'cancelCopyScheduleButton'],
+        [scheduleTemplateDialog, 'cancelScheduleTemplateButton'],
         [scheduleDialog, 'cancelScheduleButton'],
         [passphraseSettingsDialog, 'closePassphraseSettingsButton'],
         [transferDialog, 'closeTransferDialogButton'],
@@ -493,15 +514,63 @@ removePassphraseButton.addEventListener('click', async () => {
     passwordSuccessDialog.hidden = false;
 });
 
-// Render one page worth of entries and update pagination controls.
+ruleSearch.addEventListener('input', () => renderPage(1));
+ruleFilter.addEventListener('change', () => renderPage(1));
+clearRuleSearchButton.addEventListener('click', () => {
+    ruleSearch.value = '';
+    renderPage(1);
+    ruleSearch.focus();
+});
+clearRuleFiltersButton.addEventListener('click', () => {
+    resetRuleFilters();
+    ruleSearch.focus();
+});
+
+function resetRuleFilters() {
+    ruleSearch.value = '';
+    ruleFilter.value = 'all';
+    renderPage(1);
+}
+
+function matchesRuleFilter(entry: BlockedEntry): boolean {
+    switch (ruleFilter.value) {
+        case 'enabled': return entry.enabled;
+        case 'disabled': return !entry.enabled;
+        case 'scheduled': return Boolean(entry.schedule);
+        case 'unscheduled': return !entry.schedule;
+        case 'domain': return entry.scope === 'domain';
+        case 'url': return entry.scope === 'url';
+        default: return true;
+    }
+}
+
+// Filter a view of the complete list; persistence always uses blockedEntries.
 function renderPage(page) {
     const items = websiteList.querySelectorAll('.websiteItem');
     items.forEach((item) => item.remove());
 
-    const totalPages = Math.max(1, Math.ceil(blockedEntries.length / pageSize));
+    const query = ruleSearch.value.trim().toLowerCase();
+    const filteredEntries = blockedEntries.filter((entry) =>
+        entry.name.toLowerCase().includes(query) && matchesRuleFilter(entry)
+    );
+    const hasFilters = Boolean(query) || ruleFilter.value !== 'all';
+    clearRuleSearchButton.hidden = !ruleSearch.value;
+    clearRuleFiltersButton.hidden = !hasFilters;
+    ruleResultsCount.textContent = hasFilters
+        ? `${filteredEntries.length} of ${blockedEntries.length} rules`
+        : `${blockedEntries.length} ${blockedEntries.length === 1 ? 'rule' : 'rules'}`;
+    ruleEmptyState.hidden = filteredEntries.length > 0;
+    websiteListHeader.hidden = filteredEntries.length === 0;
+    ruleEmptyTitle.textContent = blockedEntries.length ? 'No matching rules' : 'No rules yet';
+    ruleEmptyDescription.textContent = blockedEntries.length
+        ? 'Try a different search or clear your filters.'
+        : 'Add your first website below to get started.';
+
+    const totalPages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
     currentPage = Math.min(Math.max(1, page), totalPages);
     const startIndex = (currentPage - 1) * pageSize;
-    const pageEntries = blockedEntries.slice(startIndex, startIndex + pageSize);
+    const pageEntries = filteredEntries.slice(startIndex, startIndex + pageSize);
+    websiteList.scrollTop = 0;
 
     pageEntries.forEach((website) => {
         createWebsiteItem(
@@ -512,6 +581,7 @@ function renderPage(page) {
         );
     });
 
+    pagination.hidden = totalPages <= 1;
     renderPagination(totalPages);
 }
 
@@ -530,8 +600,10 @@ function renderPagination(totalPages) {
         for (let i = 1; i <= totalPages; i += 1) {
             const button = document.createElement('button');
             button.textContent = i.toString();
+            button.setAttribute('aria-label', `Page ${i}`);
             if (i === currentPage) {
                 button.classList.add('active');
+                button.setAttribute('aria-current', 'page');
             }
             button.addEventListener('click', () => renderPage(i));
             pageNumbers.appendChild(button);
@@ -556,7 +628,7 @@ function addBlockedEntry(normalized: NormalizedBlockedEntry) {
     });
     blockedEntries = sortBlockedEntries(blockedEntries);
     persistBlockedEntries();
-    renderPage(1);
+    resetRuleFilters();
     return true;
 }
 

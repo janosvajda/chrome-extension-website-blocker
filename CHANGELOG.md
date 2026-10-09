@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.6 - 2026-10-09
+
+### Added
+
+- Search and filter website rules.
+- Copy saved schedules between rules.
+- Apply built-in schedule templates.
+
+### Changed
+
+- Improve the schedule dialog layout: move actions near the top, wrap long rule names.
+
 ## 1.0.5 - 2026-09-11
 
 ### Changed

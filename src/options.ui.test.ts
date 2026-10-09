@@ -18,7 +18,7 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     const chromeMock = {
         runtime: {
             lastError: undefined as undefined | {message: string},
-            getManifest: jest.fn(() => ({version: '1.0.5'})),
+            getManifest: jest.fn(() => ({version: '1.0.6'})),
         },
         storage: {local: {
             get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
@@ -49,6 +49,22 @@ function addWebsite(value: string) {
     document.getElementById('addButton')?.click();
 }
 
+function searchRules(value: string) {
+    const input = document.getElementById('ruleSearch') as HTMLInputElement;
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+}
+
+function selectRuleFilter(value: string) {
+    const select = document.getElementById('ruleFilter') as HTMLSelectElement;
+    select.value = value;
+    select.dispatchEvent(new Event('change'));
+}
+
+function visibleRuleNames(): string[] {
+    return Array.from(document.querySelectorAll('.websiteName'), (element) => element.textContent || '');
+}
+
 async function flush() {
     for (let index = 0; index < 6; index += 1) await Promise.resolve();
 }
@@ -56,16 +72,23 @@ async function flush() {
 describe('options UI', () => {
     beforeEach(() => {
         jest.resetModules();
+        jest.spyOn(document, 'addEventListener');
     });
     afterEach(() => {
+        jest.mocked(document.addEventListener).mock.calls.forEach(([type, listener, options]) => {
+            if (type === 'keydown') document.removeEventListener(type, listener, options);
+        });
         jest.restoreAllMocks();
         delete (global as any).chrome;
     });
 
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
-        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.5');
+        expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.6');
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
+        expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(false);
+        expect(document.querySelector('.websiteHeader')?.textContent).toBe('Website');
+        expect(document.querySelector('.actionHeader')?.textContent).toBe('Blocked');
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
         expect(document.querySelector('.scheduleButton')?.getAttribute('aria-label')).toBe('Add schedule');
@@ -86,6 +109,164 @@ describe('options UI', () => {
         document.getElementById('confirmDeleteButton')?.click();
         expect(data.blocked).toHaveLength(5);
         expect(chromeMock.storage.local.get).toHaveBeenCalled();
+    });
+
+    it('searches the complete list without changing stored rules and paginates only matches', () => {
+        const blocked = [
+            {name: 'another.example', scope: 'domain', enabled: true},
+            ...Array.from({length: 6}, (_, index) => ({
+                name: `site-${index + 1}.example`, scope: 'domain', enabled: true,
+            })),
+            {name: 'unrelated.example', scope: 'domain', enabled: false},
+        ];
+        const {chromeMock, data} = setup({blocked});
+        document.getElementById('nextPageButton')?.click();
+        expect(document.getElementById('pageInfo')?.textContent).toBe('Page 2 of 2');
+
+        searchRules('  SITE-  ');
+        expect(visibleRuleNames()).toEqual(blocked.slice(1, 6).map((entry) => entry.name));
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('6 of 8 rules');
+        expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
+        expect(document.querySelector('.pageNumbers [aria-current="page"]')?.textContent).toBe('1');
+        document.getElementById('nextPageButton')?.click();
+        expect(visibleRuleNames()).toEqual(['site-6.example']);
+
+        searchRules('site-1');
+        expect(visibleRuleNames()).toEqual(['site-1.example']);
+        expect((document.getElementById('pagination') as HTMLElement).hidden).toBe(true);
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('1 of 8 rules');
+        expect(data.blocked).toEqual(blocked);
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['all', ['alpha.example', 'beta.example', 'https://delta.example/path?tab=1#section', 'https://gamma.example/path']],
+        ['enabled', ['alpha.example', 'https://gamma.example/path']],
+        ['disabled', ['beta.example', 'https://delta.example/path?tab=1#section']],
+        ['scheduled', ['beta.example', 'https://gamma.example/path']],
+        ['unscheduled', ['alpha.example', 'https://delta.example/path?tab=1#section']],
+        ['domain', ['alpha.example', 'beta.example']],
+        ['url', ['https://delta.example/path?tab=1#section', 'https://gamma.example/path']],
+    ])('filters by %s without modifying the saved configuration', (filter, names) => {
+        const blocked = [
+            {name: 'alpha.example', scope: 'domain', enabled: true},
+            {name: 'beta.example', scope: 'domain', enabled: false, schedule: {daily: [{day: 1, mode: 'all-day'}]}},
+            {name: 'https://gamma.example/path', scope: 'url', enabled: true, schedule: {daily: [{day: 2, mode: 'all-day'}]}},
+            {name: 'https://delta.example/path?tab=1#section', scope: 'url', enabled: false},
+        ];
+        const {chromeMock, data} = setup({blocked});
+        selectRuleFilter(filter);
+        expect(visibleRuleNames()).toEqual(names);
+        expect(data.blocked).toEqual(blocked);
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('combines URL searches with filters and distinguishes no matches from an empty list', () => {
+        setup({blocked: [
+            {name: 'example.com', scope: 'domain', enabled: true},
+            {name: 'https://other.example/path?tab=1#section', scope: 'url', enabled: false},
+        ]});
+        selectRuleFilter('disabled');
+        searchRules('TAB=1#SECTION');
+        expect(visibleRuleNames()).toEqual(['https://other.example/path?tab=1#section']);
+
+        searchRules('no-match');
+        expect(visibleRuleNames()).toEqual([]);
+        expect(document.getElementById('ruleEmptyTitle')?.textContent).toBe('No matching rules');
+        expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(true);
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('0 of 2 rules');
+        expect((document.getElementById('ruleEmptyState') as HTMLElement).hidden).toBe(false);
+        document.getElementById('clearRuleSearchButton')?.click();
+        expect((document.getElementById('ruleFilter') as HTMLSelectElement).value).toBe('disabled');
+        expect(visibleRuleNames()).toEqual(['https://other.example/path?tab=1#section']);
+        expect(document.activeElement?.id).toBe('ruleSearch');
+
+        document.getElementById('clearRuleFiltersButton')?.click();
+        expect(visibleRuleNames()).toHaveLength(2);
+        expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(false);
+        expect((document.getElementById('ruleFilter') as HTMLSelectElement).value).toBe('all');
+        expect((document.getElementById('clearRuleFiltersButton') as HTMLElement).hidden).toBe(true);
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('2 rules');
+
+        jest.resetModules();
+        setup();
+        expect(document.getElementById('ruleEmptyTitle')?.textContent).toBe('No rules yet');
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('0 rules');
+        expect((document.querySelector('.ruleTools') as HTMLElement).hidden).toBe(false);
+        searchRules('   ');
+        expect((document.getElementById('clearRuleFiltersButton') as HTMLElement).hidden).toBe(true);
+        document.getElementById('clearRuleSearchButton')?.click();
+        addWebsite('first.example');
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('1 rule');
+        expect((document.getElementById('ruleEmptyState') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('updates status-filtered results after toggling, clamps pagination, and retains hidden rules', () => {
+        const hiddenRule = {name: 'hidden.example', scope: 'domain', enabled: false};
+        const {data} = setup({blocked: [
+            hiddenRule,
+            ...Array.from({length: 6}, (_, index) => ({
+                name: `site-${index + 1}.example`, scope: 'domain', enabled: true,
+            })),
+        ]});
+        selectRuleFilter('enabled');
+        document.getElementById('nextPageButton')?.click();
+        const checkbox = document.querySelector('.websiteCheckbox') as HTMLInputElement;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change'));
+        expect(visibleRuleNames()).toHaveLength(5);
+        expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 1');
+        expect(data.blocked).toHaveLength(7);
+        expect(data.blocked).toContainEqual(hiddenRule);
+        expect(data.blocked).toContainEqual({name: 'site-6.example', scope: 'domain', enabled: false});
+        expect(document.activeElement).toBe(document.querySelector('.websiteCheckbox'));
+
+        searchRules('site-1');
+        const lastMatch = document.querySelector('.websiteCheckbox') as HTMLInputElement;
+        lastMatch.checked = false;
+        lastMatch.dispatchEvent(new Event('change'));
+        expect(visibleRuleNames()).toHaveLength(0);
+        expect(document.activeElement?.id).toBe('ruleFilter');
+
+        selectRuleFilter('disabled');
+        const disabledCheckbox = document.querySelector('.websiteCheckbox') as HTMLInputElement;
+        disabledCheckbox.checked = true;
+        disabledCheckbox.dispatchEvent(new Event('change'));
+        expect(visibleRuleNames()).toHaveLength(0);
+        expect(data.blocked).toContainEqual({name: 'site-1.example', scope: 'domain', enabled: true});
+    });
+
+    it('edits schedules and deletes the correct filtered rule while retaining other rules', () => {
+        const hiddenRule = {name: 'alpha.example', scope: 'domain', enabled: true};
+        const urlRule = {name: 'https://target.example/path', scope: 'url', enabled: true};
+        const {data} = setup({blocked: [hiddenRule, urlRule]});
+        selectRuleFilter('url');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        expect(document.getElementById('scheduleRuleName')?.textContent).toBe(urlRule.name);
+        document.getElementById('saveScheduleButton')?.click();
+        expect(data.blocked.find((entry) => entry.name === urlRule.name).schedule.daily).toHaveLength(5);
+        expect(data.blocked).toContainEqual(hiddenRule);
+
+        selectRuleFilter('scheduled');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        document.getElementById('removeScheduleButton')?.click();
+        expect(visibleRuleNames()).toHaveLength(0);
+        selectRuleFilter('url');
+        (document.querySelector('.deleteButton') as HTMLButtonElement).click();
+        document.getElementById('confirmDeleteButton')?.click();
+        expect(data.blocked).toEqual([hiddenRule]);
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('0 of 1 rules');
+    });
+
+    it('clears filters after successfully adding a rule so the new rule is visible', () => {
+        const {data} = setup({blocked: [{name: 'existing.example', scope: 'domain', enabled: true}]});
+        searchRules('unmatched');
+        selectRuleFilter('disabled');
+        addWebsite('new.example');
+        expect((document.getElementById('ruleSearch') as HTMLInputElement).value).toBe('');
+        expect((document.getElementById('ruleFilter') as HTMLSelectElement).value).toBe('all');
+        expect(visibleRuleNames()).toContain('new.example');
+        expect(data.blocked).toHaveLength(2);
     });
 
     it('submits through the Add Site form and rejects invalid and duplicate rules', () => {
@@ -215,6 +396,8 @@ describe('options UI', () => {
 
     it('imports a valid backup and reports invalid files and storage errors', async () => {
         const {chromeMock, data} = setup();
+        searchRules('unmatched');
+        selectRuleFilter('disabled');
         const input = document.getElementById('importFile') as HTMLInputElement;
         const validFile = {text: jest.fn(async () => JSON.stringify({
             version: 3, enabled: false,
@@ -229,6 +412,9 @@ describe('options UI', () => {
         document.getElementById('confirmImportButton')?.click();
         await flush();
         expect(data.enabled).toBe(false);
+        expect((document.getElementById('ruleSearch') as HTMLInputElement).value).toBe('');
+        expect((document.getElementById('ruleFilter') as HTMLSelectElement).value).toBe('all');
+        expect(visibleRuleNames()).toEqual(['imported.example']);
         expect(document.getElementById('transferStatus')?.textContent).toBe('Imported 1 rules.');
         expect(document.getElementById('importResultTitle')?.textContent).toBe('Import complete');
         expect(document.getElementById('importResultMessage')?.textContent).toBe('Imported 1 rule successfully.');
@@ -310,8 +496,10 @@ describe('options UI', () => {
         expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
         expect(document.getElementById('scheduleRuleName')?.textContent).toBe('focus.example');
         expect(document.getElementById('scheduleDialogTitle')?.textContent).toBe('Schedule blocking');
-        expect(document.getElementById('scheduleExplanation')?.textContent)
-            .toContain('blocked during the selected days and times');
+        expect(document.getElementById('scheduleRuleName')?.closest('.scheduleDialogHeader')).not.toBeNull();
+        expect(document.getElementById('scheduleExplanation')?.textContent).toBe(
+            'When this rule is enabled, the website is blocked during the selected days and times. Outside this schedule, it can be opened.',
+        );
         document.querySelectorAll<HTMLInputElement>('.scheduleDayEnabled')
             .forEach((input) => { input.checked = false; });
         document.getElementById('saveScheduleButton')?.click();
@@ -339,6 +527,250 @@ describe('options UI', () => {
         expect(document.querySelector('.websiteSchedule')?.textContent).toBe('Always');
         (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
         document.getElementById('cancelScheduleButton')?.click();
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('copies a saved schedule into a filtered rule for review without changing other rules or enabled states', () => {
+        const schedule = {daily: [
+            {day: 1, mode: 'all-day'},
+            {day: 3, mode: 'period', start: '09:15', end: '16:45'},
+            {day: 5, mode: 'period', start: '22:00', end: '06:00'},
+        ]};
+        const source = {name: 'source.example', scope: 'domain', enabled: true, schedule};
+        const disabledSource = {name: 'https://source.example/path', scope: 'url', enabled: false, schedule: {daily: [{day: 0, mode: 'all-day'}]}};
+        const target = {name: 'https://target.example/path', scope: 'url', enabled: false, schedule: {daily: [{day: 2, mode: 'all-day'}]}};
+        const untouched = {name: 'untouched.example', scope: 'domain', enabled: true};
+        const {data, chromeMock} = setup({blocked: [source, disabledSource, target, untouched]});
+        searchRules('target.example');
+        selectRuleFilter('url');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        expect((document.getElementById('copyScheduleButton') as HTMLElement).hidden).toBe(false);
+        document.getElementById('copyScheduleButton')?.click();
+        const selector = document.getElementById('scheduleCopySource') as HTMLSelectElement;
+        const editor = document.getElementById('scheduleDialog') as HTMLElement;
+        expect(editor.hidden).toBe(false);
+        expect(editor.hasAttribute('inert')).toBe(true);
+        expect(editor.getAttribute('aria-hidden')).toBe('true');
+        expect(Array.from(selector.options, (option) => option.textContent)).toEqual([
+            'Choose a rule…', disabledSource.name, source.name,
+        ]);
+        expect(document.activeElement).toBe(selector);
+        expect((document.getElementById('useCopiedScheduleButton') as HTMLButtonElement).disabled).toBe(true);
+        selector.value = JSON.stringify([source.scope, source.name]);
+        selector.dispatchEvent(new Event('change'));
+        expect(document.getElementById('scheduleCopyPreview')?.textContent).toBe('Mon | all day; Wed | 09:15-16:45; Fri | 22:00-06:00');
+        document.getElementById('useCopiedScheduleButton')?.click();
+        expect((document.getElementById('scheduleCopyDialog') as HTMLElement).hidden).toBe(true);
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
+        expect(editor.hasAttribute('inert')).toBe(false);
+        expect(editor.hasAttribute('aria-hidden')).toBe(false);
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+        expect(data.blocked).toContainEqual(target);
+        expect(document.getElementById('scheduleStatus')?.textContent).toContain('Copied from source.example');
+        const monday = document.querySelector('[data-schedule-day="1"]') as HTMLElement;
+        expect((monday.querySelector('.scheduleDayMode') as HTMLSelectElement).value).toBe('all-day');
+        const friday = document.querySelector('[data-schedule-day="5"]') as HTMLElement;
+        expect((friday.querySelector('.scheduleDayStart') as HTMLInputElement).value).toBe('22:00');
+        expect((friday.querySelector('.scheduleDayEnd') as HTMLInputElement).value).toBe('06:00');
+        const wednesday = document.querySelector('[data-schedule-day="3"]') as HTMLElement;
+        (wednesday.querySelector('.scheduleDayEnd') as HTMLInputElement).value = '17:00';
+        document.getElementById('saveScheduleButton')?.click();
+        expect(chromeMock.storage.local.set).toHaveBeenCalledTimes(1);
+        expect(data.blocked).toHaveLength(4);
+        expect(data.blocked).toContainEqual({...target, schedule: {daily: [
+            schedule.daily[0], {...schedule.daily[1], end: '17:00'}, schedule.daily[2],
+        ]}});
+        expect(data.blocked).toContainEqual(source);
+        expect(data.blocked).toContainEqual(disabledSource);
+        expect(data.blocked).toContainEqual(untouched);
+    });
+
+    it('cancels copying without losing draft edits and discards copied times when the editor is cancelled', () => {
+        const source = {name: 'source.example', scope: 'domain', enabled: false, schedule: {daily: [{day: 0, mode: 'all-day'}]}};
+        const target = {name: 'target.example', scope: 'domain', enabled: true};
+        const {data, chromeMock} = setup({blocked: [source, target]});
+        searchRules('target.example');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        const mondayStart = document.querySelector('[data-schedule-day="1"] .scheduleDayStart') as HTMLInputElement;
+        mondayStart.value = '10:30';
+        document.getElementById('copyScheduleButton')?.click();
+        document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+        expect((document.getElementById('scheduleCopyDialog') as HTMLElement).hidden).toBe(true);
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
+        expect(document.activeElement?.id).toBe('copyScheduleButton');
+        expect(document.getElementById('scheduleDialog')?.hasAttribute('inert')).toBe(false);
+        expect(document.getElementById('scheduleDialog')?.hasAttribute('aria-hidden')).toBe(false);
+        expect(mondayStart.value).toBe('10:30');
+
+        document.getElementById('copyScheduleButton')?.click();
+        const selector = document.getElementById('scheduleCopySource') as HTMLSelectElement;
+        selector.value = JSON.stringify([source.scope, source.name]);
+        selector.dispatchEvent(new Event('change'));
+        document.getElementById('useCopiedScheduleButton')?.click();
+        expect((document.querySelector('[data-schedule-day="0"] .scheduleDayEnabled') as HTMLInputElement).checked).toBe(true);
+        document.getElementById('cancelScheduleButton')?.click();
+        expect(data.blocked).toEqual([source, target]);
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        expect((document.querySelector('[data-schedule-day="0"] .scheduleDayEnabled') as HTMLInputElement).checked).toBe(false);
+        expect(mondayStart.value).toBe('09:00');
+    });
+
+    it('keeps copy controls unavailable without a source and traps keyboard focus within the picker', () => {
+        setup({blocked: [{name: 'only.example', scope: 'domain', enabled: true, schedule: {daily: [{day: 1, mode: 'all-day'}]}}]});
+        document.getElementById('copyScheduleButton')?.click();
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        expect((document.getElementById('copyScheduleButton') as HTMLElement).hidden).toBe(true);
+        document.getElementById('copyScheduleButton')?.click();
+        expect((document.getElementById('scheduleCopyDialog') as HTMLElement).hidden).toBe(true);
+
+        jest.resetModules();
+        setup({blocked: [
+            {name: 'source.example', scope: 'domain', enabled: true, schedule: {daily: [{day: 1, mode: 'all-day'}]}},
+            {name: 'target.example', scope: 'domain', enabled: true},
+        ]});
+        searchRules('target');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        document.getElementById('copyScheduleButton')?.click();
+        const selector = document.getElementById('scheduleCopySource') as HTMLSelectElement;
+        const useButton = document.getElementById('useCopiedScheduleButton') as HTMLButtonElement;
+        const cancelButton = document.getElementById('cancelCopyScheduleButton') as HTMLButtonElement;
+        selector.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', shiftKey: true, bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(cancelButton);
+        cancelButton.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(selector);
+        selector.value = JSON.stringify(['domain', 'source.example']);
+        selector.dispatchEvent(new Event('change'));
+        selector.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', shiftKey: true, bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(useButton);
+        useButton.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(selector);
+        const normalTab = new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true});
+        selector.dispatchEvent(normalTab);
+        expect(normalTab.defaultPrevented).toBe(false);
+        selector.value = '';
+        selector.dispatchEvent(new Event('change'));
+        expect(useButton.disabled).toBe(true);
+        expect((document.getElementById('scheduleCopyPreview') as HTMLElement).hidden).toBe(true);
+        useButton.dispatchEvent(new Event('click'));
+        expect((document.getElementById('scheduleCopyDialog') as HTMLElement).hidden).toBe(false);
+        cancelButton.click();
+        document.getElementById('cancelScheduleButton')?.click();
+        useButton.dispatchEvent(new Event('click'));
+        cancelButton.click();
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(true);
+    });
+
+    it.each<[string, number[], string | null, string | null]>([
+        ['workdays-9-5', [1, 2, 3, 4, 5], '09:00', '17:00'],
+        ['workdays-8-4', [1, 2, 3, 4, 5], '08:00', '16:00'],
+        ['everyday-mornings', [0, 1, 2, 3, 4, 5, 6], '08:00', '12:00'],
+        ['workday-evenings', [1, 2, 3, 4, 5], '18:00', '22:00'],
+        ['weekend-mornings', [0, 6], '08:00', '12:00'],
+        ['everyday-all-day', [0, 1, 2, 3, 4, 5, 6], null, null],
+    ])('previews and saves the %s template only for the selected filtered rule', (id, days, start, end) => {
+        const target = {
+            name: 'https://target.example/path', scope: 'url', enabled: false,
+            schedule: {daily: [{day: 2, mode: 'all-day'}]},
+        };
+        const untouched = {name: 'untouched.example', scope: 'domain', enabled: true};
+        const {data, chromeMock} = setup({blocked: [target, untouched]});
+        searchRules('target');
+        selectRuleFilter('url');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        document.getElementById('scheduleTemplatesButton')?.click();
+        const selector = document.getElementById('scheduleTemplateSource') as HTMLSelectElement;
+        const editor = document.getElementById('scheduleDialog') as HTMLElement;
+        expect(editor.hidden).toBe(false);
+        expect(editor.hasAttribute('inert')).toBe(true);
+        expect(editor.getAttribute('aria-hidden')).toBe('true');
+        selector.value = id;
+        selector.dispatchEvent(new Event('change'));
+        expect((document.getElementById('scheduleTemplatePreview') as HTMLElement).hidden).toBe(false);
+        const expectedLabel = start ? `${start}-${end}` : 'all day';
+        expect(document.getElementById('scheduleTemplatePreview')?.textContent).toContain(expectedLabel);
+        document.getElementById('useScheduleTemplateButton')?.click();
+        expect((document.getElementById('scheduleTemplateDialog') as HTMLElement).hidden).toBe(true);
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
+        expect(document.activeElement?.id).toBe('scheduleTemplatesButton');
+        expect(editor.hasAttribute('inert')).toBe(false);
+        expect(editor.hasAttribute('aria-hidden')).toBe(false);
+        expect(data.blocked).toEqual([target, untouched]);
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+        expect(document.getElementById('scheduleStatus')?.textContent).toContain('Template applied:');
+        document.getElementById('saveScheduleButton')?.click();
+        const expectedSchedule = {daily: days.map((day) => start
+            ? {day, mode: 'period', start, end}
+            : {day, mode: 'all-day'})};
+        expect(data.blocked).toEqual([{...target, schedule: expectedSchedule}, untouched]);
+        expect(chromeMock.storage.local.set).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves drafts when cancelling templates and allows adjustments without changing future templates', () => {
+        const target = {name: 'target.example', scope: 'domain', enabled: true};
+        const {data, chromeMock} = setup({blocked: [target]});
+        const templateButton = document.getElementById('scheduleTemplatesButton') as HTMLButtonElement;
+        const cancelButton = document.getElementById('cancelScheduleTemplateButton') as HTMLButtonElement;
+        const useButton = document.getElementById('useScheduleTemplateButton') as HTMLButtonElement;
+        const selector = document.getElementById('scheduleTemplateSource') as HTMLSelectElement;
+        templateButton.click();
+        expect((document.getElementById('scheduleTemplateDialog') as HTMLElement).hidden).toBe(true);
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        expect((document.getElementById('copyScheduleButton') as HTMLElement).hidden).toBe(true);
+        const mondayStart = document.querySelector('[data-schedule-day="1"] .scheduleDayStart') as HTMLInputElement;
+        mondayStart.value = '10:30';
+        templateButton.click();
+        expect(document.activeElement).toBe(selector);
+        expect(useButton.disabled).toBe(true);
+        selector.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', shiftKey: true, bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(cancelButton);
+        cancelButton.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(selector);
+        selector.value = 'workdays-8-4';
+        selector.dispatchEvent(new Event('change'));
+        selector.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', shiftKey: true, bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(useButton);
+        useButton.dispatchEvent(new KeyboardEvent('keydown', {key: 'Tab', bubbles: true, cancelable: true}));
+        expect(document.activeElement).toBe(selector);
+        selector.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));
+        expect((document.getElementById('scheduleTemplateDialog') as HTMLElement).hidden).toBe(true);
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
+        expect(document.activeElement).toBe(templateButton);
+        expect(document.getElementById('scheduleDialog')?.hasAttribute('inert')).toBe(false);
+        expect(document.getElementById('scheduleDialog')?.hasAttribute('aria-hidden')).toBe(false);
+        expect(mondayStart.value).toBe('10:30');
+        templateButton.click();
+        expect(selector.value).toBe('');
+        expect(useButton.disabled).toBe(true);
+        useButton.dispatchEvent(new Event('click'));
+        expect((document.getElementById('scheduleTemplateDialog') as HTMLElement).hidden).toBe(false);
+        selector.value = 'workdays-8-4';
+        selector.dispatchEvent(new Event('change'));
+        selector.value = '';
+        selector.dispatchEvent(new Event('change'));
+        expect(useButton.disabled).toBe(true);
+        expect((document.getElementById('scheduleTemplatePreview') as HTMLElement).hidden).toBe(true);
+        cancelButton.click();
+        expect(mondayStart.value).toBe('10:30');
+        templateButton.click();
+        selector.value = 'workdays-8-4';
+        selector.dispatchEvent(new Event('change'));
+        useButton.click();
+        expect(mondayStart.value).toBe('08:00');
+        mondayStart.value = '07:30';
+        document.getElementById('saveScheduleButton')?.click();
+        expect(data.blocked[0].schedule.daily[0].start).toBe('07:30');
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        templateButton.click();
+        selector.value = 'workdays-8-4';
+        selector.dispatchEvent(new Event('change'));
+        useButton.click();
+        expect(mondayStart.value).toBe('08:00');
+        document.getElementById('cancelScheduleButton')?.click();
+        expect(data.blocked[0].schedule.daily[0].start).toBe('07:30');
+        expect(chromeMock.storage.local.set).toHaveBeenCalledTimes(1);
+        useButton.dispatchEvent(new Event('click'));
+        cancelButton.click();
         expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(true);
     });
 
