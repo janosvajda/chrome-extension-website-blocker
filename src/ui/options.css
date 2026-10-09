@@ -536,7 +536,8 @@ h1 {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
-    padding: 2px 4px 2px 0;
+    padding: 2px 4px 6px 0;
+    scroll-padding-block: 4px;
     scrollbar-gutter: stable;
 }
 

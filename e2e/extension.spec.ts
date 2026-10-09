@@ -659,10 +659,25 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         for (const checkbox of await page.locator('.scheduleDayEnabled').all()) {
             await checkbox.uncheck();
         }
-        await saveButton.click();
-        await expect(page.locator('#scheduleStatus')).toContainText('Select at least one day');
-        await expect(page.locator('#scheduleStatus')).toBeInViewport({ratio: 1});
-        await expect(saveButton).toBeInViewport({ratio: 1});
+        // Cover Linux fallback fonts and fractional text heights at the scroll edge.
+        for (const [fontFamily, lineHeight] of [
+            ['', ''],
+            ['sans-serif', ''],
+            ['Arial, sans-serif', '17.3px'],
+            ['Arial, sans-serif', '18.7px'],
+        ]) {
+            await page.locator('body').evaluate((element, value) => {
+                element.style.fontFamily = value;
+            }, fontFamily);
+            await page.locator('#scheduleStatus').evaluate((element, value) => {
+                element.style.lineHeight = value;
+            }, lineHeight);
+            await body.evaluate((element) => {element.scrollTop = 0;});
+            await saveButton.click();
+            await expect(page.locator('#scheduleStatus')).toContainText('Select at least one day');
+            await expect(page.locator('#scheduleStatus')).toBeInViewport({ratio: 1});
+            await expect(saveButton).toBeInViewport({ratio: 1});
+        }
         const friday = page.locator('[data-schedule-day="5"]');
         await friday.locator('.scheduleDayEnabled').check();
         await friday.locator('.scheduleDayMode').selectOption('all-day');
