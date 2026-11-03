@@ -7,7 +7,7 @@ jest.mock('./helper/passphraseProtection', () => {
 
 const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ciphertext: 'Aw=='};
 
-function setup(data: Record<string, any>, minimal = false) {
+function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https://example.com/') {
     document.body.innerHTML = `
         <input id="enabledToggle" type="checkbox">
         ${minimal ? '' : `<span id="statusText"></span><span id="activeRules"></span>
@@ -26,6 +26,9 @@ function setup(data: Record<string, any>, minimal = false) {
             </div>
         </section>
         <p id="pauseNudge" hidden></p>
+        <section id="currentSiteStatus" hidden>
+            <strong id="currentSiteName"></strong><span id="currentSiteRuleStatus"></span>
+        </section>
         <section id="passphrasePrompt" hidden>
             <p id="passphrasePromptDescription"></p>
             <input id="popupPassphrase"><span id="popupPassphraseStatus"></span>
@@ -46,6 +49,7 @@ function setup(data: Record<string, any>, minimal = false) {
             set: jest.fn(),
         }},
         runtime: {openOptionsPage: jest.fn()},
+        tabs: {query: jest.fn((_query, callback) => callback([{url: activeTabUrl}]))},
     };
     (global as any).chrome = chromeMock;
     jest.isolateModules(() => require('./popup'));
@@ -86,6 +90,75 @@ describe('popup UI', () => {
         setup({enabled: false, blocked: 'invalid', statistics: null});
         expect(document.getElementById('activeRules')?.textContent).toBe('0');
         expect(document.getElementById('blockedTotal')?.textContent).toBe('0');
+    });
+
+    it('shows the current website blocking status without changing its rule', () => {
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: 'linkedin.com', scope: 'domain', enabled: true}],
+            statistics: {},
+        }, false, 'https://www.linkedin.com/feed/');
+
+        expect(document.getElementById('currentSiteName')?.textContent).toBe('linkedin.com');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain blocking · Active now');
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('shows disabled, scheduled, and unmatched current website states', () => {
+        setup({
+            enabled: false,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Blocking for this website is turned off.');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        setup({
+            enabled: true,
+            blocked: [{
+                name: 'example.com', scope: 'domain', enabled: true,
+                schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+            }],
+            statistics: {},
+        }, false, 'https://example.com/');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Scheduled blocking · Available now');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({enabled: true, blocked: [], statistics: {}}, false, 'https://none.example/');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Not in your blocking list');
+    });
+
+    it('keeps current website status hidden on unsupported browser pages', () => {
+        setup({enabled: true, blocked: [], statistics: {}}, false, 'chrome://extensions/');
+        expect((document.getElementById('currentSiteStatus') as HTMLElement).hidden).toBe(true);
+    });
+
+    it('shows when global blocking is off or temporarily paused', () => {
+        setup({
+            enabled: false,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Domain blocking · Extension is off');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({
+            enabled: true,
+            pausedUntil: Date.now() + 60_000,
+            blocked: [{name: 'https://example.com/page', scope: 'url', enabled: true}],
+            statistics: {},
+        }, false, 'https://example.com/page');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Full URL blocking · Blocking is paused');
     });
 
     it('keeps the required toggle functional when optional display elements are absent', () => {

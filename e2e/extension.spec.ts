@@ -363,6 +363,37 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await popup.close();
     });
 
+    test('shows the current website blocking status in the toolbar popup', async () => {
+        await context.route('https://status.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Status test page</title>',
+        }));
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                enabled: false,
+                pausedUntil: 0,
+                blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+            });
+        });
+        const site = await context.newPage();
+        await site.goto('https://status.test/path');
+        const popup = await context.newPage();
+        await popup.goto(`${extensionUrl}/popup.html`);
+        await reloadPopupForTab(popup, site, serviceWorker);
+
+        await expect(popup.locator('#currentSiteName')).toHaveText('status.test');
+        await expect(popup.locator('#currentSiteRuleStatus'))
+            .toHaveText('Blocking for this website is turned off.');
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+        });
+        expect(await popup.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+
+        await popup.close();
+        await site.close();
+        await context.unroute('https://status.test/**');
+    });
+
     test('protects blocking changes with a locally verified passphrase', async () => {
         const options = await context.newPage();
         await options.goto(`${extensionUrl}/options.html`);
@@ -896,4 +927,14 @@ async function openBlockedPage(
     await expect(warningPage.locator('#blockedReason')).toBeVisible();
     await warningPage.close();
     return warningPage;
+}
+
+async function reloadPopupForTab(popup: Page, tabPage: Page, serviceWorker: Worker): Promise<void> {
+    await serviceWorker.evaluate(async (url) => {
+        const tabs = await chrome.tabs.query({});
+        const tab = tabs.find((candidate) => candidate.url === url);
+        if (!tab?.id) throw new Error(`Could not find browser tab for ${url}`);
+        await chrome.tabs.update(tab.id, {active: true});
+    }, tabPage.url());
+    await popup.reload();
 }

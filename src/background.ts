@@ -8,7 +8,7 @@ import {
     requiresBlockScopeChoice,
 } from './helper/blockedEntry';
 import {incrementStatistics, normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
-import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRules} from './helper/schedules';
+import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRuleSchedule, normalizeRules} from './helper/schedules';
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(['blocked', 'enabled'], (local) => {
@@ -137,13 +137,44 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                 : normalizePausedUntil(state.pausedUntil) > 0
                     ? 'The blocking rule was saved, but Tiny Website Blocker is temporarily paused. Resume blocking for the rule to take effect.'
                     : '';
+            const currentBlocked = Array.isArray(state.blocked)
+                ? state.blocked as BlockedEntry[]
+                : [];
+            const domainEntry = normalizeBlockedEntry(pageUrl, 'domain');
+            const existingDomainIndex = domainEntry
+                ? currentBlocked.findIndex((item) =>
+                    item.enabled
+                    && (item.scope || 'domain') === 'domain'
+                    && item.name === domainEntry.name
+                )
+                : -1;
+            const existingDomain = existingDomainIndex >= 0
+                ? currentBlocked[existingDomainIndex]
+                : null;
+            const existingSchedule = normalizeRuleSchedule(existingDomain?.schedule);
+
+            if (existingDomain && existingSchedule && !isScheduleActive(existingSchedule)) {
+                decideScheduledDomainOverride(
+                    tabId,
+                    existingDomain.name,
+                    formatScheduleForContextMenu(existingSchedule)
+                ).then((replaceSchedule) => {
+                    if (!replaceSchedule) return;
+                    const updatedEntry = {...existingDomain};
+                    delete updatedEntry.schedule;
+                    const updatedBlocked = [...currentBlocked];
+                    updatedBlocked[existingDomainIndex] = updatedEntry;
+                    chrome.storage.local.set({blocked: updatedBlocked}, () => {
+                        finishContextMenuRule(tabId, warning);
+                    });
+                });
+                return;
+            }
+
             decideBlockScope(tabId, pageUrl).then((scope) => {
                 if (!scope) {
                     return;
                 }
-                const currentBlocked = Array.isArray(state.blocked)
-                    ? state.blocked as BlockedEntry[]
-                    : [];
                 const normalizedEntry = normalizeBlockedEntry(pageUrl, scope);
                 if (!normalizedEntry) {
                     return;
@@ -188,6 +219,86 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
         });
     }
 });
+
+function formatScheduleForContextMenu(schedule: RuleSchedule): string {
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const groups = new Map<string, number[]>();
+    schedule.daily.forEach((entry) => {
+        const period = entry.mode === 'all-day' ? 'all day' : `${entry.start}-${entry.end}`;
+        groups.set(period, [...(groups.get(period) || []), entry.day]);
+    });
+    return [...groups.entries()].map(([period, days]) =>
+        `${days.map((day) => dayNames[day]).join(', ')} | ${period}`
+    ).join('; ');
+}
+
+function decideScheduledDomainOverride(tabId: number, domain: string, schedule: string): Promise<boolean> {
+    return new Promise((resolve) => {
+        chrome.scripting.executeScript({
+            target: {tabId},
+            args: [domain, schedule],
+            func: (blockedDomain, scheduleDescription) => new Promise((resolve) => {
+                document.getElementById('tiny-blocker-schedule-choice')?.remove();
+                const overlay = document.createElement('div');
+                overlay.id = 'tiny-blocker-schedule-choice';
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:flex;align-items:center;justify-content:center';
+
+                const card = document.createElement('div');
+                card.style.cssText = 'box-sizing:border-box;width:min(520px,calc(100vw - 40px));padding:22px;border-radius:14px;background:#fff;color:#1f1b16;box-shadow:0 18px 32px rgba(0,0,0,.25);font-family:"Trebuchet MS","Lucida Grande",sans-serif';
+
+                const title = document.createElement('div');
+                title.textContent = `${blockedDomain} already has scheduled blocking`;
+                title.style.cssText = 'margin-bottom:12px;font-size:20px;font-weight:bold';
+
+                const explanation = document.createElement('div');
+                explanation.textContent = 'This website is blocked only during the schedule below. The schedule is not active right now.';
+                explanation.style.cssText = 'margin-bottom:14px;color:#6b5f52;font-size:14px;line-height:1.45';
+
+                const scheduleLabel = document.createElement('div');
+                scheduleLabel.textContent = 'Current blocking schedule';
+                scheduleLabel.style.cssText = 'margin-bottom:6px;font-size:13px;font-weight:bold';
+
+                const scheduleBox = document.createElement('div');
+                scheduleBox.textContent = scheduleDescription;
+                scheduleBox.style.cssText = 'margin-bottom:18px;padding:11px 12px;border:1px solid #edcdb9;border-radius:10px;background:#fff7f1;color:#493d32;font-size:14px;line-height:1.45';
+
+                const actions = document.createElement('div');
+                actions.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
+                const keepButton = document.createElement('button');
+                keepButton.textContent = 'Keep schedule';
+                keepButton.style.cssText = 'padding:8px 12px;border:1px solid #c45a1f;border-radius:999px;background:transparent;color:#c45a1f;cursor:pointer;font-family:inherit';
+                const replaceButton = document.createElement('button');
+                replaceButton.textContent = 'Remove schedule and block domain';
+                replaceButton.style.cssText = 'padding:8px 12px;border:0;border-radius:999px;background:#e0702f;color:#fff;cursor:pointer;font-family:inherit';
+
+                const finish = (replaceSchedule: boolean) => {
+                    overlay.remove();
+                    resolve(replaceSchedule);
+                };
+                keepButton.addEventListener('click', () => finish(false));
+                replaceButton.addEventListener('click', () => finish(true));
+                overlay.addEventListener('click', (event) => {
+                    if (event.target === overlay) finish(false);
+                });
+                window.addEventListener('keydown', (event) => {
+                    if (event.key === 'Escape') finish(false);
+                }, {once: true});
+
+                actions.append(keepButton, replaceButton);
+                card.append(title, explanation, scheduleLabel, scheduleBox, actions);
+                overlay.appendChild(card);
+                document.body.appendChild(overlay);
+                keepButton.focus();
+            }),
+        }, (results) => {
+            if (chrome.runtime.lastError || !results?.[0]) {
+                resolve(false);
+                return;
+            }
+            resolve(results[0].result === true);
+        });
+    });
+}
 
 function finishContextMenuRule(tabId: number, warning: string) {
     if (!warning) {
