@@ -10,6 +10,11 @@ import {
     requiresBlockScopeChoice,
 } from './helper/blockedEntry';
 import {incrementStatistics, normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
+import {
+    ADD_CURRENT_SITE_DOMAIN_RULE,
+    AddCurrentSiteDomainRuleRequest,
+    AddCurrentSiteDomainRuleResponse,
+} from './helper/backgroundMessages';
 import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRuleSchedule, normalizeRules} from './helper/schedules';
 import {showBlockScopeDialog, showScheduledDomainOverrideDialog} from './background/dialogs';
 
@@ -146,9 +151,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
             return;
         }
         chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
-            const currentBlocked = Array.isArray(state.blocked)
-                ? state.blocked as BlockedEntry[]
-                : [];
+            const currentBlocked = usableBlockedEntries(state.blocked);
             const domainEntry = normalizeBlockedEntry(pageUrl, 'domain');
             const existingDomain = domainEntry
                 ? currentBlocked.filter((item) =>
@@ -191,16 +194,45 @@ function applyContextMenuRule(
     normalizedEntry: NormalizedBlockedEntry,
     removeSchedule = false,
 ): void {
-    chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
-        const warning = state.enabled === false
+    saveBlockingRule(normalizedEntry, removeSchedule, (result) => {
+        if (!result) return;
+        const warning = result.enabled === false
             ? 'The blocking rule was saved, but Tiny Website Blocker is currently off. Turn blocking on for the rule to take effect.'
-            : normalizePausedUntil(state.pausedUntil) > 0
+            : normalizePausedUntil(result.pausedUntil) > 0
                 ? 'The blocking rule was saved, but Tiny Website Blocker is temporarily paused. Resume blocking for the rule to take effect.'
                 : '';
-        const currentBlocked = Array.isArray(state.blocked) ? state.blocked as BlockedEntry[] : [];
+        finishContextMenuRule(tabId, warning);
+    });
+}
+
+type SavedBlockingRule = {
+    blocked: BlockedEntry[];
+    enabled: boolean;
+    pausedUntil: number;
+    outcome: 'added' | 'updated' | 'existing';
+};
+
+function saveBlockingRule(
+    normalizedEntry: NormalizedBlockedEntry,
+    removeSchedule: boolean,
+    done: (result: SavedBlockingRule | null) => void,
+): void {
+    chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
+        if (chrome.runtime.lastError) {
+            done(null);
+            return;
+        }
+        const currentBlocked = usableBlockedEntries(state.blocked);
         const existingIndex = currentBlocked.findIndex((item) =>
             (item.scope || 'domain') === normalizedEntry.scope && item.name === normalizedEntry.name
         );
+
+        const finish = (blocked: BlockedEntry[], outcome: SavedBlockingRule['outcome']) => done({
+            blocked,
+            enabled: state.enabled !== false,
+            pausedUntil: normalizePausedUntil(state.pausedUntil),
+            outcome,
+        });
 
         if (existingIndex >= 0) {
             const existingEntry = currentBlocked[existingIndex];
@@ -209,23 +241,91 @@ function applyContextMenuRule(
                 if (removeSchedule) delete updatedEntry.schedule;
                 const updatedBlocked = [...currentBlocked];
                 updatedBlocked[existingIndex] = updatedEntry;
-                chrome.storage.local.set({blocked: updatedBlocked}, () => finishContextMenuRule(tabId, warning));
+                chrome.storage.local.set({blocked: updatedBlocked}, () => {
+                    if (chrome.runtime.lastError) done(null);
+                    else finish(updatedBlocked, 'updated');
+                });
                 return;
             }
-            finishContextMenuRule(tabId, warning);
+            finish(currentBlocked, 'existing');
             return;
         }
 
         if (currentBlocked.some((item) => item.enabled && blockedEntryCovers(item, normalizedEntry))) {
-            finishContextMenuRule(tabId, warning);
+            finish(currentBlocked, 'existing');
             return;
         }
 
-        chrome.storage.local.set({
-            blocked: [...currentBlocked, {...normalizedEntry, enabled: true}],
-        }, () => finishContextMenuRule(tabId, warning));
+        const updatedBlocked = [...currentBlocked, {...normalizedEntry, enabled: true}];
+        chrome.storage.local.set({blocked: updatedBlocked}, () => {
+            if (chrome.runtime.lastError) done(null);
+            else finish(updatedBlocked, 'added');
+        });
     });
 }
+
+function usableBlockedEntries(value: unknown): BlockedEntry[] {
+    if (!Array.isArray(value)) return [];
+    return value.filter((entry): entry is BlockedEntry => {
+        if (typeof entry !== 'object' || entry === null) return false;
+        const candidate = entry as Record<string, unknown>;
+        if (typeof candidate.name !== 'string') return false;
+        if (candidate.scope !== undefined && candidate.scope !== 'domain' && candidate.scope !== 'url') {
+            return false;
+        }
+        return Boolean(normalizeBlockedEntry(candidate.name, candidate.scope as 'domain' | 'url' | undefined));
+    });
+}
+
+chrome.runtime.onMessage.addListener((
+    message: AddCurrentSiteDomainRuleRequest,
+    _sender,
+    sendResponse: (response: AddCurrentSiteDomainRuleResponse) => void,
+) => {
+    if (message?.type !== ADD_CURRENT_SITE_DOMAIN_RULE) return;
+    if (!Number.isInteger(message.tabId) || message.tabId < 0
+        || typeof message.url !== 'string' || !/^https?:\/\//i.test(message.url)) {
+        sendResponse({ok: false});
+        return;
+    }
+    const normalizedEntry = normalizeBlockedEntry(message.url, 'domain');
+    if (!normalizedEntry) {
+        sendResponse({ok: false});
+        return;
+    }
+    saveBlockingRule(normalizedEntry, false, (result) => {
+        if (!result) {
+            sendResponse({ok: false});
+            return;
+        }
+        blockingEnabled = result.enabled;
+        blockingPausedUntil = result.pausedUntil;
+        rebuildBlockedHostnames(result.blocked);
+        const shouldReload = result.outcome !== 'existing'
+            && result.enabled
+            && normalizePausedUntil(result.pausedUntil) === 0;
+        if (!shouldReload) {
+            sendResponse({ok: true, ...result, reload: 'skipped'});
+            return;
+        }
+        chrome.tabs.get(message.tabId, (tab) => {
+            const tabUrl = tab?.pendingUrl || tab?.url || '';
+            const currentDomain = normalizeBlockedEntry(tabUrl, 'domain');
+            if (chrome.runtime.lastError || currentDomain?.name !== normalizedEntry.name) {
+                sendResponse({ok: true, ...result, reload: 'skipped'});
+                return;
+            }
+            chrome.tabs.reload(message.tabId, () => {
+                sendResponse({
+                    ok: true,
+                    ...result,
+                    reload: chrome.runtime.lastError ? 'failed' : 'started',
+                });
+            });
+        });
+    });
+    return true;
+});
 
 function formatScheduleForContextMenu(schedule: RuleSchedule): string {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

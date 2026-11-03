@@ -101,6 +101,7 @@ describe('options UI', () => {
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
         expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.6');
+        expect(document.getElementById('copyrightYear')?.textContent).toBe(String(new Date().getFullYear()));
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(false);
         expect(document.querySelector('.websiteHeader')?.textContent).toBe('Website');

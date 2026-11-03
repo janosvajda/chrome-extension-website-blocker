@@ -106,6 +106,13 @@ button:hover { background: #c45a1f; }
 #currentSiteRuleStatus.active { color: #38704a; }
 #currentSiteRuleStatus.inactive { color: #9b4931; }
 #currentSiteRuleStatus.scheduled { color: #a65322; }
+#currentSiteRuleStatus.error { color: #a33226; }
+.blockCurrentSiteButton {
+    margin-top: 5px;
+    padding: 8px 12px;
+    font-size: 11px;
+}
+.blockCurrentSiteButton:disabled { cursor: wait; opacity: 0.65; }
 .passphrasePrompt { position: fixed; inset: 0; z-index: 10; padding: 24px; background: #f6f2eb; }
 .passphrasePrompt h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 21px; }
 .passphrasePrompt > p { margin-bottom: 14px; color: #6b5f52; }

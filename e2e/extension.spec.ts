@@ -432,6 +432,43 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await context.unroute('https://old.status.test/**');
     });
 
+    test('adds the current domain from the toolbar popup and blocks it immediately', async () => {
+        await context.route('https://popup-add.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Popup add test</title><p>Unsaved work stays open</p>',
+        }));
+        const site = await context.newPage();
+        await site.goto('https://popup-add.test/draft');
+        const popup = await context.newPage();
+        await popup.goto(`${extensionUrl}/popup.html`);
+        await reloadPopupForTab(popup, site, serviceWorker);
+
+        await expect(popup.locator('#currentSiteRuleStatus')).toHaveText('Not in your blocking list');
+        await expect(popup.locator('#blockCurrentSiteButton')).toBeVisible();
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await popup.locator('#blockCurrentSiteButton').click();
+
+        await expect(popup.locator('#currentSiteRuleStatus'))
+            .toHaveText('Added to your blocking list. Reloading this page now.');
+        await expect(popup.locator('#blockCurrentSiteButton')).toBeHidden();
+        await expect(popup.locator('#activeRules')).toHaveText('1');
+        expect(await popup.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [{name: 'popup-add.test', scope: 'domain', enabled: true}],
+        });
+
+        const warning = await warningPromise;
+        await warning.waitForLoadState('domcontentloaded');
+        await expect(warning.locator('#blockedReason')).toBeVisible();
+        await expect.poll(() => site.isClosed()).toBe(true);
+
+        await warning.close();
+        await popup.close();
+        await context.unroute('https://popup-add.test/**');
+    });
+
     test('protects blocking changes with a locally verified passphrase', async () => {
         const options = await context.newPage();
         await options.goto(`${extensionUrl}/options.html`);

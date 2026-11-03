@@ -41,7 +41,8 @@
     <section id="currentSiteStatus" class="currentSiteStatus" aria-label="Current website blocking status" hidden>
         <span class="currentSiteLabel">Current website</span>
         <strong id="currentSiteName"></strong>
-        <span id="currentSiteRuleStatus"></span>
+        <span id="currentSiteRuleStatus" aria-live="polite"></span>
+        <button id="blockCurrentSiteButton" class="blockCurrentSiteButton" type="button" hidden>Block this site</button>
     </section>
     <section class="stats" aria-label="Blocking statistics">
         <div><strong id="activeRules">0</strong><span>Active rules</span></div>

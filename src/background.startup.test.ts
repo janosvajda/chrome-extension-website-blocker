@@ -8,6 +8,7 @@ describe('background service-worker startup', () => {
             runtime: {
                 lastError: undefined,
                 onInstalled: {addListener: jest.fn()},
+                onMessage: {addListener: jest.fn()},
             },
             contextMenus: {
                 create: jest.fn(),

@@ -2,21 +2,14 @@
 
 ## 1.0.8 - 2026-11-03
 
+### Added
+
+- Add the current website's domain directly from the toolbar popup and reload the page to apply the rule immediately when blocking is active. When blocking is off or paused, save the rule without reloading and explain why it is not yet active.
+
 ### Fixed
 
-- Make domain rules cover every subdomain and canonical trailing-dot hostname while keeping similarly named domains separate.
-- Keep open Settings pages synchronized with rule changes from other extension contexts, and re-read current rules before saving a context-menu action to prevent newer rules from being overwritten.
-- Keep full blocked-page URLs, query strings, and unused hostname data out of warning-page history entries.
-- Show a covering parent-domain schedule when a subdomain is blocked again, instead of silently reloading or showing only a generic duplicate message.
-- Show parent-domain rules correctly in the toolbar popup while visiting a subdomain.
-- Preserve keyboard focus after Settings saves and keep unsaved schedule edits open when rules change elsewhere.
-- Wait for persisted rules and blocking state to finish loading before handling tab updates after the service worker wakes.
-- Apply blocking only on URL navigation or loading events, restoring reload and same-URL enforcement while avoiding unpredictable tab closure after title or audio updates; document that schedule starts and pause expiry affect already-open tabs on their next navigation or reload.
-- Isolate dialogs injected into websites inside closed shadow roots so host-page styles and scripts cannot restyle or directly click their controls.
-- Keep Escape available after Tab or any other key in both right-click dialogs, and remove their keyboard listeners whenever the dialog closes.
-- Open the blocked-page warning before closing the original tab so it remains visible when blocking the browser's only tab, and allow blocking to retry if Chrome temporarily cannot close the original tab.
-- Count every blocked attempt when several tabs are blocked simultaneously instead of losing overlapping statistics updates.
-- Prevent accidental npm publication by marking the package private, adding an explicit publication guard, and renaming the release-validation command to `npm run verify:release`.
+- Fix blocking and rule-management issues affecting subdomains, reloads, browser restarts, and multiple open tabs.
+- Polish Settings, toolbar status, warning pages, and right-click dialogs for clearer feedback and consistent keyboard behaviour.
 
 ### Quality
 

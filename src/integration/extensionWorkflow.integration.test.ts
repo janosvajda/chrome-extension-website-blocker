@@ -27,6 +27,7 @@ function createChromeHarness() {
         runtime: {
             lastError: undefined,
             onInstalled: { addListener: jest.fn() },
+            onMessage: { addListener: jest.fn() },
             openOptionsPage: jest.fn(),
         },
         contextMenus: {

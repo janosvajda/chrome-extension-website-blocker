@@ -10,6 +10,7 @@ import {initializeDialogKeyboard} from './options/dialogKeyboard';
 
 const scheduleDialog = document.getElementById('scheduleDialog') as HTMLElement;
 const extensionVersion = document.getElementById('extensionVersion') as HTMLElement;
+const copyrightYear = document.getElementById('copyrightYear') as HTMLElement;
 type BlockedEntry = ScheduledRule;
 
 let blockedEntries: BlockedEntry[] = [];
@@ -64,6 +65,7 @@ initializeBackupController({
 initializeDialogKeyboard();
 
 extensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
+copyrightYear.textContent = String(new Date().getFullYear());
 
 // Load and normalize the list once, then render the first page.
 function loadAndPopulateWebsiteList() {

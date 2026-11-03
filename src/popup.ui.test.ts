@@ -7,7 +7,12 @@ jest.mock('./helper/passphraseProtection', () => {
 
 const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ciphertext: 'Aw=='};
 
-function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https://example.com/') {
+function setup(
+    data: Record<string, any>,
+    minimal = false,
+    activeTabUrl = 'https://example.com/',
+    includeCurrentSiteButton = true,
+) {
     document.body.innerHTML = `
         <input id="enabledToggle" type="checkbox">
         ${minimal ? '' : `<span id="popupExtensionVersion"></span>
@@ -29,6 +34,7 @@ function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https
         <p id="pauseNudge" hidden></p>
         <section id="currentSiteStatus" hidden>
             <strong id="currentSiteName"></strong><span id="currentSiteRuleStatus"></span>
+            ${includeCurrentSiteButton ? '<button id="blockCurrentSiteButton" hidden></button>' : ''}
         </section>
         <section id="passphrasePrompt" hidden>
             <p id="passphrasePromptDescription"></p>
@@ -52,8 +58,10 @@ function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https
         runtime: {
             getManifest: jest.fn(() => ({version: '1.0.7'})),
             openOptionsPage: jest.fn(),
+            sendMessage: jest.fn((_message, callback) => callback({ok: false})),
+            lastError: undefined,
         },
-        tabs: {query: jest.fn((_query, callback) => callback([{url: activeTabUrl}]))},
+        tabs: {query: jest.fn((_query, callback) => callback([{id: 42, url: activeTabUrl}]))},
     };
     (global as any).chrome = chromeMock;
     jest.isolateModules(() => require('./popup'));
@@ -138,10 +146,133 @@ describe('popup UI', () => {
         setup({enabled: true, blocked: [], statistics: {}}, false, 'https://none.example/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
             .toBe('Not in your blocking list');
+        expect((document.getElementById('blockCurrentSiteButton') as HTMLButtonElement).hidden).toBe(false);
     });
+
+    it('adds the current domain through the background and updates the popup without reloading the page', () => {
+        const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://news.example.com/article');
+        chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
+            ok: true,
+            blocked: [
+                {name: 'other.example', scope: 'domain', enabled: true},
+                {name: 'news.example.com', scope: 'domain', enabled: true},
+            ],
+            enabled: true,
+            pausedUntil: 0,
+            outcome: 'added',
+            reload: 'started',
+        }));
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith({
+            type: 'addCurrentSiteDomainRule',
+            tabId: 42,
+            url: 'https://news.example.com/article',
+        }, expect.any(Function));
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Added to your blocking list. Reloading this page now.');
+        expect((document.getElementById('blockCurrentSiteButton') as HTMLButtonElement).hidden).toBe(true);
+        expect(document.getElementById('activeRules')?.textContent).toBe('2');
+        expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        [false, 0, 'Added to your blocking list. Tiny Website Blocker is currently off.'],
+        [true, Date.now() + 60_000, 'Added to your blocking list. Blocking is temporarily paused.'],
+    ])('explains unavailable blocking after adding from the popup', (enabled, responsePausedUntil, message) => {
+        const chromeMock = setup({enabled, pausedUntil: responsePausedUntil, blocked: [], statistics: {}}, false, 'https://example.com/');
+        chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({
+            ok: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+            enabled,
+            pausedUntil: responsePausedUntil,
+            outcome: 'added',
+            reload: 'skipped',
+        }));
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe(message);
+    });
+
+    it('keeps the add action available after the background reports a failure', () => {
+        const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://example.com/');
+        chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({ok: false}));
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Could not add this website. Please try again.');
+        const button = document.getElementById('blockCurrentSiteButton') as HTMLButtonElement;
+        expect(button.hidden).toBe(false);
+        expect(button.disabled).toBe(false);
+    });
+
+    it('handles a rule added elsewhere while the popup request is in progress', () => {
+        const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://example.com/');
+        chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({
+            ok: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+            enabled: true,
+            pausedUntil: 0,
+            outcome: 'existing',
+            reload: 'skipped',
+        }));
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('This website is already in your blocking list.');
+    });
+
+    it.each(['failed', 'skipped'] as const)(
+        'explains when the saved rule could not reload the original tab (%s)',
+        (reload) => {
+            const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://example.com/');
+            chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({
+                ok: true,
+                blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+                enabled: true,
+                pausedUntil: 0,
+                outcome: 'added',
+                reload,
+            }));
+
+            document.getElementById('blockCurrentSiteButton')?.click();
+
+            expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+                .toBe('Added to your blocking list. Reload this page to apply it.');
+        }
+    );
 
     it('keeps current website status hidden on unsupported browser pages', () => {
         setup({enabled: true, blocked: [], statistics: {}}, false, 'chrome://extensions/');
+        expect((document.getElementById('currentSiteStatus') as HTMLElement).hidden).toBe(true);
+        expect((document.getElementById('blockCurrentSiteButton') as HTMLButtonElement).hidden).toBe(true);
+    });
+
+    it('renders current-site status safely when the optional action or tab URL is unavailable', () => {
+        setup({enabled: true, blocked: [], statistics: {}}, false, 'https://example.com/', false);
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Not in your blocking list');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({
+            enabled: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+            statistics: {},
+        }, false, 'https://example.com/', false);
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain blocking · Active now');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({enabled: true, blocked: [], statistics: {}}, false, 'chrome://extensions/', false);
+        expect((document.getElementById('currentSiteStatus') as HTMLElement).hidden).toBe(true);
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({enabled: true, blocked: [], statistics: {}}, false, '');
         expect((document.getElementById('currentSiteStatus') as HTMLElement).hidden).toBe(true);
     });
 

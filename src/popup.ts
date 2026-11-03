@@ -8,6 +8,10 @@ import {
     DailyPauseUsage,
 } from './helper/extensionState';
 import {getRandomItem} from './helper/getRandomItem';
+import {
+    ADD_CURRENT_SITE_DOMAIN_RULE,
+    AddCurrentSiteDomainRuleResponse,
+} from './helper/backgroundMessages';
 import {normalizePassphraseProtection, PassphraseProtection} from './helper/passphraseProtection';
 import {createCurrentSiteStatus} from './popup/currentSiteStatus';
 import {createPassphrasePrompt} from './popup/passphrasePrompt';
@@ -40,7 +44,22 @@ let pauseNudgeMessage = '';
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
 let passphraseProtection: PassphraseProtection | null = null;
 const passphrasePrompt = createPassphrasePrompt(() => passphraseProtection);
-const currentSiteStatus = createCurrentSiteStatus(() => ({blockingEnabled, pausedUntil}));
+const currentSiteStatus = createCurrentSiteStatus(
+    () => ({blockingEnabled, pausedUntil}),
+    (tabId, url, done) => {
+        chrome.runtime.sendMessage({type: ADD_CURRENT_SITE_DOMAIN_RULE, tabId, url}, (response: AddCurrentSiteDomainRuleResponse) => {
+            if (chrome.runtime.lastError || !response?.ok) {
+                done({ok: false});
+                return;
+            }
+            blockingEnabled = response.enabled;
+            pausedUntil = response.pausedUntil;
+            setText(activeRules, countActiveRules(response.blocked));
+            refreshBlockingState();
+            done(response);
+        });
+    },
+);
 
 if (popupExtensionVersion) {
     popupExtensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
