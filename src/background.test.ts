@@ -1,5 +1,6 @@
 const mockChrome = {
     runtime: {
+        lastError: undefined as {message: string} | undefined,
         onInstalled: {
             addListener: jest.fn(),
         },
@@ -33,7 +34,7 @@ const mockChrome = {
                 callback();
             }
         }),
-        create: jest.fn(),
+        create: jest.fn((_properties, callback) => callback?.({id: 999})),
         reload: jest.fn(),
         onUpdated: {
             addListener: jest.fn(),
@@ -79,7 +80,9 @@ beforeAll(() => {
 beforeEach(() => {
     resetBlockedStateForTest();
     jest.clearAllMocks();
+    mockChrome.runtime.lastError = undefined;
     mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({blocked: []}));
+    mockChrome.storage.local.set.mockImplementation((_payload, callback) => callback?.());
     mockChrome.scripting.executeScript.mockImplementation((_options, callback) => {
         callback?.([{result: {title: '', description: ''}}]);
     });
@@ -177,10 +180,104 @@ describe('background blocked hostnames cache', () => {
         expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
             url: expect.stringContaining('warning.html?reason=domain'),
-        });
+        }, expect.any(Function));
+        expect(mockChrome.tabs.create.mock.invocationCallOrder[0])
+            .toBeLessThan(mockChrome.tabs.remove.mock.invocationCallOrder[0]);
 
         blockPage(1, 'https://example.com/another-path');
         expect(mockChrome.tabs.remove).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the blocked tab open and allows a retry if the warning cannot be created', () => {
+        rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
+        mockChrome.tabs.create.mockImplementationOnce((_properties, callback) => {
+            mockChrome.runtime.lastError = {message: 'Could not create warning tab'};
+            callback?.(undefined);
+            mockChrome.runtime.lastError = undefined;
+        });
+
+        blockPage(1, 'https://example.com/path');
+
+        expect(mockChrome.tabs.create).toHaveBeenCalledTimes(1);
+        expect(mockChrome.tabs.remove).not.toHaveBeenCalled();
+
+        blockPage(1, 'https://example.com/path');
+        expect(mockChrome.tabs.create).toHaveBeenCalledTimes(2);
+        expect(mockChrome.tabs.remove).toHaveBeenCalledWith(1, expect.any(Function));
+    });
+
+    it('allows a retry if Chrome cannot remove the blocked tab', () => {
+        rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
+        mockChrome.tabs.remove.mockImplementationOnce((_tabId, callback) => {
+            mockChrome.runtime.lastError = {message: 'Tabs cannot be edited right now'};
+            callback?.();
+            mockChrome.runtime.lastError = undefined;
+        });
+
+        blockPage(1, 'https://example.com/first');
+        expect(mockChrome.tabs.create).toHaveBeenCalledTimes(1);
+        expect(mockChrome.tabs.remove).toHaveBeenCalledTimes(1);
+
+        blockPage(1, 'https://example.com/second');
+        expect(mockChrome.tabs.create).toHaveBeenCalledTimes(2);
+        expect(mockChrome.tabs.remove).toHaveBeenCalledTimes(2);
+    });
+
+    it('records every blocked attempt when several tabs are blocked simultaneously', async () => {
+        let storedStatistics = {
+            date: new Date().toLocaleDateString('en-CA'),
+            today: 0,
+            total: 0,
+        };
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => {
+            queueMicrotask(() => callback({statistics: storedStatistics}));
+        });
+        mockChrome.storage.local.set.mockImplementation((values, callback) => {
+            queueMicrotask(() => {
+                if (values.statistics) storedStatistics = values.statistics;
+                callback?.();
+            });
+        });
+        rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
+
+        for (let tabId = 1; tabId <= 5; tabId += 1) {
+            blockPage(tabId, `https://example.com/page-${tabId}`);
+        }
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        expect(storedStatistics).toEqual(expect.objectContaining({today: 5, total: 5}));
+    });
+
+    it('continues recording after a statistics save fails', async () => {
+        let storedStatistics = {
+            date: new Date().toLocaleDateString('en-CA'),
+            today: 0,
+            total: 0,
+        };
+        let failNextSave = true;
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => {
+            queueMicrotask(() => callback({statistics: storedStatistics}));
+        });
+        mockChrome.storage.local.set.mockImplementation((values, callback) => {
+            queueMicrotask(() => {
+                if (failNextSave) {
+                    failNextSave = false;
+                    mockChrome.runtime.lastError = {message: 'Statistics save failed'};
+                    callback?.();
+                    mockChrome.runtime.lastError = undefined;
+                    return;
+                }
+                if (values.statistics) storedStatistics = values.statistics;
+                callback?.();
+            });
+        });
+        rebuildBlockedHostnames([{name: 'example.com', enabled: true}]);
+
+        blockPage(1, 'https://example.com/first');
+        blockPage(2, 'https://example.com/second');
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+        expect(storedStatistics).toEqual(expect.objectContaining({today: 1, total: 1}));
     });
 
     it('blocks subdomains and trailing-dot variants of a domain rule', () => {
@@ -380,7 +477,7 @@ describe('background blocked hostnames cache', () => {
         expect(mockChrome.tabs.remove).toHaveBeenCalledWith(23, expect.any(Function));
         expect(mockChrome.tabs.create).toHaveBeenCalledWith({
             url: expect.stringContaining('warning.html?reason=domain'),
-        });
+        }, expect.any(Function));
     });
 
     it('re-enables an existing disabled context-menu rule and reloads the tab', async () => {

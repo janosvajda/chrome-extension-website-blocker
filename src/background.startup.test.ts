@@ -25,7 +25,7 @@ describe('background service-worker startup', () => {
             },
             tabs: {
                 remove: jest.fn((_tabId, callback) => callback?.()),
-                create: jest.fn(),
+                create: jest.fn((_properties, callback) => callback?.({id: 999})),
                 reload: jest.fn(),
                 onUpdated: {
                     addListener: jest.fn((listener) => {
@@ -57,7 +57,7 @@ describe('background service-worker startup', () => {
         expect(chromeMock.tabs.remove).toHaveBeenCalledWith(42, expect.any(Function));
         expect(chromeMock.tabs.create).toHaveBeenCalledWith({
             url: expect.stringContaining('warning.html?reason=domain'),
-        });
+        }, expect.any(Function));
         delete (global as any).chrome;
     });
 });

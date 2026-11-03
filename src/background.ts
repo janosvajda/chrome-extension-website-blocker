@@ -30,6 +30,8 @@ let blockedHostnames = new Map<string, RuleSchedule | undefined>();
 let blockedUrls = new Map<string, RuleSchedule | undefined>();
 let blockingEnabled = true;
 let blockingPausedUntil = 0;
+let pendingStatisticsUpdates = 0;
+let statisticsUpdateInProgress = false;
 
 export function rebuildBlockedHostnames(blockedList) {
     blockedHostnames = new Map<string, RuleSchedule | undefined>();
@@ -64,6 +66,8 @@ export function resetBlockedStateForTest(): void {
     blockedUrls = new Map<string, RuleSchedule | undefined>();
     blockingEnabled = true;
     blockingPausedUntil = 0;
+    pendingStatisticsUpdates = 0;
+    statisticsUpdateInProgress = false;
     Object.keys(blockedTabs).forEach((key) => {
         delete blockedTabs[Number(key)];
     });
@@ -287,11 +291,19 @@ function blockTabWithReason(
     }
     blockedTabs[tabId] = true;
     recordBlockedAttempt();
-    chrome.tabs.remove(tabId, () => {
-        const warningUrl =
-            `warning.html?reason=${reason}` +
-            `&blocked=${encodeURIComponent(blockedLabel)}`;
-        chrome.tabs.create({ url: warningUrl });
+    const warningUrl =
+        `warning.html?reason=${reason}` +
+        `&blocked=${encodeURIComponent(blockedLabel)}`;
+    chrome.tabs.create({url: warningUrl}, (warningTab) => {
+        if (chrome.runtime.lastError || !warningTab) {
+            delete blockedTabs[tabId];
+            return;
+        }
+        chrome.tabs.remove(tabId, () => {
+            if (chrome.runtime.lastError) {
+                delete blockedTabs[tabId];
+            }
+        });
     });
 }
 
@@ -301,10 +313,32 @@ function warningLabelForUrl(blockedUrl: string): string {
 }
 
 function recordBlockedAttempt() {
+    pendingStatisticsUpdates += 1;
+    processNextStatisticsUpdate();
+}
+
+function processNextStatisticsUpdate() {
+    if (statisticsUpdateInProgress || pendingStatisticsUpdates === 0) {
+        return;
+    }
+    statisticsUpdateInProgress = true;
+    pendingStatisticsUpdates -= 1;
     chrome.storage.local.get({ [STORAGE_KEYS.statistics]: {} }, (data) => {
+        if (chrome.runtime.lastError) {
+            finishStatisticsUpdate();
+            return;
+        }
         const statistics = incrementStatistics(data[STORAGE_KEYS.statistics]);
-        chrome.storage.local.set({ [STORAGE_KEYS.statistics]: statistics });
+        chrome.storage.local.set({ [STORAGE_KEYS.statistics]: statistics }, () => {
+            void chrome.runtime.lastError;
+            finishStatisticsUpdate();
+        });
     });
+}
+
+function finishStatisticsUpdate() {
+    statisticsUpdateInProgress = false;
+    processNextStatisticsUpdate();
 }
 
 function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {

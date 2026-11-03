@@ -57,7 +57,7 @@ function createChromeHarness() {
         },
         tabs: {
             remove: jest.fn((_tabId: number, callback?: Listener) => callback?.()),
-            create: jest.fn(),
+            create: jest.fn((_properties: unknown, callback?: Listener) => callback?.({id: 999})),
             reload: jest.fn(),
             onUpdated: { addListener: jest.fn() },
         },
@@ -100,10 +100,10 @@ describe('complete extension workflow', () => {
         expect(harness.chromeMock.tabs.remove).toHaveBeenCalledTimes(2);
         expect(harness.chromeMock.tabs.create).toHaveBeenNthCalledWith(1, {
             url: expect.stringContaining('warning.html?reason=domain'),
-        });
+        }, expect.any(Function));
         expect(harness.chromeMock.tabs.create).toHaveBeenNthCalledWith(2, {
             url: expect.stringContaining('warning.html?reason=url'),
-        });
+        }, expect.any(Function));
         expect(harness.storage.statistics).toEqual(expect.objectContaining({total: 2, today: 2}));
 
         harness.chromeMock.storage.local.set({enabled: false});

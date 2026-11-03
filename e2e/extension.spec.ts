@@ -917,6 +917,78 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         expect(statistics.statistics).toEqual(expect.objectContaining({total: 4, today: 4}));
     });
 
+    test('keeps the warning visible when the blocked page is the only browser tab', async () => {
+        const existingPages = context.pages();
+        const onlyPage = existingPages[0] || await context.newPage();
+        for (const page of existingPages.slice(1)) await page.close();
+        await onlyPage.bringToFront();
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{name: 'single-tab.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await context.route('https://single-tab.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Single blocked tab</title>',
+        }));
+
+        expect(context.pages()).toHaveLength(1);
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await onlyPage.goto('https://single-tab.invalid/page', {waitUntil: 'commit'}).catch(() => undefined);
+        const warningPage = await warningPromise;
+        await warningPage.waitForLoadState('domcontentloaded');
+
+        expect(onlyPage.isClosed()).toBe(true);
+        expect(context.pages()).toEqual([warningPage]);
+        await expect(warningPage.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+
+        await warningPage.goto('about:blank');
+        await context.unroute('https://single-tab.invalid/**');
+    });
+
+    test('records every blocked attempt when several tabs are blocked together', async () => {
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{name: 'concurrent.invalid', scope: 'domain', enabled: true}],
+                statistics: {
+                    date: new Date().toLocaleDateString('en-CA'),
+                    today: 0,
+                    total: 0,
+                },
+            });
+        });
+        await context.route('https://concurrent.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Concurrent blocked tab</title>',
+        }));
+
+        const blockedPages = await Promise.all(
+            Array.from({length: 5}, () => context.newPage())
+        );
+        await Promise.all(blockedPages.map((page, index) =>
+            page.goto(`https://concurrent.invalid/page-${index}`, {waitUntil: 'commit'}).catch(() => undefined)
+        ));
+
+        await expect.poll(() =>
+            context.pages().filter((page) => page.url().includes('warning.html')).length
+        ).toBe(5);
+        await expect.poll(async () => {
+            return serviceWorker.evaluate(async () => {
+                const stored = await chrome.storage.local.get('statistics');
+                const statistics = stored.statistics as {today?: number; total?: number} | undefined;
+                return {today: statistics?.today, total: statistics?.total};
+            });
+        }).toEqual({today: 5, total: 5});
+
+        const warningPages = context.pages().filter((page) => page.url().includes('warning.html'));
+        await Promise.all(warningPages.map((page) => page.close()));
+        await context.unroute('https://concurrent.invalid/**');
+    });
+
     test('blocks manual and chrome.tabs reloads after a rule is added', async () => {
         const routePattern = /https:\/\/(?:manual|api)-reload\.invalid\/.*/;
         await context.route(routePattern, (route) => route.fulfill({
