@@ -9,6 +9,7 @@ import {
 } from './helper/extensionState';
 import {getRandomItem} from './helper/getRandomItem';
 import {normalizePassphraseProtection, PassphraseProtection} from './helper/passphraseProtection';
+import {createCurrentSiteStatus} from './popup/currentSiteStatus';
 import {createPassphrasePrompt} from './popup/passphrasePrompt';
 
 const PAUSE_NUDGES = [
@@ -38,6 +39,7 @@ let pauseNudgeMessage = '';
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
 let passphraseProtection: PassphraseProtection | null = null;
 const passphrasePrompt = createPassphrasePrompt(() => passphraseProtection);
+const currentSiteStatus = createCurrentSiteStatus(() => ({blockingEnabled, pausedUntil}));
 
 function renderBlockingState(now = Date.now()) {
     const activePausedUntil = blockingEnabled ? normalizePausedUntil(pausedUntil, now) : 0;
@@ -86,6 +88,7 @@ function refreshBlockingState(now = Date.now()) {
         chrome.storage.local.set({[STORAGE_KEYS.pausedUntil]: 0});
     }
     renderBlockingState(now);
+    currentSiteStatus.refresh(now);
     if (activePausedUntil && !countdownTimer) {
         countdownTimer = setInterval(() => refreshBlockingState(), 1_000);
     } else if (!activePausedUntil && countdownTimer) {
@@ -113,6 +116,7 @@ chrome.storage.local.get(
         setText(activeRules, countActiveRules(data[STORAGE_KEYS.blocked]));
         setText(blockedToday, statistics.today);
         setText(blockedTotal, statistics.total);
+        currentSiteStatus.load(data[STORAGE_KEYS.blocked]);
     }
 );
 

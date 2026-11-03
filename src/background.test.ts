@@ -189,6 +189,60 @@ describe('background blocked hostnames cache', () => {
         expect(mockChrome.tabs.reload).toHaveBeenCalledWith(7);
     });
 
+    it('keeps an existing inactive domain schedule when requested from the context menu', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        const scheduledRule = {
+            name: 'linkedin.com', scope: 'domain', enabled: true,
+            schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+        };
+        mockChrome.storage.local.get.mockImplementationOnce((_keys, callback) => callback({
+            enabled: true, pausedUntil: 0, blocked: [scheduledRule],
+        }));
+        mockChrome.scripting.executeScript.mockImplementationOnce((options, callback) => {
+            expect(options.args).toEqual(['linkedin.com', 'Mon | 08:00-17:00']);
+            callback([{result: false}]);
+        });
+
+        onContextMenuClicked(
+            {menuItemId: 'blockPage'},
+            {id: 9, url: 'https://linkedin.com/feed/', title: 'LinkedIn'}
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+    });
+
+    it('removes an inactive domain schedule only after explicit confirmation', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        const scheduledRule = {
+            name: 'linkedin.com', scope: 'domain', enabled: true,
+            schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+        };
+        mockChrome.storage.local.get.mockImplementationOnce((_keys, callback) => callback({
+            enabled: true, pausedUntil: 0, blocked: [scheduledRule],
+        }));
+        mockChrome.scripting.executeScript.mockImplementationOnce((_options, callback) => {
+            callback([{result: true}]);
+        });
+
+        onContextMenuClicked(
+            {menuItemId: 'blockPage'},
+            {id: 10, url: 'https://linkedin.com/feed/', title: 'LinkedIn'}
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith(
+            {blocked: [{name: 'linkedin.com', scope: 'domain', enabled: true}]},
+            expect.any(Function)
+        );
+        expect(mockChrome.tabs.reload).toHaveBeenCalledWith(10);
+    });
+
     it.each([
         [{enabled: false, pausedUntil: 0, blocked: []}, 'currently off'],
         [{enabled: true, pausedUntil: Date.now() + 60_000, blocked: []}, 'temporarily paused'],

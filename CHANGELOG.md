@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.7 - 2026-11-03
+
+### Added
+
+- Show the current website and its blocking status in the toolbar popup.
+
+### Fixed
+
+- When a context-menu block request is already covered by an inactive scheduled domain rule, show the existing schedule and let the user keep it or remove the schedule and block the domain.
+
 ## 1.0.6 - 2026-10-09
 
 ### Added
