@@ -1,3 +1,4 @@
+
 export const scientificQuotes = [
     'Science is the poetry of reality. - Richard Dawkins',
     'The good thing about science is that it\'s true whether or not you believe in it. - Neil deGrasse Tyson',
@@ -109,5 +110,12 @@ export const scientificQuotes = [
     'Intelligence is the ability to adapt to change. - Stephen Hawking',
     'However difficult life may seem, there is always something you can do and succeed at. - Stephen Hawking',
     'Remember to look up at the stars and not down at your feet. - Stephen Hawking',
-    'Be curious. And however difficult life may seem, there is always something you can do and succeed at. - Stephen Hawking'
+    'Be curious. And however difficult life may seem, there is always something you can do and succeed at. - Stephen Hawking',
+    'You should report everything that you think might make it invalid. - Richard Feynman',
+    'The results of the experiment did not justify this idea, but in this research I encountered an unexpected phenomenon. - Henri Becquerel',
+    'Radioactivity, therefore, presented itself as an atomic property of uranium. - Pierre Curie',
+    'All the elements emitting such radiation I have termed radioactive. - Marie Curie',
+    'Discoveries followed each other in rapid succession. - Marie Curie',
+    'I like to end my talks with an open and exciting future full of questions to answer. - Frances H. Arnold',
+    'There is always another way to say the same thing that doesn\'t look at all like the way you said it before. - Richard Feynman',
 ];
