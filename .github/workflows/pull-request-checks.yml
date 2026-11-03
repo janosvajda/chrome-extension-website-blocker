@@ -43,7 +43,7 @@ jobs:
         run: npm run test:e2e
 
       - name: Audit dependencies
-        run: npm audit
+        run: npm audit --audit-level=critical
 
       - name: Upload Playwright failure artifacts
         if: failure()
