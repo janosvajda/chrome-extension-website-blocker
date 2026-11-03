@@ -1,10 +1,37 @@
 # Changelog
 
+## 1.0.8 - 2026-11-03
+
+### Fixed
+
+- Make domain rules cover every subdomain and canonical trailing-dot hostname while keeping similarly named domains separate.
+- Keep open Settings pages synchronized with rule changes from other extension contexts, and re-read current rules before saving a context-menu action to prevent newer rules from being overwritten.
+- Keep full blocked-page URLs, query strings, and unused hostname data out of warning-page history entries.
+- Show a covering parent-domain schedule when a subdomain is blocked again, instead of silently reloading or showing only a generic duplicate message.
+- Show parent-domain rules correctly in the toolbar popup while visiting a subdomain.
+- Preserve keyboard focus after Settings saves and keep unsaved schedule edits open when rules change elsewhere.
+- Wait for persisted rules and blocking state to finish loading before handling tab updates after the service worker wakes.
+- Apply blocking only on URL navigation or loading events, restoring reload and same-URL enforcement while avoiding unpredictable tab closure after title or audio updates; document that schedule starts and pause expiry affect already-open tabs on their next navigation or reload.
+- Isolate dialogs injected into websites inside closed shadow roots so host-page styles and scripts cannot restyle or directly click their controls.
+- Keep Escape available after Tab or any other key in both right-click dialogs, and remove their keyboard listeners whenever the dialog closes.
+- Prevent accidental npm publication by marking the package private, adding an explicit publication guard, and renaming the release-validation command to `npm run verify:release`.
+
+### Quality
+
+- Correct the coverage configuration so the background service worker is included, and add regression tests that keep its statement, branch, function, and line coverage above 90%.
+- Remove obsolete storage helpers and rule-overlap code that were only exercised by tests, so coverage represents production code.
+- Remove unused Jest setup, path-alias configuration, and obsolete local environment keys.
+
+### Changed
+
+- Restyle the toolbar popup version as a green badge positioned above the end of the title.
+
 ## 1.0.7 - 2026-11-03
 
 ### Added
 
 - Show the current website and its blocking status in the toolbar popup.
+- Show the current extension version beside the toolbar popup title.
 
 ### Fixed
 
@@ -126,7 +153,7 @@ The version numbers previously recorded in this repository represented internal,
 - Type-check application and end-to-end test code before production builds.
 - Run Oxlint, 34 Jest unit/integration tests, and four real Chromium end-to-end scenarios.
 - Validate production permissions, required files, version consistency, archive structure, and prohibited dynamic/network code before packaging.
-- Add `npm run publish` to run all release checks and generate a versioned Chrome Web Store ZIP with `manifest.json` at its root.
+- Add `npm run verify:release` to run all release checks and generate a versioned Chrome Web Store ZIP with `manifest.json` at its root.
 - Add pull-request CI checks for linting, tests, browser E2E coverage, builds, and dependency auditing.
 
 ## Unpublished development history

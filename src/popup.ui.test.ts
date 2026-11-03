@@ -10,7 +10,8 @@ const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ci
 function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https://example.com/') {
     document.body.innerHTML = `
         <input id="enabledToggle" type="checkbox">
-        ${minimal ? '' : `<span id="statusText"></span><span id="activeRules"></span>
+        ${minimal ? '' : `<span id="popupExtensionVersion"></span>
+        <span id="statusText"></span><span id="activeRules"></span>
         <span id="blockedToday"></span><span id="blockedTotal"></span>
         <section id="pausePanel" hidden>
             <div id="pauseChoices">
@@ -48,7 +49,10 @@ function setup(data: Record<string, any>, minimal = false, activeTabUrl = 'https
             get: jest.fn((_defaults, callback) => callback(data)),
             set: jest.fn(),
         }},
-        runtime: {openOptionsPage: jest.fn()},
+        runtime: {
+            getManifest: jest.fn(() => ({version: '1.0.7'})),
+            openOptionsPage: jest.fn(),
+        },
         tabs: {query: jest.fn((_query, callback) => callback([{url: activeTabUrl}]))},
     };
     (global as any).chrome = chromeMock;
@@ -73,6 +77,7 @@ describe('popup UI', () => {
         });
         expect(document.getElementById('activeRules')?.textContent).toBe('1');
         expect(document.getElementById('blockedToday')?.textContent).toBe('3');
+        expect(document.getElementById('popupExtensionVersion')?.textContent).toBe('v1.0.7');
         const toggle = document.getElementById('enabledToggle') as HTMLInputElement;
         toggle.checked = false;
         toggle.dispatchEvent(new Event('change'));
@@ -97,9 +102,9 @@ describe('popup UI', () => {
             enabled: true,
             blocked: [{name: 'linkedin.com', scope: 'domain', enabled: true}],
             statistics: {},
-        }, false, 'https://www.linkedin.com/feed/');
+        }, false, 'https://jobs.linkedin.com/feed/');
 
-        expect(document.getElementById('currentSiteName')?.textContent).toBe('linkedin.com');
+        expect(document.getElementById('currentSiteName')?.textContent).toBe('jobs.linkedin.com');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain blocking · Active now');
         expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
     });
@@ -109,7 +114,7 @@ describe('popup UI', () => {
             enabled: false,
             blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
             statistics: {},
-        }, false, 'https://example.com/');
+        }, false, 'https://old.example.com/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
             .toBe('Blocking for this website is turned off.');
 
@@ -124,7 +129,7 @@ describe('popup UI', () => {
                 schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
             }],
             statistics: {},
-        }, false, 'https://example.com/');
+        }, false, 'https://old.example.com/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
             .toBe('Scheduled blocking · Available now');
 

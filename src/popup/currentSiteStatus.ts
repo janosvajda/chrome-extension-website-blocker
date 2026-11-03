@@ -1,4 +1,4 @@
-import {BlockedEntry, normalizeBlockedEntry} from '../helper/blockedEntry';
+import {BlockedEntry, hostnameMatchesDomain, normalizeBlockedEntry} from '../helper/blockedEntry';
 import {normalizePausedUntil} from '../helper/extensionState';
 import {isScheduleActive, normalizeRules} from '../helper/schedules';
 
@@ -71,8 +71,10 @@ function findMatchingRule(
     date: Date
 ): BlockedEntry | undefined {
     const exactRule = rules.find((rule) => (rule.scope || 'domain') === 'url' && rule.name === exactUrl);
-    const domainRule = rules.find((rule) => (rule.scope || 'domain') === 'domain' && rule.name === domain);
-    const matches = [exactRule, domainRule].filter((rule): rule is BlockedEntry => Boolean(rule));
+    const domainRules = rules.filter((rule) =>
+        (rule.scope || 'domain') === 'domain' && hostnameMatchesDomain(domain, rule.name)
+    ).sort((first, second) => second.name.length - first.name.length);
+    const matches = [exactRule, ...domainRules].filter((rule): rule is BlockedEntry => Boolean(rule));
     return matches.find((rule) => rule.enabled && isScheduleActive(rule.schedule, date))
         || matches.find((rule) => rule.enabled)
         || matches[0];

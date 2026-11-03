@@ -117,6 +117,34 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await page.close();
     });
 
+    test('keeps an open Settings page synchronized with externally added rules', async () => {
+        const originalRule = {name: 'original.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'context-menu.example', scope: 'domain', enabled: true};
+        await serviceWorker.evaluate(async (blocked) => {
+            await chrome.storage.local.set({blocked});
+        }, [originalRule]);
+
+        const page = await context.newPage();
+        await page.goto(`${extensionUrl}/options.html`);
+        await expect(page.locator('.websiteName')).toHaveText(['original.example']);
+
+        await serviceWorker.evaluate(async (blocked) => {
+            await chrome.storage.local.set({blocked});
+        }, [originalRule, externalRule]);
+        await expect(page.locator('.websiteName')).toHaveText(['context-menu.example', 'original.example']);
+
+        const originalCheckbox = page.locator('.websiteItem', {hasText: 'original.example'}).locator('.websiteCheckbox');
+        await originalCheckbox.uncheck();
+        await expect(originalCheckbox).toBeFocused();
+        const stored = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
+        expect(stored.blocked).toEqual(expect.arrayContaining([
+            externalRule,
+            {...originalRule, enabled: false},
+        ]));
+        expect(stored.blocked).toHaveLength(2);
+        await page.close();
+    });
+
     test('searches and filters rules without losing hidden rules when editing or exporting', async () => {
         const hiddenRule = {name: 'hidden.example', scope: 'domain', enabled: false};
         const urlRule = {name: 'https://video.example/watch?item=1#section', scope: 'url', enabled: false};
@@ -339,6 +367,16 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(popup.locator('#activeRules')).toHaveText('1');
         await expect(popup.locator('#blockedToday')).toHaveText('3');
         await expect(popup.locator('#blockedTotal')).toHaveText('9');
+        const manifestVersion = await serviceWorker.evaluate(() => chrome.runtime.getManifest().version);
+        const versionBadge = popup.locator('#popupExtensionVersion');
+        await expect(versionBadge).toHaveText(`v${manifestVersion}`);
+        await expect(versionBadge).toHaveCSS('background-color', 'rgb(56, 112, 74)');
+        await expect(versionBadge).toHaveCSS('color', 'rgb(255, 255, 255)');
+        const badgeBounds = (await versionBadge.boundingBox())!;
+        const titleBounds = (await popup.locator('h1').boundingBox())!;
+        expect(badgeBounds.y + badgeBounds.height).toBeLessThan(titleBounds.y);
+        expect(badgeBounds.x).toBeGreaterThan(titleBounds.x + titleBounds.width - 25);
+        expect(badgeBounds.x).toBeLessThan(titleBounds.x + titleBounds.width);
         await expect(popup.locator('#statusText')).toHaveText('Blocking is on');
 
         await popup.locator('[data-pause-minutes="15"]').click();
@@ -364,7 +402,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
     });
 
     test('shows the current website blocking status in the toolbar popup', async () => {
-        await context.route('https://status.test/**', (route) => route.fulfill({
+        await context.route('https://old.status.test/**', (route) => route.fulfill({
             contentType: 'text/html',
             body: '<!doctype html><title>Status test page</title>',
         }));
@@ -372,26 +410,26 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             await chrome.storage.local.set({
                 enabled: false,
                 pausedUntil: 0,
-                blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+                blocked: [{name: 'status.test', scope: 'domain', enabled: true}],
             });
         });
         const site = await context.newPage();
-        await site.goto('https://status.test/path');
+        await site.goto('https://old.status.test/path');
         const popup = await context.newPage();
         await popup.goto(`${extensionUrl}/popup.html`);
         await reloadPopupForTab(popup, site, serviceWorker);
 
-        await expect(popup.locator('#currentSiteName')).toHaveText('status.test');
+        await expect(popup.locator('#currentSiteName')).toHaveText('old.status.test');
         await expect(popup.locator('#currentSiteRuleStatus'))
-            .toHaveText('Blocking for this website is turned off.');
+            .toHaveText('Domain blocking · Extension is off');
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
-            blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+            blocked: [{name: 'status.test', scope: 'domain', enabled: true}],
         });
         expect(await popup.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
         await popup.close();
         await site.close();
-        await context.unroute('https://status.test/**');
+        await context.unroute('https://old.status.test/**');
     });
 
     test('protects blocking changes with a locally verified passphrase', async () => {
@@ -866,10 +904,96 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         });
 
         await openBlockedPage(context, 'https://domain.invalid/anything', 'reason=domain');
-        await openBlockedPage(context, 'https://exact.invalid/path?item=1', 'reason=url');
+        await openBlockedPage(context, 'https://sub.domain.invalid/anything', 'reason=domain');
+        await openBlockedPage(context, 'https://domain.invalid./anything', 'reason=domain');
+        const exactWarningPage = await openBlockedPage(context, 'https://exact.invalid/path?item=1', 'reason=url');
+        const warningParams = new URL(exactWarningPage.url()).searchParams;
+        expect(warningParams.get('blocked')).toBe('exact.invalid/path');
+        expect(warningParams.has('host')).toBe(false);
+        expect(warningParams.has('url')).toBe(false);
+        expect(exactWarningPage.url()).not.toContain('item%3D1');
 
         const statistics = await serviceWorker.evaluate(() => chrome.storage.local.get('statistics'));
-        expect(statistics.statistics).toEqual(expect.objectContaining({total: 2, today: 2}));
+        expect(statistics.statistics).toEqual(expect.objectContaining({total: 4, today: 4}));
+    });
+
+    test('blocks manual and chrome.tabs reloads after a rule is added', async () => {
+        const routePattern = /https:\/\/(?:manual|api)-reload\.invalid\/.*/;
+        await context.route(routePattern, (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Reload test</title>',
+        }));
+
+        const manualPage = await context.newPage();
+        await manualPage.goto('https://manual-reload.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'manual-reload.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await manualPage.waitForTimeout(100);
+        const manualWarningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await manualPage.reload({waitUntil: 'commit'}).catch(() => undefined);
+        const manualWarning = await manualWarningPromise;
+        await expect(manualWarning.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+        expect(manualPage.isClosed()).toBe(true);
+        await manualWarning.close();
+
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({blocked: []});
+        });
+        const apiPage = await context.newPage();
+        await apiPage.goto('https://api-reload.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'api-reload.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await apiPage.waitForTimeout(100);
+        const apiWarningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await serviceWorker.evaluate(async () => {
+            const tab = (await chrome.tabs.query({url: 'https://api-reload.invalid/*'}))[0];
+            if (!tab?.id) throw new Error('Could not find reload test tab');
+            await chrome.tabs.reload(tab.id);
+        }).catch(() => undefined);
+        const apiWarning = await apiWarningPromise;
+        await expect(apiWarning.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+        expect(apiPage.isClosed()).toBe(true);
+        await apiWarning.close();
+        await context.unroute(routePattern);
+    });
+
+    test('does not treat a late iframe load as a top-level reload', async () => {
+        const routePattern = /https:\/\/(?:iframe-host|iframe-content)\.invalid\/.*/;
+        await context.route(routePattern, (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Iframe test</title>',
+        }));
+        const page = await context.newPage();
+        await page.goto('https://iframe-host.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'iframe-host.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await page.waitForTimeout(100);
+
+        await page.evaluate(() => new Promise<void>((resolve) => {
+            const frame = document.createElement('iframe');
+            frame.src = 'https://iframe-content.invalid/late';
+            frame.addEventListener('load', () => resolve(), {once: true});
+            document.body.appendChild(frame);
+        })).catch(() => undefined);
+        await page.waitForTimeout(300);
+
+        expect(page.isClosed()).toBe(false);
+        expect(page.url()).toBe('https://iframe-host.invalid/page');
+        await page.close();
+        await context.unroute(routePattern);
     });
 
     test('allows matching pages while blocking is manually or temporarily paused', async () => {

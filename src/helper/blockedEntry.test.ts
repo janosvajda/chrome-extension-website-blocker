@@ -1,5 +1,4 @@
 import {
-    blockedEntriesOverlap,
     blockedEntryCovers,
     detectBlockScope,
     normalizeBlockedEntry,
@@ -13,6 +12,7 @@ describe('blocked entry validation', () => {
         ['http://abcd.com', {name: 'abcd.com', scope: 'domain'}],
         ['https://abcd.co.uk', {name: 'abcd.co.uk', scope: 'domain'}],
         ['https://sub.example.com/path', {name: 'sub.example.com', scope: 'domain'}],
+        ['https://example.com.', {name: 'example.com', scope: 'domain'}],
         ['127.0.0.1', {name: '127.0.0.1', scope: 'domain'}],
     ])('accepts valid website input %s', (input, expected) => {
         expect(normalizeBlockedEntry(input, 'domain')).toEqual(expected);
@@ -21,7 +21,6 @@ describe('blocked entry validation', () => {
     it.each([
         'abcd',
         'ffff abcd',
-        'https://abcd.',
         'https://-abcd.com',
         'https://abcd_.com',
         'ftp://abcd.com',
@@ -48,17 +47,6 @@ describe('blocked entry validation', () => {
         expect(normalizeUrlForMatch('https://abcd/path')).toBeNull();
     });
 
-    it('detects overlap between an always-blocked domain and a scheduled URL', () => {
-        expect(blockedEntriesOverlap(
-            {name: 'linkedin.com', scope: 'domain'},
-            {name: 'https://linkedin.com/feed', scope: 'url'},
-        )).toBe(true);
-        expect(blockedEntriesOverlap(
-            {name: 'linkedin.com', scope: 'domain'},
-            {name: 'https://example.com/feed', scope: 'url'},
-        )).toBe(false);
-    });
-
     it('treats rule coverage as directional', () => {
         const domain = {name: 'example.com', scope: 'domain' as const};
         const url = {name: 'https://example.com/path', scope: 'url' as const};
@@ -76,7 +64,19 @@ describe('blocked entry validation', () => {
         })).toBe(true);
         expect(blockedEntryCovers(domain, {
             name: 'https://sub.example.com/path', scope: 'url',
-        })).toBe(false);
+        })).toBe(true);
+        expect(blockedEntryCovers(
+            {name: 'example.com', scope: 'domain'},
+            {name: 'old.example.com', scope: 'domain'},
+        )).toBe(true);
+        expect(blockedEntryCovers(
+            {name: 'old.example.com', scope: 'domain'},
+            {name: 'example.com', scope: 'domain'},
+        )).toBe(false);
+        expect(blockedEntryCovers(
+            {name: 'example.com', scope: 'domain'},
+            {name: 'notexample.com', scope: 'domain'},
+        )).toBe(false);
         expect(blockedEntryCovers(
             {name: 'https://example.com/path/', scope: 'url'},
             {name: 'https://example.com/path', scope: 'url'},
@@ -93,22 +93,6 @@ describe('blocked entry validation', () => {
         expect(detectBlockScope('bad value')).toBe('domain');
         expect(detectBlockScope('https://example.com/?q=1')).toBe('url');
         expect(detectBlockScope('https://example.com/#part')).toBe('url');
-        expect(blockedEntriesOverlap(
-            {name: 'example.com', scope: 'domain'},
-            {name: 'example.com', scope: 'domain'},
-        )).toBe(true);
-        expect(blockedEntriesOverlap(
-            {name: 'example.com', scope: 'domain'},
-            {name: 'other.example', scope: 'domain'},
-        )).toBe(false);
-        expect(blockedEntriesOverlap(
-            {name: 'invalid', scope: 'domain'},
-            {name: 'example.com', scope: 'domain'},
-        )).toBe(false);
-        expect(blockedEntriesOverlap(
-            {name: 'https://example.com/path', scope: 'url'},
-            {name: 'example.com', scope: 'domain'},
-        )).toBe(true);
     });
 
     it('validates IP addresses and DNS label boundaries', () => {

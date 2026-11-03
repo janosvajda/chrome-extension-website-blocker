@@ -81,6 +81,8 @@ type BlockedEntry = ScheduledRule;
 const pageSize = 5;
 let currentPage = 1;
 let blockedEntries: BlockedEntry[] = [];
+let syncedBlockedEntries: BlockedEntry[] = [];
+let pendingExternalBlockedEntries: BlockedEntry[] | null = null;
 let pendingWebsiteInput: string | null = null;
 let pendingDeleteEntry: NormalizedBlockedEntry | null = null;
 let passphraseProtection: PassphraseProtection | null = null;
@@ -91,14 +93,20 @@ const scheduleEditor = createScheduleEditor({
     getRules: () => blockedEntries,
     saveRule: (index, rule) => {
         blockedEntries[index] = rule;
-        persistBlockedEntries();
+        persistBlockedEntries(() => renderPage(currentPage));
     },
     refreshRules: () => renderPage(currentPage),
+    onClose: (saved) => {
+        if (!pendingExternalBlockedEntries) return;
+        if (!saved) applyExternalBlockedEntries(pendingExternalBlockedEntries);
+        pendingExternalBlockedEntries = null;
+    },
 });
 initializeBackupController({
     normalizeRules: normalizeBlockedEntries,
     replaceRules: (rules) => {
         blockedEntries = rules;
+        syncedBlockedEntries = cloneRules(rules);
         resetRuleFilters();
     },
 });
@@ -212,6 +220,7 @@ function loadAndPopulateWebsiteList() {
         applySettingsGate();
         const migrated = migrateLegacyScheduleGroups(data.blocked, data.schedules);
         blockedEntries = normalizeBlockedEntries(migrated.blocked);
+        syncedBlockedEntries = cloneRules(blockedEntries);
         if (migrated.migrated) chrome.storage.local.set({blocked: blockedEntries, schedules: []});
         currentPage = 1;
         renderPage(currentPage);
@@ -222,6 +231,25 @@ function loadAndPopulateWebsiteList() {
 window.addEventListener('DOMContentLoaded', () => {
     loadAndPopulateWebsiteList();
 });
+
+// Keep an open Settings page in sync with rules changed by another Settings
+// tab or by the page context menu.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'local' || !changes.blocked) return;
+    const changedEntries = normalizeBlockedEntries(changes.blocked.newValue);
+    if (rulesEqual(changedEntries, syncedBlockedEntries)) return;
+    if (!scheduleDialog.hidden) {
+        pendingExternalBlockedEntries = changedEntries;
+        return;
+    }
+    applyExternalBlockedEntries(changedEntries);
+});
+
+function applyExternalBlockedEntries(entries: BlockedEntry[]): void {
+    blockedEntries = entries;
+    syncedBlockedEntries = cloneRules(entries);
+    renderPage(currentPage);
+}
 
 // A form submit gives the button and Enter key one shared path.
 addWebsiteForm.addEventListener('submit', (event) => {
@@ -259,6 +287,18 @@ function addPendingWebsite(scope: BlockScope) {
 
 function addWebsiteWithBlockingWarning(normalized: NormalizedBlockedEntry) {
     chrome.storage.local.get({enabled: true, pausedUntil: 0}, (data) => {
+        const scheduledCoverage = blockedEntries.filter((entry) =>
+            entry.enabled
+            && Boolean(normalizeRuleSchedule(entry.schedule))
+            && blockedEntryCovers(entry, normalized)
+        ).sort((first, second) => second.name.length - first.name.length)[0];
+        if (scheduledCoverage) {
+            showAddWebsiteStatus(
+                `This website is already covered by scheduled blocking for ${scheduledCoverage.name}: ${formatSchedule(scheduledCoverage.schedule)}.`,
+                true,
+            );
+            return;
+        }
         if (!addBlockedEntry(normalized)) {
             showAddWebsiteStatus('This website is already covered by an existing rule.', true);
             return;
@@ -633,8 +673,50 @@ function addBlockedEntry(normalized: NormalizedBlockedEntry) {
 }
 
 // Persist the current in-memory list for background logic.
-function persistBlockedEntries() {
-    chrome.storage.local.set({ blocked: blockedEntries });
+function persistBlockedEntries(onPersisted?: () => void) {
+    const desiredEntries = cloneRules(blockedEntries);
+    const previouslySyncedEntries = cloneRules(syncedBlockedEntries);
+    chrome.storage.local.get({blocked: []}, (data) => {
+        const latestEntries = normalizeBlockedEntries(data.blocked);
+        blockedEntries = mergeRuleChanges(previouslySyncedEntries, desiredEntries, latestEntries);
+        syncedBlockedEntries = cloneRules(blockedEntries);
+        chrome.storage.local.set({blocked: blockedEntries}, onPersisted);
+    });
+}
+
+function mergeRuleChanges(
+    previous: BlockedEntry[],
+    desired: BlockedEntry[],
+    latest: BlockedEntry[],
+): BlockedEntry[] {
+    const previousByKey = new Map(previous.map((entry) => [ruleKey(entry), entry]));
+    const desiredByKey = new Map(desired.map((entry) => [ruleKey(entry), entry]));
+    const mergedByKey = new Map(latest.map((entry) => [ruleKey(entry), entry]));
+
+    previousByKey.forEach((previousEntry, key) => {
+        const desiredEntry = desiredByKey.get(key);
+        if (!desiredEntry) {
+            mergedByKey.delete(key);
+        } else if (JSON.stringify(desiredEntry) !== JSON.stringify(previousEntry)) {
+            mergedByKey.set(key, desiredEntry);
+        }
+    });
+    desiredByKey.forEach((entry, key) => {
+        if (!previousByKey.has(key)) mergedByKey.set(key, entry);
+    });
+    return sortBlockedEntries([...mergedByKey.values()]);
+}
+
+function ruleKey(entry: Pick<BlockedEntry, 'name' | 'scope'>): string {
+    return `${entry.scope || 'domain'}\n${entry.name}`;
+}
+
+function cloneRules(entries: BlockedEntry[]): BlockedEntry[] {
+    return entries.map((entry) => ({...entry}));
+}
+
+function rulesEqual(first: BlockedEntry[], second: BlockedEntry[]): boolean {
+    return JSON.stringify(first) === JSON.stringify(second);
 }
 
 function sortBlockedEntries(entries: BlockedEntry[]) {

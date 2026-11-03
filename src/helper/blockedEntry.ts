@@ -1,3 +1,5 @@
+import {normalizeHostname} from './getPureHostname';
+
 export type BlockScope = 'domain' | 'url';
 
 export type ScheduledDay =
@@ -36,13 +38,12 @@ export function normalizeBlockedEntry(input: string, scope?: BlockScope): Normal
     }
 
     const url = toUrl(trimmed);
-    const hostname = url?.hostname.replace(/^www\./, '') || '';
+    const hostname = normalizeHostname(url?.hostname || '');
     if (!isValidHostname(hostname)) {
         return null;
     }
     return { name: hostname, scope: 'domain' };
 }
-
 export function detectBlockScope(input: string): BlockScope {
     const url = toUrl(input);
     if (!url) {
@@ -63,31 +64,16 @@ export function requiresBlockScopeChoice(input: string): boolean {
 
 export function normalizeUrlForMatch(input: string): string | null {
     const url = toUrl(input);
-    if (!url || !isValidHostname(url.hostname)) {
+    const hostname = normalizeHostname(url?.hostname || '', false);
+    if (!url || !isValidHostname(hostname)) {
         return null;
     }
+    url.hostname = hostname;
     let pathname = url.pathname || '/';
     if (pathname.length > 1 && pathname.endsWith('/')) {
         pathname = pathname.slice(0, -1);
     }
     return `${url.origin}${pathname}${url.search}${url.hash}`;
-}
-
-export function blockedEntriesOverlap(
-    first: Pick<BlockedEntry, 'name' | 'scope'>,
-    second: Pick<BlockedEntry, 'name' | 'scope'>,
-): boolean {
-    const normalizedFirst = normalizeBlockedEntry(first.name, first.scope);
-    const normalizedSecond = normalizeBlockedEntry(second.name, second.scope);
-    if (!normalizedFirst || !normalizedSecond) {
-        return false;
-    }
-    if (normalizedFirst.scope === normalizedSecond.scope) {
-        return normalizedFirst.name === normalizedSecond.name;
-    }
-    const domain = normalizedFirst.scope === 'domain' ? normalizedFirst : normalizedSecond;
-    const url = normalizedFirst.scope === 'url' ? normalizedFirst : normalizedSecond;
-    return toUrl(url.name)?.hostname.replace(/^www\./, '') === domain.name;
 }
 
 export function blockedEntryCovers(
@@ -98,10 +84,19 @@ export function blockedEntryCovers(
     const normalizedCandidate = normalizeBlockedEntry(candidate.name, candidate.scope);
     if (!normalizedExisting || !normalizedCandidate) return false;
     if (normalizedExisting.scope === normalizedCandidate.scope) {
-        return normalizedExisting.name === normalizedCandidate.name;
+        return normalizedExisting.scope === 'domain'
+            ? hostnameMatchesDomain(normalizedCandidate.name, normalizedExisting.name)
+            : normalizedExisting.name === normalizedCandidate.name;
     }
     return normalizedExisting.scope === 'domain'
-        && toUrl(normalizedCandidate.name)?.hostname.replace(/^www\./, '') === normalizedExisting.name;
+        && hostnameMatchesDomain(toUrl(normalizedCandidate.name)?.hostname || '', normalizedExisting.name);
+}
+
+export function hostnameMatchesDomain(hostname: string, domain: string): boolean {
+    const normalizedHostname = normalizeHostname(hostname);
+    const normalizedDomain = normalizeHostname(domain);
+    return normalizedHostname === normalizedDomain
+        || normalizedHostname.endsWith(`.${normalizedDomain}`);
 }
 
 function toUrl(input: string): URL | null {

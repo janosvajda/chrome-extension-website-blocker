@@ -19,6 +19,7 @@ const PAUSE_NUDGES = [
 ];
 
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
+const popupExtensionVersion = document.getElementById('popupExtensionVersion');
 const statusText = document.getElementById('statusText');
 const activeRules = document.getElementById('activeRules');
 const blockedToday = document.getElementById('blockedToday');
@@ -40,6 +41,10 @@ let countdownTimer: ReturnType<typeof setInterval> | undefined;
 let passphraseProtection: PassphraseProtection | null = null;
 const passphrasePrompt = createPassphrasePrompt(() => passphraseProtection);
 const currentSiteStatus = createCurrentSiteStatus(() => ({blockingEnabled, pausedUntil}));
+
+if (popupExtensionVersion) {
+    popupExtensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
+}
 
 function renderBlockingState(now = Date.now()) {
     const activePausedUntil = blockingEnabled ? normalizePausedUntil(pausedUntil, now) : 0;
