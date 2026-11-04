@@ -954,6 +954,55 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         expect(statistics.statistics).toEqual(expect.objectContaining({total: 4, today: 4}));
     });
 
+    test('shows when a scheduled blocked site becomes available again', async () => {
+        const expectedAvailability = await serviceWorker.evaluate(async () => {
+            const now = new Date();
+            const availableAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+            const availableDay = availableAt.getDay();
+            const daily = Array.from({length: 7}, (_, day) => day)
+                .filter((day) => day !== availableDay)
+                .map((day) => ({day, mode: 'all-day' as const}));
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{
+                    name: 'scheduled-availability.invalid',
+                    scope: 'domain',
+                    enabled: true,
+                    schedule: {daily},
+                }],
+            });
+            return availableAt.getTime();
+        });
+        await context.route('https://scheduled-availability.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Scheduled availability test</title>',
+        }));
+
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        const blockedPage = await context.newPage();
+        await blockedPage.goto('https://scheduled-availability.invalid/page', {waitUntil: 'commit'})
+            .catch(() => undefined);
+        const warningPage = await warningPromise;
+        await warningPage.waitForLoadState('domcontentloaded');
+
+        expect(Number(new URL(warningPage.url()).searchParams.get('availableAt'))).toBe(expectedAvailability);
+        const expectedText = await warningPage.evaluate((timestamp) => {
+            const availableAt = new Date(timestamp);
+            const weekday = new Intl.DateTimeFormat(undefined, {weekday: 'long'}).format(availableAt);
+            const time = new Intl.DateTimeFormat(undefined, {hour: '2-digit', minute: '2-digit'}).format(availableAt);
+            return `Available again on ${weekday} at ${time}`;
+        }, expectedAvailability);
+        await expect(warningPage.locator('#availableAgain')).toHaveText(expectedText);
+        await expect(warningPage.locator('#availableAgain')).toBeVisible();
+        await expect(warningPage.locator('#blockedReason')).toHaveText('Blocked by scheduled domain rule');
+        await expect.poll(() => blockedPage.isClosed()).toBe(true);
+
+        await warningPage.close();
+        await context.unroute('https://scheduled-availability.invalid/**');
+    });
+
     test('keeps the warning visible when the blocked page is the only browser tab', async () => {
         const existingPages = context.pages();
         const onlyPage = existingPages[0] || await context.newPage();

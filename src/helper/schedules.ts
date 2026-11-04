@@ -30,6 +30,39 @@ export function isScheduleActive(schedule: RuleSchedule | LegacyRuleSchedule | u
     return normalized.daily.some((entry) => isScheduledDayActive(entry, day, minute));
 }
 
+export function findNextAvailableTime(
+    schedules: Array<RuleSchedule | undefined>,
+    date = new Date(),
+): Date | null {
+    if (schedules.length === 0 || schedules.some((schedule) => !schedule)) return null;
+
+    const normalizedSchedules = schedules
+        .map((schedule) => normalizeRuleSchedule(schedule))
+        .filter((schedule): schedule is RuleSchedule => Boolean(schedule));
+    if (!normalizedSchedules.some((schedule) => isScheduleActive(schedule, date))) return null;
+
+    const currentTime = date.getTime();
+    const endTimes = new Set<number>();
+    for (let dayOffset = -1; dayOffset <= 7; dayOffset += 1) {
+        const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate() + dayOffset);
+        for (const schedule of normalizedSchedules) {
+            for (const entry of schedule.daily) {
+                if (entry.day !== dayStart.getDay()) continue;
+                const end = scheduleEndForDay(entry, dayStart);
+                if (end.getTime() > currentTime) endTimes.add(end.getTime());
+            }
+        }
+    }
+
+    for (const endTime of [...endTimes].sort((first, second) => first - second)) {
+        const candidate = new Date(endTime);
+        if (!normalizedSchedules.some((schedule) => isScheduleActive(schedule, candidate))) {
+            return candidate;
+        }
+    }
+    return null;
+}
+
 export function migrateLegacyScheduleGroups(
     blockedValue: unknown,
     schedulesValue: unknown,
@@ -122,6 +155,15 @@ function isScheduledDayActive(entry: ScheduledDay, currentDay: number, currentMi
     const previousDay = (currentDay + LAST_DAY) % (LAST_DAY + 1);
     return (entry.day === currentDay && currentMinute >= start)
         || (entry.day === previousDay && currentMinute < end);
+}
+
+function scheduleEndForDay(entry: ScheduledDay, dayStart: Date): Date {
+    if (entry.mode === 'all-day') {
+        return new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + 1);
+    }
+    const [hour, minute] = entry.end.split(':').map(Number);
+    const overnight = toMinute(entry.start) > toMinute(entry.end) ? 1 : 0;
+    return new Date(dayStart.getFullYear(), dayStart.getMonth(), dayStart.getDate() + overnight, hour, minute);
 }
 
 function uniqueDays(values: unknown[]): number[] {

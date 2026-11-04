@@ -307,9 +307,32 @@ describe('background blocked hostnames cache', () => {
         const warningParams = new URL(warningUrl, 'chrome-extension://test/').searchParams;
         expect(warningParams.get('reason')).toBe('url');
         expect(warningParams.get('blocked')).toBe('www.youtube.com/watch');
+        expect(warningParams.has('availableAt')).toBe(false);
         expect(warningParams.has('host')).toBe(false);
         expect(warningParams.has('url')).toBe(false);
         expect(warningUrl).not.toContain('v%3D123');
+    });
+
+    it('shows availability only after every matching scheduled rule has ended', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 10));
+        rebuildBlockedHostnames([
+            {
+                name: 'https://www.example.com/watch', scope: 'url', enabled: true,
+                schedule: {daily: [{day: 1, mode: 'period', start: '09:00', end: '12:00'}]},
+            },
+            {
+                name: 'example.com', scope: 'domain', enabled: true,
+                schedule: {daily: [{day: 1, mode: 'period', start: '12:00', end: '14:00'}]},
+            },
+        ]);
+
+        blockPage(13, 'https://www.example.com/watch');
+
+        const warningUrl = mockChrome.tabs.create.mock.calls[0][0].url;
+        const warningParams = new URL(warningUrl, 'chrome-extension://test/').searchParams;
+        expect(warningParams.get('reason')).toBe('url');
+        expect(Number(warningParams.get('availableAt'))).toBe(new Date(2026, 7, 24, 14).getTime());
     });
 
     it('does not block when global blocking is disabled', () => {

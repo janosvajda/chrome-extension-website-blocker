@@ -32,7 +32,7 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
   <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 
-- **Friendly Blocking Page**: When a navigation or reload matches an active rule, the original tab is closed and a local page explains what was blocked. It may also show a joke or scientific quote. Because Tiny Website Blocker does not request broad website or network-blocking permissions, Chrome may briefly begin loading the destination before the extension receives the URL-change event.
+- **Friendly Blocking Page**: When a navigation or reload matches an active rule, the original tab is closed and a local page explains what was blocked. For scheduled rules, it also shows when the site becomes available again. It may also show a joke or scientific quote. Because Tiny Website Blocker does not request broad website or network-blocking permissions, Chrome may briefly begin loading the destination before the extension receives the URL-change event.
 
 - **Local and Private by Design**: Rules, schedules, settings, and statistics stay in Chrome's local extension storage. Tiny Website Blocker makes no external network requests or API calls and requires no account.
 

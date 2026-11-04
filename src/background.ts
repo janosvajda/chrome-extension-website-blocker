@@ -15,7 +15,13 @@ import {
     AddCurrentSiteDomainRuleRequest,
     AddCurrentSiteDomainRuleResponse,
 } from './helper/backgroundMessages';
-import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRuleSchedule, normalizeRules} from './helper/schedules';
+import {
+    findNextAvailableTime,
+    isScheduleActive,
+    migrateLegacyScheduleGroups,
+    normalizeRuleSchedule,
+    normalizeRules,
+} from './helper/schedules';
 import {showBlockScopeDialog, showScheduledDomainOverrideDialog} from './background/dialogs';
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -126,14 +132,26 @@ export function blockPage(tabId, pageUrl) {
     if (!isBlockingActive() || pageUrl.startsWith('chrome-extension://')) {
         return;
     }
+    const now = new Date();
     const hostname = getPureHostname(pageUrl);
     const normalizedUrl = normalizeUrlForMatch(pageUrl);
-    if (normalizedUrl && blockedUrls.has(normalizedUrl) && isScheduleActive(blockedUrls.get(normalizedUrl))) {
-        blockTabWithReason(tabId, 'url', warningLabelForUrl(normalizedUrl));
+    const hasUrlRule = Boolean(normalizedUrl && blockedUrls.has(normalizedUrl));
+    const urlSchedule = hasUrlRule ? blockedUrls.get(normalizedUrl!) : undefined;
+    const domainSchedules: Array<RuleSchedule | undefined> = [];
+    for (const [domain, schedule] of blockedHostnames) {
+        if (hostnameMatchesDomain(hostname, domain)) domainSchedules.push(schedule);
+    }
+    const matchingSchedules = hasUrlRule
+        ? [urlSchedule, ...domainSchedules]
+        : domainSchedules;
+    const availableAt = findNextAvailableTime(matchingSchedules, now)?.getTime();
+
+    if (hasUrlRule && isScheduleActive(urlSchedule, now)) {
+        blockTabWithReason(tabId, 'url', warningLabelForUrl(normalizedUrl!), availableAt);
         return;
     }
-    if (shouldBlockHostname(hostname)) {
-        blockTabWithReason(tabId, 'domain', hostname);
+    if (shouldBlockHostname(hostname, now)) {
+        blockTabWithReason(tabId, 'domain', hostname, availableAt);
         return;
     }
 }
@@ -384,16 +402,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 function blockTabWithReason(
     tabId: number,
     reason: 'url' | 'domain',
-    blockedLabel: string
+    blockedLabel: string,
+    availableAt?: number,
 ) {
     if (blockedTabs[tabId]) {
         return;
     }
     blockedTabs[tabId] = true;
     recordBlockedAttempt();
-    const warningUrl =
+    let warningUrl =
         `warning.html?reason=${reason}` +
         `&blocked=${encodeURIComponent(blockedLabel)}`;
+    if (Number.isFinite(availableAt)) warningUrl += `&availableAt=${availableAt}`;
     chrome.tabs.create({url: warningUrl}, (warningTab) => {
         if (chrome.runtime.lastError || !warningTab) {
             delete blockedTabs[tabId];

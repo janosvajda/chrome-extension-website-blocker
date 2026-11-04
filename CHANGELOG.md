@@ -5,6 +5,7 @@
 ### Added
 
 - Add the current website's domain directly from the toolbar popup and reload the page to apply the rule immediately when blocking is active. When blocking is off or paused, save the rule without reloading and explain why it is not yet active.
+- Show when a site blocked by scheduled rules becomes available again, using the user's local day and clock format.
 
 ### Fixed
 
