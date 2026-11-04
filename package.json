@@ -41,9 +41,11 @@
     "@types/chrome": "0.2.6"
   },
   "overrides": {
+    "babel-plugin-istanbul": "8.0.0",
     "deepmerge": "4.1.1",
     "glob": "14.0.2",
     "minimatch": "11.0.1",
+    "test-exclude": "8.0.0",
     "@istanbuljs/load-nyc-config@1.1.0": {
       "js-yaml": "4.3.2"
     }
