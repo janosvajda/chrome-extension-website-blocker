@@ -70,20 +70,18 @@ This project is developed and tested with Node.js 24, npm, and Google Chrome.
 
 1. Clone the [GitHub repository](https://github.com/janosvajda/chrome-extension-website-blocker.git).
 2. Run `npm ci` in the project root.
-3. Run `npx playwright install chromium` to install the browser used by end-to-end tests. On Linux CI systems, use `npx playwright install --with-deps chromium`.
-4. Run `npm run build` to generate the `built` directory.
-5. Open `chrome://extensions` in Chrome and enable **Developer mode**.
-6. Select **Load unpacked** and choose the generated `built` directory.
+3. Run `npm run build` to generate the `built` directory.
+4. Open `chrome://extensions` in Chrome and enable **Developer mode**.
+5. Select **Load unpacked** and choose the generated `built` directory.
 
 ### Quality checks
 
 ```bash
 npm run lint
 npm run test:coverage
-npm run test:e2e
 ```
 
-These commands run static analysis, the Jest unit and integration suites with coverage thresholds, a production build, and the real Chromium extension tests.
+These commands run static analysis and the Jest unit and integration suites with coverage thresholds. The browser E2E suite remains in `e2e/`, but is temporarily disabled until Playwright provides a Chromium build with the required security fixes.
 
 ### Release packaging
 
@@ -93,4 +91,4 @@ Create a fully verified, versioned Chrome Web Store ZIP with:
 npm run verify:release
 ```
 
-This runs the dependency audit, linting, Jest tests, real Chromium end-to-end tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.
+This runs the dependency audit, linting, Jest tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.

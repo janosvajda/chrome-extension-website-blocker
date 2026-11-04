@@ -11,13 +11,12 @@
     "test": "jest",
     "test:coverage": "jest --runInBand --no-watchman --coverage",
     "test:integration": "jest --runInBand --no-watchman --testPathPatterns=integration",
-    "test:e2e": "npm run build && playwright test",
     "package:store": "npm run build && node scripts/create-store-package.cjs",
     "prepublishOnly": "node -e \"console.error('This Chrome extension must not be published to npm.'); process.exit(1)\"",
-    "verify:release": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run test:e2e && node scripts/create-store-package.cjs",
-    "typecheck": "tsc --noEmit && tsc -p e2e/tsconfig.json",
-    "lint": "oxlint src e2e playwright.config.ts",
-    "lint:fix": "oxlint src e2e playwright.config.ts --fix"
+    "verify:release": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run build && node scripts/create-store-package.cjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src",
+    "lint:fix": "oxlint src --fix"
   },
   "repository": {
     "type": "git",
@@ -42,12 +41,14 @@
     "@types/chrome": "0.2.6"
   },
   "overrides": {
+    "deepmerge": "4.1.1",
+    "glob": "14.0.2",
+    "minimatch": "11.0.1",
     "@istanbuljs/load-nyc-config@1.1.0": {
       "js-yaml": "4.3.2"
     }
   },
   "devDependencies": {
-    "@playwright/test": "1.62.1",
     "@swc/core": "1.16.1",
     "@swc/jest": "0.2.39",
     "@types/jest": "30.0.0",
