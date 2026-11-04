@@ -1,10 +1,34 @@
 # Changelog
 
+## 1.0.8 - 2026-11-03
+
+### Added
+
+- Add the current website's domain directly from the toolbar popup and reload the page to apply the rule immediately when blocking is active. When blocking is off or paused, save the rule without reloading and explain why it is not yet active.
+- Show when a site blocked by scheduled rules becomes available again, using the user's local day and clock format.
+
+### Fixed
+
+- Fix blocking and rule-management issues affecting subdomains, reloads, browser restarts, and multiple open tabs.
+- Polish Settings, toolbar status, warning pages, and right-click dialogs for clearer feedback and consistent keyboard behaviour.
+
+### Quality
+
+- Correct the coverage configuration so the background service worker is included, and add regression tests that keep its statement, branch, function, and line coverage above 90%.
+- Refactor the 743-line Settings entry point into a 99-line coordinator with focused controllers for rule synchronization, the rule list, add-site flow, confirmation phrases, and dialog keyboard behavior, without changing functionality.
+- Remove obsolete storage helpers and rule-overlap code that were only exercised by tests, so coverage represents production code.
+- Remove unused Jest setup, path-alias configuration, and obsolete local environment keys.
+
+### Changed
+
+- Restyle the toolbar popup version as a green badge positioned above the end of the title.
+
 ## 1.0.7 - 2026-11-03
 
 ### Added
 
 - Show the current website and its blocking status in the toolbar popup.
+- Show the current extension version beside the toolbar popup title.
 
 ### Fixed
 
@@ -126,7 +150,7 @@ The version numbers previously recorded in this repository represented internal,
 - Type-check application and end-to-end test code before production builds.
 - Run Oxlint, 34 Jest unit/integration tests, and four real Chromium end-to-end scenarios.
 - Validate production permissions, required files, version consistency, archive structure, and prohibited dynamic/network code before packaging.
-- Add `npm run publish` to run all release checks and generate a versioned Chrome Web Store ZIP with `manifest.json` at its root.
+- Add `npm run verify:release` to run all release checks and generate a versioned Chrome Web Store ZIP with `manifest.json` at its root.
 - Add pull-request CI checks for linting, tests, browser E2E coverage, builds, and dependency auditing.
 
 ## Unpublished development history

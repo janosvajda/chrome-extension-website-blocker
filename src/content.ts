@@ -1,4 +1,5 @@
 import {BlockedMessageType, getRandomBlockedMessage} from './helper/blockMessages';
+import {formatAvailableAgain} from './helper/availability';
 
 const {message, randomItem, type} = getRandomBlockedMessage();
 
@@ -6,6 +7,7 @@ const messageDiv = document.getElementById('message') as HTMLDivElement;
 const randomItemDiv = document.getElementById('randomItem') as HTMLDivElement;
 const blockedReasonDiv = document.getElementById('blockedReason') as HTMLDivElement | null;
 const blockedValueDiv = document.getElementById('blockedValue') as HTMLDivElement | null;
+const availableAgainDiv = document.getElementById('availableAgain') as HTMLDivElement | null;
 const randomSectionDiv = document.getElementById('randomSection') as HTMLDivElement | null;
 const randomItemLabelDiv = document.getElementById('randomItemLabel') as HTMLDivElement | null;
 
@@ -30,13 +32,16 @@ if (randomItem) {
 const params = new URLSearchParams(window.location.search);
 const reasonParam = params.get('reason');
 const blockedValueParam = params.get('blocked');
+const availableAtParam = params.get('availableAt');
+const availabilityMessage = formatAvailableAgain(Number(availableAtParam));
 
-function applyBlockedInfo(reason: string | null, blockedValue: string | null) {
+function applyBlockedInfo(reason: string | null, blockedValue: string | null, scheduled: boolean) {
     if (blockedReasonDiv) {
+        const scheduleLabel = scheduled ? 'scheduled ' : '';
         const reasonLabel = reason === 'url'
-            ? 'Blocked by URL rule'
+            ? `Blocked by ${scheduleLabel}URL rule`
             : reason === 'domain'
-                ? 'Blocked by domain rule'
+                ? `Blocked by ${scheduleLabel}domain rule`
                 : '';
         if (reasonLabel) {
             blockedReasonDiv.textContent = reasonLabel;
@@ -50,4 +55,9 @@ function applyBlockedInfo(reason: string | null, blockedValue: string | null) {
     }
 }
 
-applyBlockedInfo(reasonParam, blockedValueParam);
+applyBlockedInfo(reasonParam, blockedValueParam, Boolean(availabilityMessage));
+
+if (availableAgainDiv && availabilityMessage) {
+    availableAgainDiv.textContent = availabilityMessage;
+    availableAgainDiv.hidden = false;
+}

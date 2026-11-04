@@ -11,8 +11,21 @@ body {
 main { padding: 18px; }
 header { display: flex; align-items: center; gap: 11px; }
 header img { border-radius: 11px; background: #fff; padding: 4px; }
-header div { flex: 1; }
-h1 { margin: 0 0 3px; font-family: Georgia, serif; font-size: 18px; line-height: 1.05; white-space: nowrap; }
+header > div { flex: 1; min-width: 0; }
+.popupTitleHeading { position: relative; width: fit-content; margin-bottom: 3px; padding-top: 18px; white-space: nowrap; }
+h1 { margin: 0; font-family: Georgia, serif; font-size: 18px; line-height: 1.05; white-space: nowrap; }
+.popupVersionBadge {
+    position: absolute;
+    top: 0;
+    left: calc(100% - 14px);
+    padding: 3px 6px;
+    border-radius: 999px;
+    background: #38704a;
+    color: #fff;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 1;
+}
 p { margin: 0; color: #38704a; font-size: 12px; }
 p.paused { color: #9b4931; }
 .switch { position: relative; width: 44px; height: 24px; }
@@ -93,6 +106,13 @@ button:hover { background: #c45a1f; }
 #currentSiteRuleStatus.active { color: #38704a; }
 #currentSiteRuleStatus.inactive { color: #9b4931; }
 #currentSiteRuleStatus.scheduled { color: #a65322; }
+#currentSiteRuleStatus.error { color: #a33226; }
+.blockCurrentSiteButton {
+    margin-top: 5px;
+    padding: 8px 12px;
+    font-size: 11px;
+}
+.blockCurrentSiteButton:disabled { cursor: wait; opacity: 0.65; }
 .passphrasePrompt { position: fixed; inset: 0; z-index: 10; padding: 24px; background: #f6f2eb; }
 .passphrasePrompt h2 { margin: 0 0 6px; font-family: Georgia, serif; font-size: 21px; }
 .passphrasePrompt > p { margin-bottom: 14px; color: #6b5f52; }

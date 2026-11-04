@@ -117,6 +117,34 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await page.close();
     });
 
+    test('keeps an open Settings page synchronized with externally added rules', async () => {
+        const originalRule = {name: 'original.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'context-menu.example', scope: 'domain', enabled: true};
+        await serviceWorker.evaluate(async (blocked) => {
+            await chrome.storage.local.set({blocked});
+        }, [originalRule]);
+
+        const page = await context.newPage();
+        await page.goto(`${extensionUrl}/options.html`);
+        await expect(page.locator('.websiteName')).toHaveText(['original.example']);
+
+        await serviceWorker.evaluate(async (blocked) => {
+            await chrome.storage.local.set({blocked});
+        }, [originalRule, externalRule]);
+        await expect(page.locator('.websiteName')).toHaveText(['context-menu.example', 'original.example']);
+
+        const originalCheckbox = page.locator('.websiteItem', {hasText: 'original.example'}).locator('.websiteCheckbox');
+        await originalCheckbox.uncheck();
+        await expect(originalCheckbox).toBeFocused();
+        const stored = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
+        expect(stored.blocked).toEqual(expect.arrayContaining([
+            externalRule,
+            {...originalRule, enabled: false},
+        ]));
+        expect(stored.blocked).toHaveLength(2);
+        await page.close();
+    });
+
     test('searches and filters rules without losing hidden rules when editing or exporting', async () => {
         const hiddenRule = {name: 'hidden.example', scope: 'domain', enabled: false};
         const urlRule = {name: 'https://video.example/watch?item=1#section', scope: 'url', enabled: false};
@@ -339,6 +367,16 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(popup.locator('#activeRules')).toHaveText('1');
         await expect(popup.locator('#blockedToday')).toHaveText('3');
         await expect(popup.locator('#blockedTotal')).toHaveText('9');
+        const manifestVersion = await serviceWorker.evaluate(() => chrome.runtime.getManifest().version);
+        const versionBadge = popup.locator('#popupExtensionVersion');
+        await expect(versionBadge).toHaveText(`v${manifestVersion}`);
+        await expect(versionBadge).toHaveCSS('background-color', 'rgb(56, 112, 74)');
+        await expect(versionBadge).toHaveCSS('color', 'rgb(255, 255, 255)');
+        const badgeBounds = (await versionBadge.boundingBox())!;
+        const titleBounds = (await popup.locator('h1').boundingBox())!;
+        expect(badgeBounds.y + badgeBounds.height).toBeLessThan(titleBounds.y);
+        expect(badgeBounds.x).toBeGreaterThan(titleBounds.x + titleBounds.width - 25);
+        expect(badgeBounds.x).toBeLessThan(titleBounds.x + titleBounds.width);
         await expect(popup.locator('#statusText')).toHaveText('Blocking is on');
 
         await popup.locator('[data-pause-minutes="15"]').click();
@@ -364,7 +402,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
     });
 
     test('shows the current website blocking status in the toolbar popup', async () => {
-        await context.route('https://status.test/**', (route) => route.fulfill({
+        await context.route('https://old.status.test/**', (route) => route.fulfill({
             contentType: 'text/html',
             body: '<!doctype html><title>Status test page</title>',
         }));
@@ -372,26 +410,63 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             await chrome.storage.local.set({
                 enabled: false,
                 pausedUntil: 0,
-                blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+                blocked: [{name: 'status.test', scope: 'domain', enabled: true}],
             });
         });
         const site = await context.newPage();
-        await site.goto('https://status.test/path');
+        await site.goto('https://old.status.test/path');
         const popup = await context.newPage();
         await popup.goto(`${extensionUrl}/popup.html`);
         await reloadPopupForTab(popup, site, serviceWorker);
 
-        await expect(popup.locator('#currentSiteName')).toHaveText('status.test');
+        await expect(popup.locator('#currentSiteName')).toHaveText('old.status.test');
         await expect(popup.locator('#currentSiteRuleStatus'))
-            .toHaveText('Blocking for this website is turned off.');
+            .toHaveText('Domain blocking · Extension is off');
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
-            blocked: [{name: 'status.test', scope: 'domain', enabled: false}],
+            blocked: [{name: 'status.test', scope: 'domain', enabled: true}],
         });
         expect(await popup.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 
         await popup.close();
         await site.close();
-        await context.unroute('https://status.test/**');
+        await context.unroute('https://old.status.test/**');
+    });
+
+    test('adds the current domain from the toolbar popup and blocks it immediately', async () => {
+        await context.route('https://popup-add.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Popup add test</title><p>Unsaved work stays open</p>',
+        }));
+        const site = await context.newPage();
+        await site.goto('https://popup-add.test/draft');
+        const popup = await context.newPage();
+        await popup.goto(`${extensionUrl}/popup.html`);
+        await reloadPopupForTab(popup, site, serviceWorker);
+
+        await expect(popup.locator('#currentSiteRuleStatus')).toHaveText('Not in your blocking list');
+        await expect(popup.locator('#blockCurrentSiteButton')).toBeVisible();
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await popup.locator('#blockCurrentSiteButton').click();
+
+        await expect(popup.locator('#currentSiteRuleStatus'))
+            .toHaveText('Added to your blocking list. Reloading this page now.');
+        await expect(popup.locator('#blockCurrentSiteButton')).toBeHidden();
+        await expect(popup.locator('#activeRules')).toHaveText('1');
+        expect(await popup.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [{name: 'popup-add.test', scope: 'domain', enabled: true}],
+        });
+
+        const warning = await warningPromise;
+        await warning.waitForLoadState('domcontentloaded');
+        await expect(warning.locator('#blockedReason')).toBeVisible();
+        await expect.poll(() => site.isClosed()).toBe(true);
+
+        await warning.close();
+        await popup.close();
+        await context.unroute('https://popup-add.test/**');
     });
 
     test('protects blocking changes with a locally verified passphrase', async () => {
@@ -866,10 +941,217 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         });
 
         await openBlockedPage(context, 'https://domain.invalid/anything', 'reason=domain');
-        await openBlockedPage(context, 'https://exact.invalid/path?item=1', 'reason=url');
+        await openBlockedPage(context, 'https://sub.domain.invalid/anything', 'reason=domain');
+        await openBlockedPage(context, 'https://domain.invalid./anything', 'reason=domain');
+        const exactWarningPage = await openBlockedPage(context, 'https://exact.invalid/path?item=1', 'reason=url');
+        const warningParams = new URL(exactWarningPage.url()).searchParams;
+        expect(warningParams.get('blocked')).toBe('exact.invalid/path');
+        expect(warningParams.has('host')).toBe(false);
+        expect(warningParams.has('url')).toBe(false);
+        expect(exactWarningPage.url()).not.toContain('item%3D1');
 
         const statistics = await serviceWorker.evaluate(() => chrome.storage.local.get('statistics'));
-        expect(statistics.statistics).toEqual(expect.objectContaining({total: 2, today: 2}));
+        expect(statistics.statistics).toEqual(expect.objectContaining({total: 4, today: 4}));
+    });
+
+    test('shows when a scheduled blocked site becomes available again', async () => {
+        const expectedAvailability = await serviceWorker.evaluate(async () => {
+            const now = new Date();
+            const availableAt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2);
+            const availableDay = availableAt.getDay();
+            const daily = Array.from({length: 7}, (_, day) => day)
+                .filter((day) => day !== availableDay)
+                .map((day) => ({day, mode: 'all-day' as const}));
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{
+                    name: 'scheduled-availability.invalid',
+                    scope: 'domain',
+                    enabled: true,
+                    schedule: {daily},
+                }],
+            });
+            return availableAt.getTime();
+        });
+        await context.route('https://scheduled-availability.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Scheduled availability test</title>',
+        }));
+
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        const blockedPage = await context.newPage();
+        await blockedPage.goto('https://scheduled-availability.invalid/page', {waitUntil: 'commit'})
+            .catch(() => undefined);
+        const warningPage = await warningPromise;
+        await warningPage.waitForLoadState('domcontentloaded');
+
+        expect(Number(new URL(warningPage.url()).searchParams.get('availableAt'))).toBe(expectedAvailability);
+        const expectedText = await warningPage.evaluate((timestamp) => {
+            const availableAt = new Date(timestamp);
+            const weekday = new Intl.DateTimeFormat(undefined, {weekday: 'long'}).format(availableAt);
+            const time = new Intl.DateTimeFormat(undefined, {hour: '2-digit', minute: '2-digit'}).format(availableAt);
+            return `Available again on ${weekday} at ${time}`;
+        }, expectedAvailability);
+        await expect(warningPage.locator('#availableAgain')).toHaveText(expectedText);
+        await expect(warningPage.locator('#availableAgain')).toBeVisible();
+        await expect(warningPage.locator('#blockedReason')).toHaveText('Blocked by scheduled domain rule');
+        await expect.poll(() => blockedPage.isClosed()).toBe(true);
+
+        await warningPage.close();
+        await context.unroute('https://scheduled-availability.invalid/**');
+    });
+
+    test('keeps the warning visible when the blocked page is the only browser tab', async () => {
+        const existingPages = context.pages();
+        const onlyPage = existingPages[0] || await context.newPage();
+        for (const page of existingPages.slice(1)) await page.close();
+        await onlyPage.bringToFront();
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{name: 'single-tab.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await context.route('https://single-tab.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Single blocked tab</title>',
+        }));
+
+        expect(context.pages()).toHaveLength(1);
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await onlyPage.goto('https://single-tab.invalid/page', {waitUntil: 'commit'}).catch(() => undefined);
+        const warningPage = await warningPromise;
+        await warningPage.waitForLoadState('domcontentloaded');
+
+        expect(onlyPage.isClosed()).toBe(true);
+        expect(context.pages()).toEqual([warningPage]);
+        await expect(warningPage.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+
+        await warningPage.goto('about:blank');
+        await context.unroute('https://single-tab.invalid/**');
+    });
+
+    test('records every blocked attempt when several tabs are blocked together', async () => {
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                enabled: true,
+                blocked: [{name: 'concurrent.invalid', scope: 'domain', enabled: true}],
+                statistics: {
+                    date: new Date().toLocaleDateString('en-CA'),
+                    today: 0,
+                    total: 0,
+                },
+            });
+        });
+        await context.route('https://concurrent.invalid/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Concurrent blocked tab</title>',
+        }));
+
+        const blockedPages = await Promise.all(
+            Array.from({length: 5}, () => context.newPage())
+        );
+        await Promise.all(blockedPages.map((page, index) =>
+            page.goto(`https://concurrent.invalid/page-${index}`, {waitUntil: 'commit'}).catch(() => undefined)
+        ));
+
+        await expect.poll(() =>
+            context.pages().filter((page) => page.url().includes('warning.html')).length
+        ).toBe(5);
+        await expect.poll(async () => {
+            return serviceWorker.evaluate(async () => {
+                const stored = await chrome.storage.local.get('statistics');
+                const statistics = stored.statistics as {today?: number; total?: number} | undefined;
+                return {today: statistics?.today, total: statistics?.total};
+            });
+        }).toEqual({today: 5, total: 5});
+
+        const warningPages = context.pages().filter((page) => page.url().includes('warning.html'));
+        await Promise.all(warningPages.map((page) => page.close()));
+        await context.unroute('https://concurrent.invalid/**');
+    });
+
+    test('blocks manual and chrome.tabs reloads after a rule is added', async () => {
+        const routePattern = /https:\/\/(?:manual|api)-reload\.invalid\/.*/;
+        await context.route(routePattern, (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Reload test</title>',
+        }));
+
+        const manualPage = await context.newPage();
+        await manualPage.goto('https://manual-reload.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'manual-reload.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await manualPage.waitForTimeout(100);
+        const manualWarningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await manualPage.reload({waitUntil: 'commit'}).catch(() => undefined);
+        const manualWarning = await manualWarningPromise;
+        await expect(manualWarning.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+        expect(manualPage.isClosed()).toBe(true);
+        await manualWarning.close();
+
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({blocked: []});
+        });
+        const apiPage = await context.newPage();
+        await apiPage.goto('https://api-reload.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'api-reload.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await apiPage.waitForTimeout(100);
+        const apiWarningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await serviceWorker.evaluate(async () => {
+            const tab = (await chrome.tabs.query({url: 'https://api-reload.invalid/*'}))[0];
+            if (!tab?.id) throw new Error('Could not find reload test tab');
+            await chrome.tabs.reload(tab.id);
+        }).catch(() => undefined);
+        const apiWarning = await apiWarningPromise;
+        await expect(apiWarning.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+        expect(apiPage.isClosed()).toBe(true);
+        await apiWarning.close();
+        await context.unroute(routePattern);
+    });
+
+    test('does not treat a late iframe load as a top-level reload', async () => {
+        const routePattern = /https:\/\/(?:iframe-host|iframe-content)\.invalid\/.*/;
+        await context.route(routePattern, (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Iframe test</title>',
+        }));
+        const page = await context.newPage();
+        await page.goto('https://iframe-host.invalid/page');
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'iframe-host.invalid', scope: 'domain', enabled: true}],
+            });
+        });
+        await page.waitForTimeout(100);
+
+        await page.evaluate(() => new Promise<void>((resolve) => {
+            const frame = document.createElement('iframe');
+            frame.src = 'https://iframe-content.invalid/late';
+            frame.addEventListener('load', () => resolve(), {once: true});
+            document.body.appendChild(frame);
+        })).catch(() => undefined);
+        await page.waitForTimeout(300);
+
+        expect(page.isClosed()).toBe(false);
+        expect(page.url()).toBe('https://iframe-host.invalid/page');
+        await page.close();
+        await context.unroute(routePattern);
     });
 
     test('allows matching pages while blocking is manually or temporarily paused', async () => {

@@ -24,6 +24,10 @@ describe('getPureHostname', () => {
         expect(result).toBe(expectedHostname);
     });
 
+    it('removes a trailing DNS dot', () => {
+        expect(getPureHostname('https://Example.COM./path')).toBe('example.com');
+    });
+
     it('handles URLs with http protocol', () => {
         const inputUrl = 'http://uk.trustpilot.com';
         const expectedHostname = 'uk.trustpilot.com';

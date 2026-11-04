@@ -8,6 +8,10 @@ import {
     DailyPauseUsage,
 } from './helper/extensionState';
 import {getRandomItem} from './helper/getRandomItem';
+import {
+    ADD_CURRENT_SITE_DOMAIN_RULE,
+    AddCurrentSiteDomainRuleResponse,
+} from './helper/backgroundMessages';
 import {normalizePassphraseProtection, PassphraseProtection} from './helper/passphraseProtection';
 import {createCurrentSiteStatus} from './popup/currentSiteStatus';
 import {createPassphrasePrompt} from './popup/passphrasePrompt';
@@ -19,6 +23,7 @@ const PAUSE_NUDGES = [
 ];
 
 const enabledToggle = document.getElementById('enabledToggle') as HTMLInputElement;
+const popupExtensionVersion = document.getElementById('popupExtensionVersion');
 const statusText = document.getElementById('statusText');
 const activeRules = document.getElementById('activeRules');
 const blockedToday = document.getElementById('blockedToday');
@@ -39,7 +44,26 @@ let pauseNudgeMessage = '';
 let countdownTimer: ReturnType<typeof setInterval> | undefined;
 let passphraseProtection: PassphraseProtection | null = null;
 const passphrasePrompt = createPassphrasePrompt(() => passphraseProtection);
-const currentSiteStatus = createCurrentSiteStatus(() => ({blockingEnabled, pausedUntil}));
+const currentSiteStatus = createCurrentSiteStatus(
+    () => ({blockingEnabled, pausedUntil}),
+    (tabId, url, done) => {
+        chrome.runtime.sendMessage({type: ADD_CURRENT_SITE_DOMAIN_RULE, tabId, url}, (response: AddCurrentSiteDomainRuleResponse) => {
+            if (chrome.runtime.lastError || !response?.ok) {
+                done({ok: false});
+                return;
+            }
+            blockingEnabled = response.enabled;
+            pausedUntil = response.pausedUntil;
+            setText(activeRules, countActiveRules(response.blocked));
+            refreshBlockingState();
+            done(response);
+        });
+    },
+);
+
+if (popupExtensionVersion) {
+    popupExtensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
+}
 
 function renderBlockingState(now = Date.now()) {
     const activePausedUntil = blockingEnabled ? normalizePausedUntil(pausedUntil, now) : 0;

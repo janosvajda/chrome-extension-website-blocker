@@ -1,6 +1,7 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.7",
+  "version": "1.0.8",
+  "private": true,
   "description": "Website blocker",
   "main": "index.js",
   "scripts": {
@@ -12,7 +13,8 @@
     "test:integration": "jest --runInBand --no-watchman --testPathPatterns=integration",
     "test:e2e": "npm run build && playwright test",
     "package:store": "npm run build && node scripts/create-store-package.cjs",
-    "publish": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run test:e2e && node scripts/create-store-package.cjs",
+    "prepublishOnly": "node -e \"console.error('This Chrome extension must not be published to npm.'); process.exit(1)\"",
+    "verify:release": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run test:e2e && node scripts/create-store-package.cjs",
     "typecheck": "tsc --noEmit && tsc -p e2e/tsconfig.json",
     "lint": "oxlint src e2e playwright.config.ts",
     "lint:fix": "oxlint src e2e playwright.config.ts --fix"

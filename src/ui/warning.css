@@ -111,6 +111,13 @@ body {
     word-break: break-word;
 }
 
+.availableAgain {
+    margin-top: 8px;
+    color: #2f7048;
+    font-size: 13px;
+    font-weight: 700;
+}
+
 @keyframes pageFade {
     from {
         opacity: 0;

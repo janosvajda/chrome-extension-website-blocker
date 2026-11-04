@@ -1,4 +1,10 @@
-import {isScheduleActive, migrateLegacyScheduleGroups, normalizeRuleSchedule, normalizeRules} from './schedules';
+import {
+    findNextAvailableTime,
+    isScheduleActive,
+    migrateLegacyScheduleGroups,
+    normalizeRuleSchedule,
+    normalizeRules,
+} from './schedules';
 
 const workHours = {days: [1, 2, 3, 4, 5], start: '09:00', end: '17:00'};
 const normalizedWorkHours = {daily: [1, 2, 3, 4, 5].map((day) => ({
@@ -44,6 +50,44 @@ describe('per-rule schedules', () => {
         expect(isScheduleActive(overnight, new Date(2026, 7, 21, 23))).toBe(true);
         expect(isScheduleActive(overnight, new Date(2026, 7, 22, 1))).toBe(true);
         expect(isScheduleActive(overnight, new Date(2026, 7, 22, 3))).toBe(false);
+    });
+
+    it('finds when the current scheduled blocking period ends', () => {
+        const schedule = normalizeRuleSchedule({days: [1], start: '09:00', end: '17:00'})!;
+
+        expect(findNextAvailableTime([schedule], new Date(2026, 7, 24, 10))).toEqual(
+            new Date(2026, 7, 24, 17),
+        );
+    });
+
+    it('waits until overlapping and back-to-back blocking periods have all ended', () => {
+        const schedules = [
+            {daily: [{day: 1, mode: 'period' as const, start: '09:00', end: '12:00'}]},
+            {daily: [{day: 1, mode: 'period' as const, start: '11:00', end: '14:00'}]},
+            {daily: [{day: 1, mode: 'period' as const, start: '14:00', end: '16:00'}]},
+        ];
+
+        expect(findNextAvailableTime(schedules, new Date(2026, 7, 24, 10))).toEqual(
+            new Date(2026, 7, 24, 16),
+        );
+    });
+
+    it('finds the following-day end of an overnight period', () => {
+        const overnight = {daily: [{day: 5, mode: 'period' as const, start: '22:00', end: '02:00'}]};
+
+        expect(findNextAvailableTime([overnight], new Date(2026, 7, 21, 23))).toEqual(
+            new Date(2026, 7, 22, 2),
+        );
+    });
+
+    it('does not offer an availability time for permanent or inactive blocking', () => {
+        const currentPeriod = {daily: [{day: 1, mode: 'period' as const, start: '09:00', end: '17:00'}]};
+        const everyDay = {daily: Array.from({length: 7}, (_, day) => ({day, mode: 'all-day' as const}))};
+
+        expect(findNextAvailableTime([currentPeriod, undefined], new Date(2026, 7, 24, 10))).toBeNull();
+        expect(findNextAvailableTime([everyDay], new Date(2026, 7, 24, 10))).toBeNull();
+        expect(findNextAvailableTime([currentPeriod], new Date(2026, 7, 24, 18))).toBeNull();
+        expect(findNextAvailableTime([], new Date(2026, 7, 24, 10))).toBeNull();
     });
 
     it('normalizes, deduplicates, and validates scheduled rules', () => {

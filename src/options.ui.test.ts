@@ -15,24 +15,32 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     document.documentElement.innerHTML = fs.readFileSync(path.resolve(__dirname, 'ui/options.html'), 'utf8');
     missingIds.forEach((id) => document.getElementById(id)?.remove());
     const data: Data = {blocked: [], enabled: true, schedules: [], ...initial};
+    let storageChangeListener: ((changes: Data, areaName: string) => void) | undefined;
     const chromeMock = {
         runtime: {
             lastError: undefined as undefined | {message: string},
             getManifest: jest.fn(() => ({version: '1.0.6'})),
         },
-        storage: {local: {
-            get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
-                callback({...defaults, ...data});
-            }),
-            set: jest.fn((values: Data, callback?: () => void) => {
-                Object.assign(data, values);
-                callback?.();
-            }),
-            remove: jest.fn((key: string, callback?: () => void) => {
-                delete data[key];
-                callback?.();
-            }),
-        }},
+        storage: {
+            local: {
+                get: jest.fn((defaults: Data, callback: (value: Data) => void) => {
+                    callback({...defaults, ...data});
+                }),
+                set: jest.fn((values: Data, callback?: () => void) => {
+                    Object.assign(data, values);
+                    callback?.();
+                }),
+                remove: jest.fn((key: string, callback?: () => void) => {
+                    delete data[key];
+                    callback?.();
+                }),
+            },
+            onChanged: {
+                addListener: jest.fn((listener: (changes: Data, areaName: string) => void) => {
+                    storageChangeListener = listener;
+                }),
+            },
+        },
     };
     (global as any).chrome = chromeMock;
     Object.defineProperty(URL, 'createObjectURL', {value: jest.fn(() => 'blob:test'), configurable: true});
@@ -40,7 +48,15 @@ function setup(initial: Data = {}, missingIds: string[] = []) {
     jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
     jest.isolateModules(() => require('./options'));
     window.dispatchEvent(new Event('DOMContentLoaded'));
-    return {chromeMock, data};
+    const changeStoredRules = (blocked: Data[], areaName = 'local') => {
+        const oldValue = data.blocked;
+        data.blocked = blocked;
+        storageChangeListener?.({blocked: {oldValue, newValue: blocked}}, areaName);
+    };
+    const emitStorageChange = (changes: Data, areaName = 'local') => {
+        storageChangeListener?.(changes, areaName);
+    };
+    return {chromeMock, data, changeStoredRules, emitStorageChange};
 }
 
 function addWebsite(value: string) {
@@ -85,6 +101,7 @@ describe('options UI', () => {
     it('adds, sorts, toggles, deletes, and paginates rules', () => {
         const {data, chromeMock} = setup();
         expect(document.getElementById('extensionVersion')?.textContent).toBe('v1.0.6');
+        expect(document.getElementById('copyrightYear')?.textContent).toBe(String(new Date().getFullYear()));
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(false);
         expect(document.querySelector('.websiteHeader')?.textContent).toBe('Website');
@@ -236,6 +253,97 @@ describe('options UI', () => {
         expect(data.blocked).toContainEqual({name: 'site-1.example', scope: 'domain', enabled: true});
     });
 
+    it('keeps rules added externally before a Settings toggle', () => {
+        const originalRule = {name: 'original.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'context-menu.example', scope: 'domain', enabled: true};
+        const {data, changeStoredRules} = setup({blocked: [originalRule]});
+
+        changeStoredRules([originalRule, externalRule]);
+        expect(visibleRuleNames()).toEqual(['context-menu.example', 'original.example']);
+
+        const originalCheckbox = Array.from(document.querySelectorAll<HTMLInputElement>('.websiteCheckbox'))
+            .find((checkbox) => checkbox.getAttribute('aria-label') === 'Block original.example') as HTMLInputElement;
+        originalCheckbox.checked = false;
+        originalCheckbox.dispatchEvent(new Event('change'));
+
+        expect(data.blocked).toContainEqual(externalRule);
+        expect(data.blocked).toContainEqual({...originalRule, enabled: false});
+    });
+
+    it('keeps keyboard focus when its own rule save reaches the storage listener', () => {
+        const rule = {name: 'focus.example', scope: 'domain', enabled: true};
+        const {data, emitStorageChange} = setup({blocked: [rule]});
+        const checkbox = document.querySelector('.websiteCheckbox') as HTMLInputElement;
+        checkbox.focus();
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change'));
+
+        emitStorageChange({blocked: {oldValue: [rule], newValue: data.blocked}});
+
+        expect(document.activeElement).toBe(checkbox);
+        expect(data.blocked).toContainEqual({...rule, enabled: false});
+    });
+
+    it('defers external rule refreshes while schedule edits are unsaved', () => {
+        const originalRule = {name: 'scheduled.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'external.example', scope: 'domain', enabled: true};
+        const {changeStoredRules} = setup({blocked: [originalRule]});
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        const start = document.querySelector('[data-schedule-day="1"] .scheduleDayStart') as HTMLInputElement;
+        start.value = '10:15';
+
+        changeStoredRules([originalRule, externalRule]);
+
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(false);
+        expect(start.value).toBe('10:15');
+        expect(visibleRuleNames()).toEqual(['scheduled.example']);
+
+        document.getElementById('cancelScheduleButton')?.click();
+        expect((document.getElementById('scheduleDialog') as HTMLElement).hidden).toBe(true);
+        expect(visibleRuleNames()).toEqual(['external.example', 'scheduled.example']);
+    });
+
+    it('merges saved schedule edits with rules received while the editor was open', () => {
+        const originalRule = {name: 'scheduled.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'external.example', scope: 'domain', enabled: true};
+        const {data, changeStoredRules} = setup({blocked: [originalRule]});
+        (document.querySelector('.scheduleButton') as HTMLButtonElement).click();
+        const start = document.querySelector('[data-schedule-day="1"] .scheduleDayStart') as HTMLInputElement;
+        start.value = '10:15';
+        changeStoredRules([originalRule, externalRule]);
+
+        document.getElementById('saveScheduleButton')?.click();
+
+        expect(data.blocked).toContainEqual(externalRule);
+        const savedRule = data.blocked.find((entry) => entry.name === originalRule.name);
+        expect(savedRule.schedule.daily).toContainEqual({day: 1, mode: 'period', start: '10:15', end: '17:00'});
+        expect(visibleRuleNames()).toEqual(['external.example', 'scheduled.example']);
+    });
+
+    it('merges a newer stored rule even before its change event is delivered', () => {
+        const originalRule = {name: 'original.example', scope: 'domain', enabled: true};
+        const externalRule = {name: 'just-added.example', scope: 'domain', enabled: true};
+        const {data} = setup({blocked: [originalRule]});
+        data.blocked = [originalRule, externalRule, {name: 'invalid', scope: 'domain', enabled: true}];
+
+        const checkbox = document.querySelector('.websiteCheckbox') as HTMLInputElement;
+        checkbox.checked = false;
+        checkbox.dispatchEvent(new Event('change'));
+
+        expect(data.blocked).toContainEqual(externalRule);
+        expect(data.blocked).toContainEqual({...originalRule, enabled: false});
+    });
+
+    it('ignores unrelated and non-local storage changes', () => {
+        const rule = {name: 'original.example', scope: 'domain', enabled: true};
+        const {changeStoredRules, emitStorageChange} = setup({blocked: [rule]});
+
+        emitStorageChange({enabled: {oldValue: true, newValue: false}});
+        changeStoredRules([{name: 'sync.example', scope: 'domain', enabled: true}], 'sync');
+
+        expect(visibleRuleNames()).toEqual(['original.example']);
+    });
+
     it('edits schedules and deletes the correct filtered rule while retaining other rules', () => {
         const hiddenRule = {name: 'alpha.example', scope: 'domain', enabled: true};
         const urlRule = {name: 'https://target.example/path', scope: 'url', enabled: true};
@@ -292,6 +400,19 @@ describe('options UI', () => {
         input.value = 'keyboard.example';
         document.getElementById('addWebsite')?.dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));
         expect(document.getElementById('addWebsiteStatus')?.textContent).toBe('Website added.');
+    });
+
+    it('identifies the parent schedule that already covers a subdomain', () => {
+        setup({blocked: [{
+            name: 'reddit.com', scope: 'domain', enabled: true,
+            schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+        }]});
+
+        addWebsite('old.reddit.com');
+
+        expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toBe(
+            'This website is already covered by scheduled blocking for reddit.com: Mon | 08:00-17:00.'
+        );
     });
 
     it.each([

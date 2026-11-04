@@ -13,6 +13,7 @@ type ScheduleEditorDependencies = {
     getRules: () => ScheduledRule[];
     saveRule: (index: number, rule: ScheduledRule) => void;
     refreshRules: () => void;
+    onClose?: (saved: boolean) => void;
 };
 
 export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
@@ -63,12 +64,13 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
         setEditorSuspended(true);
     }
 
-    function close() {
+    function close(saved = false) {
         dialog.hidden = true;
         copyDialog.hidden = true;
         templateDialog.hidden = true;
         setEditorSuspended(false);
         editingIndex = null;
+        dependencies.onClose?.(saved);
     }
 
     function open(index: number) {
@@ -227,7 +229,7 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
         });
     }
 
-    document.getElementById('cancelScheduleButton')?.addEventListener('click', close);
+    document.getElementById('cancelScheduleButton')?.addEventListener('click', () => close(false));
     document.getElementById('saveScheduleButton')?.addEventListener('click', () => {
         if (editingIndex === null) return;
         const schedule = readSchedule();
@@ -236,7 +238,7 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
             return;
         }
         dependencies.saveRule(editingIndex, {...dependencies.getRules()[editingIndex], schedule});
-        close();
+        close(true);
         dependencies.refreshRules();
     });
     removeButton.addEventListener('click', () => {
@@ -244,7 +246,7 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
         const entry = {...dependencies.getRules()[editingIndex]};
         delete entry.schedule;
         dependencies.saveRule(editingIndex, entry);
-        close();
+        close(true);
         dependencies.refreshRules();
     });
     document.querySelectorAll<HTMLElement>('.dailyScheduleRow').forEach((row) => {

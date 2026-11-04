@@ -12,11 +12,11 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 - **Search and Filter Rules**: Search domains and full URLs across the entire list, or show enabled, disabled, scheduled, unscheduled, domain, or URL rules. Result counts and a clear-filters action make it easy to return to the full list. Searching and filtering do not change which websites are blocked.
 
-- **Toolbar Controls**: Pause or resume all blocking, view the number of enabled rules and local statistics, and open the options page from the extension popup. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
+- **Toolbar Controls**: See the current website's blocking status, add its domain to your blocking list, pause or resume all blocking, view the number of enabled rules and local statistics, and open Settings from the extension popup. When blocking is active, **Block this site** reloads the current page immediately, so save any unfinished work first. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
 - **Temporary Pause**: Pause all blocking for 15 minutes, 30 minutes, or one hour from the toolbar popup. The popup shows the remaining minutes and local resume time, and blocking resumes automatically.
 
-- **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block.
+- **Per-site Schedules**: Optionally choose the active days and local start/end time for any rule, including overnight periods. Enabled rules without a schedule block at all times, while disabled rules never block. A schedule beginning, a temporary pause ending, or a rule added in Settings does not close an already-open page; it takes effect when that tab next navigates or reloads. This avoids closing a working tab unpredictably and losing unsaved work.
 
   Use **Copy from another rule…** in the schedule editor to reuse a saved schedule. Preview the source, review the copied days and times, then save to apply them. Copying preserves each rule's enabled state and leaves the source rule unchanged.
 
@@ -32,7 +32,7 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
   <img src="docs/images/blocker_context_menu_screenshot.png" alt="Context menu action" width="360">
 
-- **Friendly Blocking Page**: When a rule matches, the original tab is closed and a local page explains what was blocked. It may also show a joke or scientific quote.
+- **Friendly Blocking Page**: When a navigation or reload matches an active rule, the original tab is closed and a local page explains what was blocked. For scheduled rules, it also shows when the site becomes available again. It may also show a joke or scientific quote. Because Tiny Website Blocker does not request broad website or network-blocking permissions, Chrome may briefly begin loading the destination before the extension receives the URL-change event.
 
 - **Local and Private by Design**: Rules, schedules, settings, and statistics stay in Chrome's local extension storage. Tiny Website Blocker makes no external network requests or API calls and requires no account.
 
@@ -90,7 +90,7 @@ These commands run static analysis, the Jest unit and integration suites with co
 Create a fully verified, versioned Chrome Web Store ZIP with:
 
 ```bash
-npm run publish
+npm run verify:release
 ```
 
 This runs the dependency audit, linting, Jest tests, real Chromium end-to-end tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.

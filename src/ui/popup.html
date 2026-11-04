@@ -11,7 +11,10 @@
     <header>
         <img src="icons/website_blocker_icon_48x48.png" alt="" width="42" height="42">
         <div>
-            <h1>Tiny Website Blocker</h1>
+            <div class="popupTitleHeading">
+                <h1>Tiny Website Blocker</h1>
+                <span id="popupExtensionVersion" class="popupVersionBadge" aria-label="Extension version"></span>
+            </div>
             <p id="statusText">Loading…</p>
         </div>
         <label class="switch" aria-label="Enable website blocking">
@@ -38,7 +41,8 @@
     <section id="currentSiteStatus" class="currentSiteStatus" aria-label="Current website blocking status" hidden>
         <span class="currentSiteLabel">Current website</span>
         <strong id="currentSiteName"></strong>
-        <span id="currentSiteRuleStatus"></span>
+        <span id="currentSiteRuleStatus" aria-live="polite"></span>
+        <button id="blockCurrentSiteButton" class="blockCurrentSiteButton" type="button" hidden>Block this site</button>
     </section>
     <section class="stats" aria-label="Blocking statistics">
         <div><strong id="activeRules">0</strong><span>Active rules</span></div>
