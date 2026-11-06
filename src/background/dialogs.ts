@@ -1,4 +1,12 @@
+import type {CoveredUrlRuleInfo} from '../helper/blockedEntry';
+
 export type BlockScopeChoice = 'domain' | 'url' | null;
+export type BlockScopeSurface = 'page' | 'popup';
+export type CoveredUrlRuleChoice = 'keep' | 'disable' | 'delete' | null;
+export type RuleChoiceDialogConfig =
+    | {kind: 'scope'; url: string; surface?: BlockScopeSurface}
+    | {kind: 'coveredUrls'; domain: string; urls: CoveredUrlRuleInfo[]};
+export type RuleChoiceDialogResult = Exclude<BlockScopeChoice, null> | Exclude<CoveredUrlRuleChoice, null> | null;
 
 export function showScheduledDomainOverrideDialog(
     blockedDomain: string,
@@ -66,7 +74,7 @@ export function showScheduledDomainOverrideDialog(
     });
 }
 
-export function showBlockScopeDialog(url: string): Promise<BlockScopeChoice> {
+export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<RuleChoiceDialogResult> {
     document.getElementById('tiny-blocker-choice')?.remove();
     return new Promise((resolve) => {
         const host = document.createElement('tiny-website-blocker-dialog');
@@ -74,62 +82,372 @@ export function showBlockScopeDialog(url: string): Promise<BlockScopeChoice> {
         host.style.setProperty('all', 'initial', 'important');
         host.style.setProperty('display', 'block', 'important');
         const shadow = host.attachShadow({mode: 'closed'});
+        const style = document.createElement('style');
+        style.textContent = `
+            * {
+                box-sizing: border-box;
+            }
+
+            .overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483647;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                background: rgba(0, 0, 0, .55);
+            }
+
+            .card {
+                width: min(520px, 100%);
+                padding: 22px;
+                border-radius: 14px;
+                background: #fff;
+                color: #1f1b16;
+                box-shadow: 0 18px 32px rgba(0, 0, 0, .25);
+                font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
+            }
+
+            .overlay.popup .card {
+                transform: translateY(-50px);
+            }
+
+            .title {
+                margin-bottom: 14px;
+                font-size: 20px;
+                font-weight: bold;
+            }
+
+            .subtitle {
+                margin-bottom: 8px;
+                color: #6b5f52;
+                font-size: 14px;
+            }
+
+            .url {
+                max-height: 150px;
+                margin-bottom: 18px;
+                padding: 11px 12px;
+                overflow: auto;
+                overflow-wrap: anywhere;
+                border: 1px solid #edcdb9;
+                border-radius: 10px;
+                background: #fff7f1;
+                color: #493d32;
+                font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+                font-size: 12px;
+                line-height: 1.45;
+            }
+
+            .entry + .entry {
+                margin-top: 7px;
+                padding-top: 7px;
+                border-top: 1px solid #edcdb9;
+            }
+
+            .entry {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto;
+                align-items: start;
+                gap: 8px;
+            }
+
+            .entry-url {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .entry-status {
+                padding: 2px 6px;
+                border-radius: 999px;
+                background: #eee8e0;
+                color: #6b5f52;
+                font-family: "Trebuchet MS", "Lucida Grande", sans-serif;
+                font-size: 10px;
+                font-weight: bold;
+                text-transform: uppercase;
+            }
+
+            .entry-status.enabled {
+                background: #fce8dc;
+                color: #a65322;
+            }
+
+            .actions {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+                gap: 8px;
+            }
+
+            .choice {
+                position: relative;
+            }
+
+            .choice button {
+                width: 100%;
+            }
+
+            .tooltip {
+                position: absolute;
+                bottom: calc(100% + 9px);
+                left: 50%;
+                z-index: 2;
+                width: min(240px, calc(100vw - 48px));
+                padding: 8px 10px;
+                border-radius: 8px;
+                background: #2f2923;
+                color: #fff;
+                font-size: 12px;
+                font-weight: normal;
+                line-height: 1.35;
+                text-align: left;
+                white-space: normal;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateX(-50%) translateY(3px);
+                transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+            }
+
+            .choice:last-child .tooltip {
+                right: 0;
+                left: auto;
+                transform: translateY(3px);
+            }
+
+            .choice:hover .tooltip,
+            .choice:focus-within .tooltip {
+                opacity: 1;
+                visibility: visible;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .choice:last-child:hover .tooltip,
+            .choice:last-child:focus-within .tooltip {
+                transform: translateY(0);
+            }
+
+            button {
+                padding: 8px 12px;
+                border: 0;
+                border-radius: 999px;
+                cursor: pointer;
+                font: inherit;
+                white-space: nowrap;
+            }
+
+            button:focus-visible {
+                outline: 3px solid rgba(196, 90, 31, .28);
+                outline-offset: 2px;
+            }
+
+            .cancel {
+                border: 1px solid #c45a1f;
+                background: transparent;
+                color: #c45a1f;
+            }
+
+            .domain {
+                background: #e0702f;
+                color: #fff;
+            }
+
+            .full-url {
+                background: #1f1b16;
+                color: #fff;
+            }
+
+            .keep {
+                border: 1px solid #6b5f52;
+                background: transparent;
+                color: #493d32;
+            }
+
+            .disable {
+                background: #e0702f;
+                color: #fff;
+            }
+
+            .delete {
+                background: #a33226;
+                color: #fff;
+            }
+
+            @media (max-width: 440px) {
+                .overlay {
+                    padding: 12px;
+                }
+
+                .card {
+                    width: 100%;
+                    max-height: calc(100vh - 24px);
+                    padding: 16px;
+                    overflow: auto;
+                    border-radius: 12px;
+                }
+
+                .title {
+                    margin-bottom: 10px;
+                    font-size: 18px;
+                }
+
+                .subtitle {
+                    margin-bottom: 7px;
+                    font-size: 13px;
+                    line-height: 1.35;
+                }
+
+                .url {
+                    max-height: 88px;
+                    margin-bottom: 14px;
+                    padding: 9px 10px;
+                    font-size: 11px;
+                }
+
+                .actions.scope {
+                    display: grid;
+                    grid-template-columns: auto auto auto;
+                    gap: 6px;
+                }
+
+                .actions.coveredUrls {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 6px;
+                }
+
+                button {
+                    min-width: 0;
+                    padding: 8px 9px;
+                    font-size: 12px;
+                }
+            }
+        `;
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483647;display:flex;align-items:center;justify-content:center';
+        overlay.className = 'overlay';
+        if (config.kind === 'scope' && config.surface === 'popup') overlay.classList.add('popup');
 
         const card = document.createElement('div');
-        card.style.cssText = 'box-sizing:border-box;width:min(520px,calc(100vw - 40px));padding:22px;border-radius:14px;background:#fff;color:#1f1b16;box-shadow:0 18px 32px rgba(0,0,0,.25);font-family:"Trebuchet MS","Lucida Grande","Lucida Sans Unicode",sans-serif';
+        card.className = 'card';
 
         const title = document.createElement('div');
-        title.textContent = 'Block this page';
-        title.style.cssText = 'margin-bottom:14px;font-size:20px;font-weight:bold';
+        title.className = 'title';
         const subtitle = document.createElement('div');
-        subtitle.textContent = 'Choose how you want to block this page:';
-        subtitle.style.cssText = 'margin-bottom:8px;color:#6b5f52;font-size:14px';
+        subtitle.className = 'subtitle';
         const urlBox = document.createElement('div');
-        urlBox.textContent = url;
-        urlBox.style.cssText = 'margin-bottom:18px;padding:11px 12px;overflow-wrap:anywhere;border:1px solid #edcdb9;border-radius:10px;background:#fff7f1;color:#493d32;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.45';
+        urlBox.className = 'url';
 
         const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-end;gap:8px';
-        const cancelButton = document.createElement('button');
-        cancelButton.textContent = 'Cancel';
-        const domainButton = document.createElement('button');
-        domainButton.textContent = 'Block domain';
-        const urlButton = document.createElement('button');
-        urlButton.textContent = 'Block this full URL';
+        actions.className = `actions ${config.kind}`;
 
-        [cancelButton, domainButton, urlButton].forEach((button) => {
-            button.style.cssText = 'padding:8px 12px;border:0;border-radius:999px;cursor:pointer;font-family:inherit';
-        });
-        cancelButton.style.background = 'transparent';
-        cancelButton.style.border = '1px solid #c45a1f';
-        cancelButton.style.color = '#c45a1f';
-        domainButton.style.background = '#e0702f';
-        domainButton.style.color = '#fff';
-        urlButton.style.background = '#1f1b16';
-        urlButton.style.color = '#fff';
+        const choices: Array<{
+            label: string;
+            result: RuleChoiceDialogResult;
+            className: string;
+            description?: string;
+        }> = config.kind === 'scope'
+            ? [
+                {label: 'Cancel', result: null, className: 'cancel'},
+                {
+                    label: 'Block entire domain',
+                    result: 'domain',
+                    className: 'domain',
+                    description: 'Blocks every page on this domain and all its subdomains.',
+                },
+                {
+                    label: 'Block only this URL',
+                    result: 'url',
+                    className: 'full-url',
+                    description: 'Blocks only this exact address. Other pages on the domain remain available.',
+                },
+            ]
+            : [
+                {label: 'Cancel', result: null, className: 'cancel'},
+                {label: 'Keep URL blocks', result: 'keep', className: 'keep'},
+                ...(config.urls.some((entry) => entry.enabled)
+                    ? [{label: 'Disable URL blocks', result: 'disable' as const, className: 'disable'}]
+                    : []),
+                {label: 'Delete URL blocks', result: 'delete', className: 'delete'},
+            ];
+
+        if (config.kind === 'scope') {
+            title.textContent = 'Block this page';
+            subtitle.textContent = 'Choose how you want to block this page:';
+            urlBox.textContent = config.url;
+        } else {
+            title.textContent = `${config.domain} already has URL blocks`;
+            const hasEnabledUrl = config.urls.some((entry) => entry.enabled);
+            subtitle.textContent = hasEnabledUrl
+                ? 'The full URLs below already have blocking rules. What should happen to them when you block the whole domain?'
+                : 'The full-URL blocks below are already disabled. Keep them for later or delete them.';
+            config.urls.forEach(({url, enabled}) => {
+                const entry = document.createElement('div');
+                entry.className = 'entry';
+                const entryUrl = document.createElement('span');
+                entryUrl.className = 'entry-url';
+                entryUrl.textContent = url;
+                const status = document.createElement('span');
+                status.className = `entry-status ${enabled ? 'enabled' : 'disabled'}`;
+                status.textContent = enabled ? 'Enabled' : 'Disabled';
+                entry.append(entryUrl, status);
+                urlBox.appendChild(entry);
+            });
+        }
 
         const onKeydown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') finish(null);
         };
-        const finish = (result: BlockScopeChoice) => {
+        const finish = (result: RuleChoiceDialogResult) => {
             window.removeEventListener('keydown', onKeydown);
             host.remove();
             resolve(result);
         };
-        cancelButton.addEventListener('click', () => finish(null));
-        domainButton.addEventListener('click', () => finish('domain'));
-        urlButton.addEventListener('click', () => finish('url'));
+        choices.forEach((choice) => {
+            const button = document.createElement('button');
+            button.textContent = choice.label;
+            button.className = choice.className;
+            button.addEventListener('click', () => finish(choice.result as RuleChoiceDialogResult));
+            if (!choice.description) {
+                actions.appendChild(button);
+                return;
+            }
+            const choiceWrapper = document.createElement('span');
+            choiceWrapper.className = 'choice';
+            const tooltip = document.createElement('span');
+            const tooltipId = `tiny-blocker-${choice.className}-description`;
+            tooltip.id = tooltipId;
+            tooltip.className = 'tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            tooltip.textContent = choice.description;
+            button.setAttribute('aria-describedby', tooltipId);
+            choiceWrapper.append(button, tooltip);
+            actions.appendChild(choiceWrapper);
+        });
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay) finish(null);
         });
         window.addEventListener('keydown', onKeydown);
 
-        actions.append(cancelButton, domainButton, urlButton);
         card.append(title, subtitle, urlBox, actions);
         overlay.appendChild(card);
-        shadow.appendChild(overlay);
+        shadow.append(overlay, style);
         document.body.appendChild(host);
+        (actions.querySelector('button') as HTMLButtonElement | null)?.focus();
     });
+}
+
+export function showBlockScopeDialog(
+    url: string,
+    surface: BlockScopeSurface = 'page',
+): Promise<BlockScopeChoice> {
+    return showRuleChoiceDialog({kind: 'scope', url, surface}) as Promise<BlockScopeChoice>;
+}
+
+export function showCoveredUrlRulesDialog(
+    domain: string,
+    urls: CoveredUrlRuleInfo[],
+): Promise<CoveredUrlRuleChoice> {
+    return showRuleChoiceDialog({kind: 'coveredUrls', domain, urls}) as Promise<CoveredUrlRuleChoice>;
 }

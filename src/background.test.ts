@@ -549,6 +549,34 @@ describe('background blocked hostnames cache', () => {
         expect(mockChrome.tabs.reload).toHaveBeenCalledWith(7);
     });
 
+    it('asks how to handle covered full-URL blocks before a context-menu domain is saved', async () => {
+        const existingUrl = {name: 'https://example.com/article', scope: 'url', enabled: true};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [existingUrl],
+        }));
+        mockChrome.scripting.executeScript.mockImplementation((options, callback) => {
+            expect(options.args).toEqual([{
+                kind: 'coveredUrls',
+                domain: 'example.com',
+                urls: [{url: existingUrl.name, enabled: true}],
+            }]);
+            callback?.([{result: 'delete'}]);
+        });
+
+        onContextMenuClicked(
+            {menuItemId: 'blockPage'},
+            {id: 7, url: 'https://example.com', title: 'Example'},
+        );
+        for (let index = 0; index < 6; index += 1) await Promise.resolve();
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+        }, expect.any(Function));
+        expect(mockChrome.tabs.reload).toHaveBeenCalledWith(7);
+    });
+
     it('preserves a rule added while a context-menu choice is in progress', async () => {
         const externallyAdded = {name: 'other.example', scope: 'domain', enabled: true};
         let readCount = 0;
@@ -595,9 +623,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         const keepsMessageChannelOpen = onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://news.example.com/article',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(keepsMessageChannelOpen).toBe(true);
@@ -624,6 +653,150 @@ describe('background blocked hostnames cache', () => {
         expect(shouldBlockHostname('news.example.com')).toBe(true);
     });
 
+    it('reports covered full-URL blocks before saving a broader popup domain', () => {
+        const urls = [
+            {name: 'https://example.com/one', scope: 'url', enabled: true},
+            {name: 'https://sub.example.com/two', scope: 'url', enabled: false},
+        ];
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: urls,
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            scope: 'domain',
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: [
+                    {url: 'https://example.com/one', enabled: true},
+                    {url: 'https://sub.example.com/two', enabled: false},
+                ],
+            },
+        });
+    });
+
+    it.each([
+        ['keep', [
+            {name: 'https://example.com/one', scope: 'url', enabled: true},
+            {name: 'https://sub.example.com/two', scope: 'url', enabled: true},
+            {name: 'https://other.example/page', scope: 'url', enabled: true},
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+        ['disable', [
+            {name: 'https://example.com/one', scope: 'url', enabled: false},
+            {name: 'https://sub.example.com/two', scope: 'url', enabled: false},
+            {name: 'https://other.example/page', scope: 'url', enabled: true},
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+        ['delete', [
+            {name: 'https://other.example/page', scope: 'url', enabled: true},
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+    ] as const)('%s covered full-URL blocks when saving a popup domain', (action, expected) => {
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [
+                {name: 'https://example.com/one', scope: 'url', enabled: true},
+                {name: 'https://sub.example.com/two', scope: 'url', enabled: true},
+                {name: 'https://other.example/page', scope: 'url', enabled: true},
+            ],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            scope: 'domain',
+            coveredUrlAction: action,
+            coveredUrls: [
+                {url: 'https://example.com/one', enabled: true},
+                {url: 'https://sub.example.com/two', enabled: true},
+            ],
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({blocked: expected}, expect.any(Function));
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+            ok: true,
+            blocked: expected,
+            outcome: 'added',
+            reload: 'started',
+        }));
+    });
+
+    it('asks again if covered URL blocks changed while the choice dialog was open', () => {
+        const currentUrls = [
+            {name: 'https://example.com/one', scope: 'url', enabled: true},
+            {name: 'https://example.com/new', scope: 'url', enabled: true},
+        ];
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: currentUrls,
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            scope: 'domain',
+            coveredUrlAction: 'delete',
+            coveredUrls: [{url: 'https://example.com/one', enabled: true}],
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: currentUrls.map((entry) => ({url: entry.name, enabled: true})),
+            },
+        });
+    });
+
+    it('adds the selected full-URL rule from the popup and reloads only the matching page', () => {
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [],
+        }));
+        mockChrome.tabs.get.mockImplementation((_tabId, callback) => callback({
+            id: 42,
+            url: 'https://example.com/article?tab=1',
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/article?tab=1',
+            scope: 'url',
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+            blocked: [{name: 'https://example.com/article?tab=1', scope: 'url', enabled: true}],
+        }, expect.any(Function));
+        expect(mockChrome.tabs.reload).toHaveBeenCalledWith(42, expect.any(Function));
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+            ok: true,
+            outcome: 'added',
+            reload: 'started',
+        }));
+    });
+
     it('does not duplicate a popup domain rule that was added after the popup loaded', () => {
         const existing = {name: 'example.com', enabled: true};
         mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
@@ -634,9 +807,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/path',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
@@ -660,9 +834,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/path',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
@@ -675,6 +850,312 @@ describe('background blocked hostnames cache', () => {
         }));
     });
 
+    it('enables the exact disabled parent-domain rule from the popup and reloads the matching tab', () => {
+        const disabledRule = {
+            name: 'example.com', scope: 'domain', enabled: false,
+            title: 'Keep this metadata',
+        };
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [disabledRule],
+        }));
+        mockChrome.tabs.get.mockImplementation((_tabId, callback) => callback({
+            id: 42,
+            url: 'https://old.example.com/article',
+        }));
+        const sendResponse = jest.fn();
+
+        const keepsMessageChannelOpen = onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://old.example.com/article',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse);
+
+        const enabledRule = {...disabledRule, enabled: true};
+        expect(keepsMessageChannelOpen).toBe(true);
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({blocked: [enabledRule]}, expect.any(Function));
+        expect(mockChrome.tabs.reload).toHaveBeenCalledWith(42, expect.any(Function));
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: true,
+            blocked: [enabledRule],
+            enabled: true,
+            pausedUntil: 0,
+            reload: 'started',
+        });
+        expect(shouldBlockHostname('old.example.com')).toBe(true);
+    });
+
+    it('reports covered full-URL blocks before enabling a disabled domain', () => {
+        const fullUrl = {name: 'https://example.com/article', scope: 'url', enabled: true};
+        const domain = {name: 'example.com', scope: 'domain', enabled: false};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [fullUrl, domain],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: [{url: fullUrl.name, enabled: true}],
+            },
+        });
+    });
+
+    it.each([
+        ['keep', [
+            {name: 'https://example.com/article', scope: 'url', enabled: true},
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+        ['disable', [
+            {name: 'https://example.com/article', scope: 'url', enabled: false},
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+        ['delete', [
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]],
+    ] as const)('%s covered URL blocks while enabling a disabled domain', (action, expected) => {
+        const fullUrl = {name: 'https://example.com/article', scope: 'url', enabled: true};
+        const domain = {name: 'example.com', scope: 'domain', enabled: false};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [fullUrl, domain],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+            coveredUrlAction: action,
+            coveredUrls: [{url: fullUrl.name, enabled: true}],
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({blocked: expected}, expect.any(Function));
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+            ok: true,
+            blocked: expected,
+            reload: 'started',
+        }));
+    });
+
+    it('asks again if a covered URL changes state while a domain enable dialog is open', () => {
+        const fullUrl = {name: 'https://example.com/article', scope: 'url', enabled: false};
+        const domain = {name: 'example.com', scope: 'domain', enabled: false};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [fullUrl, domain],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+            coveredUrlAction: 'keep',
+            coveredUrls: [{url: fullUrl.name, enabled: true}],
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: [{url: fullUrl.name, enabled: false}],
+            },
+        });
+    });
+
+    it('preserves an enabled rule schedule and skips reload while that schedule is inactive', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        const schedule = {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]};
+        const disabledRule = {
+            name: 'https://example.com/article', scope: 'url', enabled: false, schedule,
+        };
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [disabledRule],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/article',
+            rule: {name: 'https://example.com/article', scope: 'url'},
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).toHaveBeenCalledWith({
+            blocked: [{...disabledRule, enabled: true}],
+        }, expect.any(Function));
+        expect(mockChrome.tabs.get).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ok: true, reload: 'skipped'}));
+    });
+
+    it.each([
+        [{enabled: false, pausedUntil: 0}, false],
+        [{enabled: true, pausedUntil: Date.now() + 60_000}, true],
+    ])('enables a stored popup rule without reloading while global blocking is unavailable', (availability, expectedEnabled) => {
+        const disabledRule = {name: 'example.com', scope: 'domain', enabled: false};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            ...availability,
+            blocked: [disabledRule],
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse);
+
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
+            ok: true,
+            enabled: expectedEnabled,
+            reload: 'skipped',
+        }));
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid or stale popup enable requests without adding a rule', () => {
+        const sendResponse = jest.fn();
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+        }));
+
+        expect(onRuntimeMessage({
+            type: 'enableCurrentSiteRule', tabId: -1, url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse)).toBeUndefined();
+        expect(onRuntimeMessage({
+            type: 'enableCurrentSiteRule', tabId: 42, url: 'chrome://extensions/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse)).toBeUndefined();
+        expect(onRuntimeMessage({
+            type: 'enableCurrentSiteRule', tabId: 42, url: 'https://different.example/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse)).toBeUndefined();
+        expect(onRuntimeMessage({
+            type: 'enableCurrentSiteRule', tabId: 42, url: 'https://missing.example/',
+            rule: {name: 'missing.example', scope: 'domain'},
+        }, {}, sendResponse)).toBe(true);
+
+        expect(sendResponse).toHaveBeenCalledTimes(4);
+        expect(sendResponse).toHaveBeenNthCalledWith(1, {ok: false});
+        expect(sendResponse).toHaveBeenNthCalledWith(2, {ok: false});
+        expect(sendResponse).toHaveBeenNthCalledWith(3, {ok: false});
+        expect(sendResponse).toHaveBeenNthCalledWith(4, {ok: false});
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('reports popup enable storage failures', () => {
+        const request = {
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        };
+        const sendResponse = jest.fn();
+        mockChrome.storage.local.get.mockImplementationOnce((_keys, callback) => {
+            mockChrome.runtime.lastError = {message: 'Read failed'};
+            callback({});
+            mockChrome.runtime.lastError = undefined;
+        });
+
+        onRuntimeMessage(request, {}, sendResponse);
+        expect(sendResponse).toHaveBeenLastCalledWith({ok: false});
+
+        mockChrome.storage.local.get.mockImplementationOnce((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+        }));
+        mockChrome.storage.local.set.mockImplementationOnce((_values, callback) => {
+            mockChrome.runtime.lastError = {message: 'Save failed'};
+            callback?.();
+            mockChrome.runtime.lastError = undefined;
+        });
+
+        onRuntimeMessage(request, {}, sendResponse);
+        expect(sendResponse).toHaveBeenLastCalledWith({ok: false});
+    });
+
+    it('handles a rule enabled elsewhere and a tab that navigated before reload', () => {
+        const enabledRule = {name: 'example.com', scope: 'domain', enabled: true};
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [enabledRule],
+        }));
+        mockChrome.tabs.get.mockImplementation((_tabId, callback) => callback({
+            id: 42,
+            url: 'https://different.example/',
+        }));
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse);
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+        expect(sendResponse).toHaveBeenCalledWith({
+            ok: true,
+            blocked: [enabledRule],
+            enabled: true,
+            pausedUntil: 0,
+            reload: 'skipped',
+        });
+    });
+
+    it('keeps the enabled rule successful when Chrome cannot reload the tab', () => {
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true,
+            pausedUntil: 0,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+        }));
+        mockChrome.tabs.reload.mockImplementationOnce((_tabId, callback) => {
+            mockChrome.runtime.lastError = {message: 'Tab was closed'};
+            callback?.();
+            mockChrome.runtime.lastError = undefined;
+        });
+        const sendResponse = jest.fn();
+
+        onRuntimeMessage({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, {}, sendResponse);
+
+        expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({ok: true, reload: 'failed'}));
+    });
+
     it.each([
         [{enabled: false, pausedUntil: 0, blocked: []}, false],
         [{enabled: true, pausedUntil: Date.now() + 60_000, blocked: []}, true],
@@ -683,9 +1164,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
@@ -711,9 +1193,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(sendResponse).toHaveBeenCalledWith(expect.objectContaining({
@@ -738,9 +1221,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(mockChrome.storage.local.set).toHaveBeenCalled();
@@ -757,31 +1241,42 @@ describe('background blocked hostnames cache', () => {
         expect(onRuntimeMessage(null, {}, sendResponse)).toBeUndefined();
         expect(onRuntimeMessage({type: 'unrelated'}, {}, sendResponse)).toBeUndefined();
         expect(onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: -1,
             url: 'https://example.com/',
+            scope: 'domain',
         }, {}, sendResponse)).toBeUndefined();
         expect(onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 123,
+            scope: 'domain',
         }, {}, sendResponse)).toBeUndefined();
         expect(onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'chrome://extensions',
+            scope: 'domain',
         }, {}, sendResponse)).toBeUndefined();
         expect(onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://localhost/',
+            scope: 'domain',
+        }, {}, sendResponse)).toBeUndefined();
+        expect(onRuntimeMessage({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            scope: 'invalid',
         }, {}, sendResponse)).toBeUndefined();
 
-        expect(sendResponse).toHaveBeenCalledTimes(4);
+        expect(sendResponse).toHaveBeenCalledTimes(5);
         expect(sendResponse).toHaveBeenNthCalledWith(1, {ok: false});
         expect(sendResponse).toHaveBeenNthCalledWith(2, {ok: false});
         expect(sendResponse).toHaveBeenNthCalledWith(3, {ok: false});
         expect(sendResponse).toHaveBeenNthCalledWith(4, {ok: false});
+        expect(sendResponse).toHaveBeenNthCalledWith(5, {ok: false});
         expect(mockChrome.storage.local.get).not.toHaveBeenCalled();
         expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
     });
@@ -795,9 +1290,10 @@ describe('background blocked hostnames cache', () => {
         });
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://read-failure.example/',
+            scope: 'domain',
         }, {}, sendResponse);
         expect(sendResponse).toHaveBeenLastCalledWith({ok: false});
 
@@ -813,9 +1309,10 @@ describe('background blocked hostnames cache', () => {
         });
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://save-failure.example/',
+            scope: 'domain',
         }, {}, sendResponse);
         expect(sendResponse).toHaveBeenLastCalledWith({ok: false});
 
@@ -831,9 +1328,10 @@ describe('background blocked hostnames cache', () => {
         });
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://update-failure.example/',
+            scope: 'domain',
         }, {}, sendResponse);
         expect(sendResponse).toHaveBeenLastCalledWith({ok: false});
     });
@@ -855,9 +1353,10 @@ describe('background blocked hostnames cache', () => {
         const sendResponse = jest.fn();
 
         onRuntimeMessage({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://example.com/',
+            scope: 'domain',
         }, {}, sendResponse);
 
         expect(mockChrome.storage.local.set).toHaveBeenCalledWith({

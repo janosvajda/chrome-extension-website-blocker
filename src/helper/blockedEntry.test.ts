@@ -1,9 +1,14 @@
 import {
+    applyCoveredUrlRuleAction,
     blockedEntryCovers,
     detectBlockScope,
+    findCoveredUrlRules,
+    getCoveredUrlRuleInfo,
+    isBlockedEntryCovered,
     normalizeBlockedEntry,
     normalizeUrlForMatch,
     requiresBlockScopeChoice,
+    sameCoveredUrlRuleInfo,
 } from './blockedEntry';
 
 describe('blocked entry validation', () => {
@@ -93,6 +98,54 @@ describe('blocked entry validation', () => {
         expect(detectBlockScope('bad value')).toBe('domain');
         expect(detectBlockScope('https://example.com/?q=1')).toBe('url');
         expect(detectBlockScope('https://example.com/#part')).toBe('url');
+    });
+
+    it('finds and resolves full-URL blocks covered by a broader domain', () => {
+        const domain = {name: 'example.com', scope: 'domain' as const};
+        const rules = [
+            {name: 'https://example.com/one', scope: 'url' as const, enabled: true},
+            {name: 'https://sub.example.com/two', scope: 'url' as const, enabled: true},
+            {name: 'https://other.example/three', scope: 'url' as const, enabled: true},
+            {name: 'unrelated.example', scope: 'domain' as const, enabled: true},
+        ];
+
+        expect(findCoveredUrlRules(rules, domain).map((entry) => entry.name)).toEqual([
+            'https://example.com/one',
+            'https://sub.example.com/two',
+        ]);
+        const coveredInfo = [
+            {url: 'https://example.com/one', enabled: true},
+            {url: 'https://sub.example.com/two', enabled: true},
+        ];
+        expect(getCoveredUrlRuleInfo(rules, domain)).toEqual(coveredInfo);
+        expect(sameCoveredUrlRuleInfo(coveredInfo, [...coveredInfo].reverse())).toBe(true);
+        expect(sameCoveredUrlRuleInfo(coveredInfo, [
+            coveredInfo[0],
+            {...coveredInfo[1], enabled: false},
+        ])).toBe(false);
+        expect(applyCoveredUrlRuleAction(rules, domain, 'keep')).toEqual(rules);
+        expect(applyCoveredUrlRuleAction(rules, domain, 'disable')).toEqual([
+            {...rules[0], enabled: false},
+            {...rules[1], enabled: false},
+            rules[2],
+            rules[3],
+        ]);
+        expect(applyCoveredUrlRuleAction(rules, domain, 'delete')).toEqual([rules[2], rules[3]]);
+        expect(findCoveredUrlRules(rules, {name: 'https://example.com/one', scope: 'url'})).toEqual([]);
+        expect(isBlockedEntryCovered(rules, rules[0])).toBe(true);
+        expect(isBlockedEntryCovered(rules, domain)).toBe(false);
+        expect(isBlockedEntryCovered(
+            [{name: 'example.com', enabled: false}],
+            {name: 'example.com'},
+        )).toBe(true);
+        expect(isBlockedEntryCovered(
+            [{name: 'example.com', scope: 'domain', enabled: true}],
+            {name: 'old.example.com', scope: 'domain'},
+        )).toBe(true);
+        expect(isBlockedEntryCovered(
+            [{name: 'example.com', scope: 'domain', enabled: false}],
+            {name: 'old.example.com', scope: 'domain'},
+        )).toBe(false);
     });
 
     it('validates IP addresses and DNS label boundaries', () => {

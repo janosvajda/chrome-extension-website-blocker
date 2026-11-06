@@ -83,8 +83,14 @@
             <div id="blockScopeValue" class="blockScopeUrl"></div>
             <div class="dialogActions">
                 <button id="cancelBlockScopeButton" class="ghostButton" type="button">Cancel</button>
-                <button id="blockDomainButton" type="button">Block domain</button>
-                <button id="blockUrlButton" type="button">Block this full URL</button>
+                <span class="scopeChoice">
+                    <button id="blockDomainButton" type="button" aria-describedby="blockDomainDescription">Block entire domain</button>
+                    <span id="blockDomainDescription" class="scopeChoiceTooltip" role="tooltip">Blocks every page on this domain and all its subdomains.</span>
+                </span>
+                <span class="scopeChoice">
+                    <button id="blockUrlButton" type="button" aria-describedby="blockUrlDescription">Block only this URL</button>
+                    <span id="blockUrlDescription" class="scopeChoiceTooltip" role="tooltip">Blocks only this exact address. Other pages on the domain remain available.</span>
+                </span>
             </div>
         </div>
     </section>

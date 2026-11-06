@@ -8,11 +8,11 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 - **Domain and Exact-URL Blocking**: Block an entire website or one specific HTTP(S) page. When an entered address contains a path, query, or fragment, Tiny Website Blocker asks whether to block the domain or that full URL. Plain domains and origin-only URLs are normalized automatically.
 
-- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. Invalid or redundant rules are rejected clearly, and deletion requires confirmation.
+- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. Invalid or redundant rules are rejected clearly. When adding or enabling a domain block that covers existing full-URL blocks, you can keep, disable, or delete those URL blocks before continuing. Deletion requires confirmation.
 
 - **Search and Filter Rules**: Search domains and full URLs across the entire list, or show enabled, disabled, scheduled, unscheduled, domain, or URL rules. Result counts and a clear-filters action make it easy to return to the full list. Searching and filtering do not change which websites are blocked.
 
-- **Toolbar Controls**: See the current website's blocking status, add its domain to your blocking list, pause or resume all blocking, view the number of enabled rules and local statistics, and open Settings from the extension popup. When blocking is active, **Block this site** reloads the current page immediately, so save any unfinished work first. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
+- **Toolbar Controls**: See the current website's blocking status, add its domain or full URL to your blocking list, enable an existing disabled rule, pause or resume all blocking, view the number of enabled rules and local statistics, and open Settings from the extension popup. For pages with a path, query, or fragment, **Block this site** offers the same domain-or-full-URL choice as the context menu. When blocking can take effect immediately, **Block this site** and **Enable blocking** reload the current page, so save any unfinished work first. **For quick access, open Chrome's puzzle-piece Extensions menu and pin Tiny Website Blocker.**
 
 - **Temporary Pause**: Pause all blocking for 15 minutes, 30 minutes, or one hour from the toolbar popup. The popup shows the remaining minutes and local resume time, and blocking resumes automatically.
 
@@ -70,18 +70,20 @@ This project is developed and tested with Node.js 24, npm, and Google Chrome.
 
 1. Clone the [GitHub repository](https://github.com/janosvajda/chrome-extension-website-blocker.git).
 2. Run `npm ci` in the project root.
-3. Run `npm run build` to generate the `built` directory.
-4. Open `chrome://extensions` in Chrome and enable **Developer mode**.
-5. Select **Load unpacked** and choose the generated `built` directory.
+3. Run `npx playwright install chromium` to install the browser used by end-to-end tests. On Linux CI systems, use `npx playwright install --with-deps chromium`.
+4. Run `npm run build` to generate the `built` directory.
+5. Open `chrome://extensions` in Chrome and enable **Developer mode**.
+6. Select **Load unpacked** and choose the generated `built` directory.
 
 ### Quality checks
 
 ```bash
 npm run lint
 npm run test:coverage
+npm run test:e2e
 ```
 
-These commands run static analysis and the Jest unit and integration suites with coverage thresholds. The browser E2E suite remains in `e2e/`, but is temporarily disabled until Playwright provides a Chromium build with the required security fixes.
+These commands run static analysis, the Jest unit and integration suites with coverage thresholds, a production build, and the real Chromium extension tests.
 
 ### Release packaging
 
@@ -91,4 +93,4 @@ Create a fully verified, versioned Chrome Web Store ZIP with:
 npm run verify:release
 ```
 
-This runs the dependency audit, linting, Jest tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.
+This runs the dependency audit, linting, Jest tests, real Chromium end-to-end tests, and production build before creating `release/tiny-website-blocker-<version>.zip`. The ZIP contains the contents of `built/` with `manifest.json` at its root. This command creates the upload artifact; it does not upload or publish it to the Chrome Web Store automatically.

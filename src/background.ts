@@ -1,19 +1,28 @@
 import {getPureHostname} from './helper/getPureHostname';
 import {
     BlockedEntry,
+    CoveredUrlRuleAction,
+    CoveredUrlRuleInfo,
     NormalizedBlockedEntry,
     RuleSchedule,
+    applyCoveredUrlRuleAction,
     blockedEntryCovers,
+    findCoveredUrlRules,
+    getCoveredUrlRuleInfo,
     hostnameMatchesDomain,
     normalizeBlockedEntry,
     normalizeUrlForMatch,
     requiresBlockScopeChoice,
+    sameCoveredUrlRuleInfo,
 } from './helper/blockedEntry';
 import {incrementStatistics, normalizePausedUntil, STORAGE_KEYS} from './helper/extensionState';
 import {
-    ADD_CURRENT_SITE_DOMAIN_RULE,
-    AddCurrentSiteDomainRuleRequest,
-    AddCurrentSiteDomainRuleResponse,
+    ADD_CURRENT_SITE_RULE,
+    AddCurrentSiteRuleRequest,
+    AddCurrentSiteRuleResponse,
+    ENABLE_CURRENT_SITE_RULE,
+    EnableCurrentSiteRuleRequest,
+    EnableCurrentSiteRuleResponse,
 } from './helper/backgroundMessages';
 import {
     findNextAvailableTime,
@@ -22,7 +31,7 @@ import {
     normalizeRuleSchedule,
     normalizeRules,
 } from './helper/schedules';
-import {showBlockScopeDialog, showScheduledDomainOverrideDialog} from './background/dialogs';
+import {showRuleChoiceDialog, showScheduledDomainOverrideDialog} from './background/dialogs';
 
 chrome.runtime.onInstalled.addListener(() => {
     chrome.storage.local.get(['blocked', 'enabled'], (local) => {
@@ -211,9 +220,27 @@ function applyContextMenuRule(
     tabId: number,
     normalizedEntry: NormalizedBlockedEntry,
     removeSchedule = false,
+    coveredUrlAction?: CoveredUrlRuleAction,
+    expectedCoveredUrls?: CoveredUrlRuleInfo[],
 ): void {
-    saveBlockingRule(normalizedEntry, removeSchedule, (result) => {
+    saveBlockingRule(normalizedEntry, removeSchedule, coveredUrlAction, expectedCoveredUrls, (result) => {
         if (!result) return;
+        if ('coveredUrlConflict' in result) {
+            decideCoveredUrlRules(
+                tabId,
+                result.coveredUrlConflict.domain,
+                result.coveredUrlConflict.urls,
+            ).then((action) => {
+                if (action) applyContextMenuRule(
+                    tabId,
+                    normalizedEntry,
+                    removeSchedule,
+                    action,
+                    result.coveredUrlConflict.urls,
+                );
+            });
+            return;
+        }
         const warning = result.enabled === false
             ? 'The blocking rule was saved, but Tiny Website Blocker is currently off. Turn blocking on for the rule to take effect.'
             : normalizePausedUntil(result.pausedUntil) > 0
@@ -229,11 +256,14 @@ type SavedBlockingRule = {
     pausedUntil: number;
     outcome: 'added' | 'updated' | 'existing';
 };
+type CoveredUrlConflict = {coveredUrlConflict: {domain: string; urls: CoveredUrlRuleInfo[]}};
 
 function saveBlockingRule(
     normalizedEntry: NormalizedBlockedEntry,
     removeSchedule: boolean,
-    done: (result: SavedBlockingRule | null) => void,
+    coveredUrlAction: CoveredUrlRuleAction | undefined,
+    expectedCoveredUrls: CoveredUrlRuleInfo[] | undefined,
+    done: (result: SavedBlockingRule | CoveredUrlConflict | null) => void,
 ): void {
     chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
         if (chrome.runtime.lastError) {
@@ -254,30 +284,49 @@ function saveBlockingRule(
 
         if (existingIndex >= 0) {
             const existingEntry = currentBlocked[existingIndex];
-            if (!existingEntry.enabled || (removeSchedule && existingEntry.schedule)) {
-                const updatedEntry = {...existingEntry, enabled: true};
-                if (removeSchedule) delete updatedEntry.schedule;
-                const updatedBlocked = [...currentBlocked];
-                updatedBlocked[existingIndex] = updatedEntry;
-                chrome.storage.local.set({blocked: updatedBlocked}, () => {
-                    if (chrome.runtime.lastError) done(null);
-                    else finish(updatedBlocked, 'updated');
-                });
+            if (existingEntry.enabled && !(removeSchedule && existingEntry.schedule)) {
+                finish(currentBlocked, 'existing');
                 return;
             }
+        }
+
+        if (existingIndex < 0
+            && currentBlocked.some((item) => item.enabled && blockedEntryCovers(item, normalizedEntry))) {
             finish(currentBlocked, 'existing');
             return;
         }
 
-        if (currentBlocked.some((item) => item.enabled && blockedEntryCovers(item, normalizedEntry))) {
-            finish(currentBlocked, 'existing');
+        const coveredUrls = findCoveredUrlRules(currentBlocked, normalizedEntry);
+        const coveredUrlState = getCoveredUrlRuleInfo(currentBlocked, normalizedEntry);
+        const conflictChanged = coveredUrlAction
+            && !sameCoveredUrlRuleInfo(coveredUrlState, expectedCoveredUrls || []);
+        if (coveredUrls.length && (!coveredUrlAction || conflictChanged)) {
+            done({coveredUrlConflict: {
+                domain: normalizedEntry.name,
+                urls: coveredUrlState,
+            }});
             return;
         }
 
-        const updatedBlocked = [...currentBlocked, {...normalizedEntry, enabled: true}];
+        const resolvedBlocked = coveredUrlAction
+            ? applyCoveredUrlRuleAction(currentBlocked, normalizedEntry, coveredUrlAction)
+            : currentBlocked;
+        const resolvedExistingIndex = resolvedBlocked.findIndex((item) =>
+            (item.scope || 'domain') === normalizedEntry.scope && item.name === normalizedEntry.name
+        );
+        const updatedBlocked = [...resolvedBlocked];
+        let outcome: SavedBlockingRule['outcome'] = 'added';
+        if (resolvedExistingIndex >= 0) {
+            const updatedEntry = {...updatedBlocked[resolvedExistingIndex], enabled: true};
+            if (removeSchedule) delete updatedEntry.schedule;
+            updatedBlocked[resolvedExistingIndex] = updatedEntry;
+            outcome = 'updated';
+        } else {
+            updatedBlocked.push({...normalizedEntry, enabled: true});
+        }
         chrome.storage.local.set({blocked: updatedBlocked}, () => {
             if (chrome.runtime.lastError) done(null);
-            else finish(updatedBlocked, 'added');
+            else finish(updatedBlocked, outcome);
         });
     });
 }
@@ -296,54 +345,170 @@ function usableBlockedEntries(value: unknown): BlockedEntry[] {
 }
 
 chrome.runtime.onMessage.addListener((
-    message: AddCurrentSiteDomainRuleRequest,
+    message: AddCurrentSiteRuleRequest | EnableCurrentSiteRuleRequest,
     _sender,
-    sendResponse: (response: AddCurrentSiteDomainRuleResponse) => void,
+    sendResponse: (response: AddCurrentSiteRuleResponse | EnableCurrentSiteRuleResponse) => void,
 ) => {
-    if (message?.type !== ADD_CURRENT_SITE_DOMAIN_RULE) return;
+    if (message?.type === ENABLE_CURRENT_SITE_RULE) {
+        return enableStoredRuleForCurrentSite(message, sendResponse);
+    }
+    if (message?.type !== ADD_CURRENT_SITE_RULE) return;
     if (!Number.isInteger(message.tabId) || message.tabId < 0
-        || typeof message.url !== 'string' || !/^https?:\/\//i.test(message.url)) {
+        || typeof message.url !== 'string' || !/^https?:\/\//i.test(message.url)
+        || (message.scope !== 'domain' && message.scope !== 'url')
+        || !hasValidCoveredUrlResolution(message.coveredUrlAction, message.coveredUrls)) {
         sendResponse({ok: false});
         return;
     }
-    const normalizedEntry = normalizeBlockedEntry(message.url, 'domain');
+    const normalizedEntry = normalizeBlockedEntry(message.url, message.scope);
     if (!normalizedEntry) {
         sendResponse({ok: false});
         return;
     }
-    saveBlockingRule(normalizedEntry, false, (result) => {
-        if (!result) {
-            sendResponse({ok: false});
-            return;
-        }
-        blockingEnabled = result.enabled;
-        blockingPausedUntil = result.pausedUntil;
-        rebuildBlockedHostnames(result.blocked);
-        const shouldReload = result.outcome !== 'existing'
-            && result.enabled
-            && normalizePausedUntil(result.pausedUntil) === 0;
-        if (!shouldReload) {
-            sendResponse({ok: true, ...result, reload: 'skipped'});
-            return;
-        }
-        chrome.tabs.get(message.tabId, (tab) => {
-            const tabUrl = tab?.pendingUrl || tab?.url || '';
-            const currentDomain = normalizeBlockedEntry(tabUrl, 'domain');
-            if (chrome.runtime.lastError || currentDomain?.name !== normalizedEntry.name) {
+    saveBlockingRule(
+        normalizedEntry,
+        false,
+        message.coveredUrlAction,
+        message.coveredUrls,
+        (result) => {
+            if (!result) {
+                sendResponse({ok: false});
+                return;
+            }
+            if ('coveredUrlConflict' in result) {
+                sendResponse({ok: false, coveredUrlConflict: result.coveredUrlConflict});
+                return;
+            }
+            blockingEnabled = result.enabled;
+            blockingPausedUntil = result.pausedUntil;
+            rebuildBlockedHostnames(result.blocked);
+            const shouldReload = result.outcome !== 'existing'
+                && result.enabled
+                && normalizePausedUntil(result.pausedUntil) === 0;
+            if (!shouldReload) {
                 sendResponse({ok: true, ...result, reload: 'skipped'});
                 return;
             }
-            chrome.tabs.reload(message.tabId, () => {
-                sendResponse({
-                    ok: true,
-                    ...result,
-                    reload: chrome.runtime.lastError ? 'failed' : 'started',
+            chrome.tabs.get(message.tabId, (tab) => {
+                const tabUrl = tab?.pendingUrl || tab?.url || '';
+                if (chrome.runtime.lastError || !ruleMatchesPage(normalizedEntry, tabUrl)) {
+                    sendResponse({ok: true, ...result, reload: 'skipped'});
+                    return;
+                }
+                chrome.tabs.reload(message.tabId, () => {
+                    sendResponse({
+                        ok: true,
+                        ...result,
+                        reload: chrome.runtime.lastError ? 'failed' : 'started',
+                    });
                 });
             });
+        },
+    );
+    return true;
+});
+
+function enableStoredRuleForCurrentSite(
+    message: EnableCurrentSiteRuleRequest,
+    sendResponse: (response: EnableCurrentSiteRuleResponse) => void,
+): boolean | undefined {
+    if (!Number.isInteger(message.tabId) || message.tabId < 0
+        || typeof message.url !== 'string' || !/^https?:\/\//i.test(message.url)
+        || !hasValidCoveredUrlResolution(message.coveredUrlAction, message.coveredUrls)) {
+        sendResponse({ok: false});
+        return;
+    }
+    const requestedRule = normalizeBlockedEntry(message.rule?.name || '', message.rule?.scope);
+    if (!requestedRule || !ruleMatchesPage(requestedRule, message.url)) {
+        sendResponse({ok: false});
+        return;
+    }
+
+    chrome.storage.local.get({enabled: true, pausedUntil: 0, blocked: []}, (state) => {
+        if (chrome.runtime.lastError) {
+            sendResponse({ok: false});
+            return;
+        }
+        const currentBlocked = usableBlockedEntries(state.blocked);
+        const existingIndex = currentBlocked.findIndex((item) =>
+            (item.scope || 'domain') === requestedRule.scope && item.name === requestedRule.name
+        );
+        if (existingIndex < 0) {
+            sendResponse({ok: false});
+            return;
+        }
+
+        const finish = (blocked: BlockedEntry[]) => {
+            const enabled = state.enabled !== false;
+            const pausedUntil = normalizePausedUntil(state.pausedUntil);
+            const enabledRule = blocked.find((item) =>
+                (item.scope || 'domain') === requestedRule.scope && item.name === requestedRule.name
+            )!;
+            blockingEnabled = enabled;
+            blockingPausedUntil = pausedUntil;
+            rebuildBlockedHostnames(blocked);
+
+            if (!enabled || pausedUntil > 0 || !isScheduleActive(enabledRule.schedule)) {
+                sendResponse({ok: true, blocked, enabled, pausedUntil, reload: 'skipped'});
+                return;
+            }
+            chrome.tabs.get(message.tabId, (tab) => {
+                const tabUrl = tab?.pendingUrl || tab?.url || '';
+                if (chrome.runtime.lastError || !ruleMatchesPage(requestedRule, tabUrl)) {
+                    sendResponse({ok: true, blocked, enabled, pausedUntil, reload: 'skipped'});
+                    return;
+                }
+                chrome.tabs.reload(message.tabId, () => {
+                    sendResponse({
+                        ok: true,
+                        blocked,
+                        enabled,
+                        pausedUntil,
+                        reload: chrome.runtime.lastError ? 'failed' : 'started',
+                    });
+                });
+            });
+        };
+
+        const existingRule = currentBlocked[existingIndex];
+        if (existingRule.enabled) {
+            finish(currentBlocked);
+            return;
+        }
+        const coveredUrls = findCoveredUrlRules(currentBlocked, requestedRule);
+        const coveredUrlState = getCoveredUrlRuleInfo(currentBlocked, requestedRule);
+        const conflictChanged = message.coveredUrlAction
+            && !sameCoveredUrlRuleInfo(coveredUrlState, message.coveredUrls || []);
+        if (coveredUrls.length && (!message.coveredUrlAction || conflictChanged)) {
+            sendResponse({ok: false, coveredUrlConflict: {
+                domain: requestedRule.name,
+                urls: coveredUrlState,
+            }});
+            return;
+        }
+        const resolvedBlocked = message.coveredUrlAction
+            ? applyCoveredUrlRuleAction(currentBlocked, requestedRule, message.coveredUrlAction)
+            : currentBlocked;
+        const resolvedIndex = resolvedBlocked.findIndex((item) =>
+            (item.scope || 'domain') === requestedRule.scope && item.name === requestedRule.name
+        );
+        const updatedBlocked = [...resolvedBlocked];
+        updatedBlocked[resolvedIndex] = {...updatedBlocked[resolvedIndex], enabled: true};
+        chrome.storage.local.set({blocked: updatedBlocked}, () => {
+            if (chrome.runtime.lastError) sendResponse({ok: false});
+            else finish(updatedBlocked);
         });
     });
     return true;
-});
+}
+
+function ruleMatchesPage(rule: NormalizedBlockedEntry, url: string): boolean {
+    if (rule.scope === 'url') {
+        return normalizeBlockedEntry(url, 'url')?.name === rule.name;
+    }
+    const pageDomain = normalizeBlockedEntry(url, 'domain');
+    return Boolean(pageDomain && hostnameMatchesDomain(pageDomain.name, rule.name));
+}
 
 function formatScheduleForContextMenu(schedule: RuleSchedule): string {
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -474,8 +639,8 @@ function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
         chrome.scripting.executeScript(
             {
                 target: { tabId },
-                args: [pageUrl],
-                func: showBlockScopeDialog,
+                args: [{kind: 'scope' as const, url: pageUrl}],
+                func: showRuleChoiceDialog,
             },
             (results) => {
                 if (chrome.runtime.lastError || !results || !results[0]) {
@@ -486,4 +651,40 @@ function decideBlockScope(tabId, pageUrl): Promise<'domain' | 'url' | null> {
             }
         );
     });
+}
+
+function decideCoveredUrlRules(
+    tabId: number,
+    domain: string,
+    urls: CoveredUrlRuleInfo[],
+): Promise<CoveredUrlRuleAction | null> {
+    return new Promise((resolve) => {
+        chrome.scripting.executeScript({
+            target: {tabId},
+            args: [{kind: 'coveredUrls' as const, domain, urls}],
+            func: showRuleChoiceDialog,
+        }, (results) => {
+            if (chrome.runtime.lastError || !results?.[0]) {
+                resolve(null);
+                return;
+            }
+            const action = results[0].result;
+            resolve(action === 'keep' || action === 'disable' || action === 'delete' ? action : null);
+        });
+    });
+}
+
+function hasValidCoveredUrlResolution(
+    action: CoveredUrlRuleAction | undefined,
+    urls: CoveredUrlRuleInfo[] | undefined,
+): boolean {
+    if (action === undefined) return urls === undefined;
+    return ['keep', 'disable', 'delete'].includes(action)
+        && Array.isArray(urls)
+        && urls.every((entry) =>
+            typeof entry === 'object'
+            && entry !== null
+            && typeof entry.url === 'string'
+            && typeof entry.enabled === 'boolean'
+        );
 }

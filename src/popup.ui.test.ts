@@ -5,6 +5,14 @@ jest.mock('./helper/passphraseProtection', () => {
     return {...actual, verifyPassphrase: jest.fn()};
 });
 
+const mockShowBlockScopeDialog = jest.fn();
+const mockShowCoveredUrlRulesDialog = jest.fn();
+jest.mock('./background/dialogs', () => ({
+    showBlockScopeDialog: (url: string, surface: 'page' | 'popup') => mockShowBlockScopeDialog(url, surface),
+    showCoveredUrlRulesDialog: (domain: string, urls: Array<{url: string; enabled: boolean}>) =>
+        mockShowCoveredUrlRulesDialog(domain, urls),
+}));
+
 const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ciphertext: 'Aw=='};
 
 function setup(
@@ -34,7 +42,9 @@ function setup(
         <p id="pauseNudge" hidden></p>
         <section id="currentSiteStatus" hidden>
             <strong id="currentSiteName"></strong><span id="currentSiteRuleStatus"></span>
-            ${includeCurrentSiteButton ? '<button id="blockCurrentSiteButton" hidden></button>' : ''}
+            ${includeCurrentSiteButton ? `
+                <button id="blockCurrentSiteButton" hidden></button>
+                <button id="enableCurrentSiteRuleButton" hidden></button>` : ''}
         </section>
         <section id="passphrasePrompt" hidden>
             <p id="passphrasePromptDescription"></p>
@@ -68,9 +78,16 @@ function setup(
     return chromeMock;
 }
 
+async function flushPromises(): Promise<void> {
+    for (let index = 0; index < 4; index += 1) await Promise.resolve();
+}
+
 describe('popup UI', () => {
     beforeEach(() => {
         jest.resetModules();
+        mockShowBlockScopeDialog.mockReset();
+        mockShowCoveredUrlRulesDialog.mockReset();
+        mockShowBlockScopeDialog.mockResolvedValue('domain');
     });
     afterEach(() => {
         jest.useRealTimers();
@@ -124,7 +141,8 @@ describe('popup UI', () => {
             statistics: {},
         }, false, 'https://old.example.com/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('Blocking for this website is turned off.');
+            .toBe('A block exists for this website, but it is disabled.');
+        expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(false);
 
         jest.resetModules();
         document.body.innerHTML = '';
@@ -138,8 +156,10 @@ describe('popup UI', () => {
             }],
             statistics: {},
         }, false, 'https://old.example.com/');
-        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('Scheduled blocking · Available now');
+        expect(document.querySelector('#currentSiteRuleStatus .scheduleDetails')?.textContent)
+            .toBe('Scheduled blocking: Mon | 08:00-17:00');
+        expect(document.querySelector('#currentSiteRuleStatus .availableNow')?.textContent)
+            .toBe('Available now');
 
         jest.resetModules();
         document.body.innerHTML = '';
@@ -149,13 +169,210 @@ describe('popup UI', () => {
         expect((document.getElementById('blockCurrentSiteButton') as HTMLButtonElement).hidden).toBe(false);
     });
 
-    it('adds the current domain through the background and updates the popup without reloading the page', () => {
+    it('enables the exact disabled rule and reloads the current page', () => {
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+            statistics: {},
+        }, false, 'https://old.example.com/article');
+        chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
+            ok: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+            enabled: true,
+            pausedUntil: 0,
+            reload: 'started',
+        }));
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://old.example.com/article',
+            rule: {name: 'example.com', scope: 'domain'},
+        }, expect.any(Function));
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Blocking enabled. Reloading this page now.');
+        expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(true);
+        expect(document.getElementById('activeRules')?.textContent).toBe('1');
+    });
+
+    it('resolves covered full-URL blocks before enabling a disabled domain', async () => {
+        const fullUrl = 'https://example.com/article';
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [
+                {name: fullUrl, scope: 'url', enabled: true},
+                {name: 'example.com', scope: 'domain', enabled: false},
+            ],
+            statistics: {},
+        }, false, 'https://example.com/');
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce('delete');
+        chromeMock.runtime.sendMessage.mockImplementation((request, callback) => {
+            if (!request.coveredUrlAction) {
+                callback({
+                    ok: false,
+                    coveredUrlConflict: {
+                        domain: 'example.com',
+                        urls: [{url: fullUrl, enabled: true}],
+                    },
+                });
+                return;
+            }
+            callback({
+                ok: true,
+                blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+                enabled: true,
+                pausedUntil: 0,
+                reload: 'started',
+            });
+        });
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+        await flushPromises();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenCalledWith('example.com', [
+            {url: fullUrl, enabled: true},
+        ]);
+        expect(chromeMock.runtime.sendMessage).toHaveBeenLastCalledWith({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            rule: {name: 'example.com', scope: 'domain'},
+            coveredUrlAction: 'delete',
+            coveredUrls: [{url: fullUrl, enabled: true}],
+        }, expect.any(Function));
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Blocking enabled. Reloading this page now.');
+    });
+
+    it('keeps a disabled domain unchanged when its covered-URL dialog is cancelled', async () => {
+        const fullUrl = 'https://example.com/article';
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [
+                {name: fullUrl, scope: 'url', enabled: true},
+                {name: 'example.com', scope: 'domain', enabled: false},
+            ],
+            statistics: {},
+        }, false, 'https://example.com/');
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce(null);
+        chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: [{url: fullUrl, enabled: true}],
+            },
+        }));
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+        await flushPromises();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('A block exists for this website, but it is disabled.');
+        expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(false);
+    });
+
+    it('ignores a second enable click while the first request is in progress', () => {
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        chromeMock.runtime.sendMessage.mockImplementation(() => undefined);
+        const button = document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement;
+
+        button.click();
+        button.click();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledTimes(1);
+        expect(button.disabled).toBe(true);
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Enabling blocking for this website…');
+    });
+
+    it('keeps the enable action available when enabling the rule fails', () => {
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: 'https://example.com/article', scope: 'url', enabled: false}],
+            statistics: {},
+        }, false, 'https://example.com/article');
+        chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({ok: false}));
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith(expect.objectContaining({
+            type: 'enableCurrentSiteRule',
+            rule: {name: 'https://example.com/article', scope: 'url'},
+        }), expect.any(Function));
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Could not enable blocking. Please try again.');
+        const button = document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement;
+        expect(button.hidden).toBe(false);
+        expect(button.disabled).toBe(false);
+    });
+
+    it.each([
+        [false, 0, 'skipped', 'Blocking is enabled for this website. Tiny Website Blocker is currently off.'],
+        [true, Date.now() + 60_000, 'skipped', 'Blocking is enabled for this website. Blocking is temporarily paused.'],
+        [true, 0, 'failed', 'Blocking enabled. Reload this page to apply it.'],
+    ] as const)(
+        'explains why an enabled website did not reload',
+        (enabled, pausedUntil, reload, expectedMessage) => {
+            const chromeMock = setup({
+                enabled,
+                pausedUntil,
+                blocked: [{name: 'example.com', scope: 'domain', enabled: false}],
+                statistics: {},
+            }, false, 'https://example.com/');
+            chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
+                ok: true,
+                blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
+                enabled,
+                pausedUntil,
+                reload,
+            }));
+
+            document.getElementById('enableCurrentSiteRuleButton')?.click();
+
+            expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe(expectedMessage);
+        }
+    );
+
+    it('shows an enabled inactive schedule without claiming that the page will reload', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        const schedule = {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]};
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: false, schedule}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
+            ok: true,
+            blocked: [{name: 'example.com', scope: 'domain', enabled: true, schedule}],
+            enabled: true,
+            pausedUntil: 0,
+            reload: 'skipped',
+        }));
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+
+        expect(document.querySelector('#currentSiteRuleStatus .scheduleDetails')?.textContent)
+            .toBe('Scheduled blocking: Mon | 08:00-17:00');
+        expect(document.querySelector('#currentSiteRuleStatus .availableNow')?.textContent)
+            .toBe('Available now');
+    });
+
+    it('offers the shared scope choice and adds the selected full URL through the background', async () => {
         const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://news.example.com/article');
+        mockShowBlockScopeDialog.mockResolvedValueOnce('url');
         chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
             ok: true,
             blocked: [
                 {name: 'other.example', scope: 'domain', enabled: true},
-                {name: 'news.example.com', scope: 'domain', enabled: true},
+                {name: 'https://news.example.com/article', scope: 'url', enabled: true},
             ],
             enabled: true,
             pausedUntil: 0,
@@ -164,17 +381,108 @@ describe('popup UI', () => {
         }));
 
         document.getElementById('blockCurrentSiteButton')?.click();
+        await Promise.resolve();
 
+        expect(mockShowBlockScopeDialog).toHaveBeenCalledWith('https://news.example.com/article', 'popup');
         expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith({
-            type: 'addCurrentSiteDomainRule',
+            type: 'addCurrentSiteRule',
             tabId: 42,
             url: 'https://news.example.com/article',
+            scope: 'url',
         }, expect.any(Function));
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
             .toBe('Added to your blocking list. Reloading this page now.');
         expect((document.getElementById('blockCurrentSiteButton') as HTMLButtonElement).hidden).toBe(true);
         expect(document.getElementById('activeRules')?.textContent).toBe('2');
         expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('restores the add action when the scope dialog is cancelled', async () => {
+        const chromeMock = setup({enabled: true, blocked: [], statistics: {}}, false, 'https://example.com/article');
+        mockShowBlockScopeDialog.mockResolvedValueOnce(null);
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+        await Promise.resolve();
+
+        expect(chromeMock.runtime.sendMessage).not.toHaveBeenCalled();
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Not in your blocking list');
+        const button = document.getElementById('blockCurrentSiteButton') as HTMLButtonElement;
+        expect(button.hidden).toBe(false);
+        expect(button.disabled).toBe(false);
+    });
+
+    it('resolves covered full-URL blocks before adding their domain', async () => {
+        const existingUrl = 'https://example.com/existing';
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: existingUrl, scope: 'url', enabled: true}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce('disable');
+        chromeMock.runtime.sendMessage.mockImplementation((request, callback) => {
+            if (!request.coveredUrlAction) {
+                callback({
+                    ok: false,
+                    coveredUrlConflict: {
+                        domain: 'example.com',
+                        urls: [{url: existingUrl, enabled: true}],
+                    },
+                });
+                return;
+            }
+            callback({
+                ok: true,
+                blocked: [
+                    {name: existingUrl, scope: 'url', enabled: false},
+                    {name: 'example.com', scope: 'domain', enabled: true},
+                ],
+                enabled: true,
+                pausedUntil: 0,
+                outcome: 'added',
+                reload: 'started',
+            });
+        });
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+        await flushPromises();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenCalledWith('example.com', [
+            {url: existingUrl, enabled: true},
+        ]);
+        expect(chromeMock.runtime.sendMessage).toHaveBeenLastCalledWith({
+            type: 'addCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/',
+            scope: 'domain',
+            coveredUrlAction: 'disable',
+            coveredUrls: [{url: existingUrl, enabled: true}],
+        }, expect.any(Function));
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Added to your blocking list. Reloading this page now.');
+    });
+
+    it('cancels adding a domain when its covered-URL dialog is cancelled', async () => {
+        const existingUrl = 'https://example.com/existing';
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [{name: existingUrl, scope: 'url', enabled: true}],
+            statistics: {},
+        }, false, 'https://example.com/');
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce(null);
+        chromeMock.runtime.sendMessage.mockImplementation((_request, callback) => callback({
+            ok: false,
+            coveredUrlConflict: {
+                domain: 'example.com',
+                urls: [{url: existingUrl, enabled: true}],
+            },
+        }));
+
+        document.getElementById('blockCurrentSiteButton')?.click();
+        await flushPromises();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledTimes(1);
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Not in your blocking list');
     });
 
     it.each([

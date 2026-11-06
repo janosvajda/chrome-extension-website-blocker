@@ -36,5 +36,14 @@ jobs:
       - name: Run unit and integration tests
         run: npm run test:coverage
 
+      - name: Type check and build
+        run: npm run build
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser end-to-end tests
+        run: npx playwright test
+
       - name: Audit dependencies
         run: npm audit --audit-level=critical

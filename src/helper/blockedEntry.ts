@@ -1,6 +1,8 @@
 import {normalizeHostname} from './getPureHostname';
 
 export type BlockScope = 'domain' | 'url';
+export type CoveredUrlRuleAction = 'keep' | 'disable' | 'delete';
+export type CoveredUrlRuleInfo = {url: string; enabled: boolean};
 
 export type ScheduledDay =
     | {day: number; mode: 'all-day'}
@@ -90,6 +92,65 @@ export function blockedEntryCovers(
     }
     return normalizedExisting.scope === 'domain'
         && hostnameMatchesDomain(toUrl(normalizedCandidate.name)?.hostname || '', normalizedExisting.name);
+}
+
+export function isBlockedEntryCovered(
+    rules: Array<Pick<BlockedEntry, 'name' | 'scope' | 'enabled'>>,
+    candidate: Pick<BlockedEntry, 'name' | 'scope'>,
+): boolean {
+    return rules.some((entry) => {
+        const sameRule = (entry.scope || 'domain') === (candidate.scope || 'domain')
+            && entry.name === candidate.name;
+        return sameRule || (entry.enabled && blockedEntryCovers(entry, candidate));
+    });
+}
+
+export function findCoveredUrlRules<T extends BlockedEntry>(
+    rules: T[],
+    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+): T[] {
+    if ((domain.scope || 'domain') !== 'domain') return [];
+    return rules.filter((entry) =>
+        (entry.scope || 'domain') === 'url' && blockedEntryCovers(domain, entry)
+    );
+}
+
+export function getCoveredUrlRuleInfo(
+    rules: BlockedEntry[],
+    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+): CoveredUrlRuleInfo[] {
+    return findCoveredUrlRules(rules, domain).map((entry) => ({
+        url: entry.name,
+        enabled: entry.enabled,
+    }));
+}
+
+export function sameCoveredUrlRuleInfo(
+    first: CoveredUrlRuleInfo[],
+    second: CoveredUrlRuleInfo[],
+): boolean {
+    return first.length === second.length && first.every((entry) =>
+        second.some((candidate) => candidate.url === entry.url && candidate.enabled === entry.enabled)
+    );
+}
+
+export function applyCoveredUrlRuleAction<T extends BlockedEntry>(
+    rules: T[],
+    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+    action: CoveredUrlRuleAction,
+): T[] {
+    if (action === 'keep') return [...rules];
+    const coveredKeys = new Set(findCoveredUrlRules(rules, domain).map((entry) => entry.name));
+    if (action === 'delete') {
+        return rules.filter((entry) =>
+            (entry.scope || 'domain') !== 'url' || !coveredKeys.has(entry.name)
+        );
+    }
+    return rules.map((entry) =>
+        (entry.scope || 'domain') === 'url' && coveredKeys.has(entry.name)
+            ? {...entry, enabled: false} as T
+            : entry
+    );
 }
 
 export function hostnameMatchesDomain(hostname: string, domain: string): boolean {

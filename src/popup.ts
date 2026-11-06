@@ -9,10 +9,14 @@ import {
 } from './helper/extensionState';
 import {getRandomItem} from './helper/getRandomItem';
 import {
-    ADD_CURRENT_SITE_DOMAIN_RULE,
-    AddCurrentSiteDomainRuleResponse,
+    ADD_CURRENT_SITE_RULE,
+    AddCurrentSiteRuleResponse,
+    ENABLE_CURRENT_SITE_RULE,
+    EnableCurrentSiteRuleResponse,
 } from './helper/backgroundMessages';
+import {CoveredUrlRuleAction, CoveredUrlRuleInfo, requiresBlockScopeChoice} from './helper/blockedEntry';
 import {normalizePassphraseProtection, PassphraseProtection} from './helper/passphraseProtection';
+import {showBlockScopeDialog, showCoveredUrlRulesDialog} from './background/dialogs';
 import {createCurrentSiteStatus} from './popup/currentSiteStatus';
 import {createPassphrasePrompt} from './popup/passphrasePrompt';
 
@@ -47,17 +51,83 @@ const passphrasePrompt = createPassphrasePrompt(() => passphraseProtection);
 const currentSiteStatus = createCurrentSiteStatus(
     () => ({blockingEnabled, pausedUntil}),
     (tabId, url, done) => {
-        chrome.runtime.sendMessage({type: ADD_CURRENT_SITE_DOMAIN_RULE, tabId, url}, (response: AddCurrentSiteDomainRuleResponse) => {
-            if (chrome.runtime.lastError || !response?.ok) {
-                done({ok: false});
+        const saveRule = (
+            scope: 'domain' | 'url',
+            coveredUrlAction?: CoveredUrlRuleAction,
+            coveredUrls?: CoveredUrlRuleInfo[],
+        ) => {
+            chrome.runtime.sendMessage({
+                type: ADD_CURRENT_SITE_RULE,
+                tabId,
+                url,
+                scope,
+                ...(coveredUrlAction ? {coveredUrlAction} : {}),
+                ...(coveredUrls ? {coveredUrls} : {}),
+            }, (response: AddCurrentSiteRuleResponse) => {
+                if (!chrome.runtime.lastError && response?.ok === false && response.coveredUrlConflict) {
+                    const {domain, urls} = response.coveredUrlConflict;
+                    showCoveredUrlRulesDialog(domain, urls).then((action) => {
+                        if (action) saveRule(scope, action, urls);
+                        else done({ok: false, cancelled: true});
+                    });
+                    return;
+                }
+                if (chrome.runtime.lastError || !response?.ok) {
+                    done({ok: false});
+                    return;
+                }
+                blockingEnabled = response.enabled;
+                pausedUntil = response.pausedUntil;
+                setText(activeRules, countActiveRules(response.blocked));
+                refreshBlockingState();
+                done(response);
+            });
+        };
+        if (!requiresBlockScopeChoice(url)) {
+            saveRule('domain');
+            return;
+        }
+        showBlockScopeDialog(url, 'popup').then((scope) => {
+            if (!scope) {
+                done({ok: false, cancelled: true});
                 return;
             }
-            blockingEnabled = response.enabled;
-            pausedUntil = response.pausedUntil;
-            setText(activeRules, countActiveRules(response.blocked));
-            refreshBlockingState();
-            done(response);
+            saveRule(scope);
         });
+    },
+    (tabId, url, rule, done) => {
+        const enableRule = (
+            coveredUrlAction?: CoveredUrlRuleAction,
+            coveredUrls?: CoveredUrlRuleInfo[],
+        ) => {
+            chrome.runtime.sendMessage({
+                type: ENABLE_CURRENT_SITE_RULE,
+                tabId,
+                url,
+                rule,
+                ...(coveredUrlAction ? {coveredUrlAction} : {}),
+                ...(coveredUrls ? {coveredUrls} : {}),
+            }, (response: EnableCurrentSiteRuleResponse) => {
+                if (!chrome.runtime.lastError && response?.ok === false && response.coveredUrlConflict) {
+                    const {domain, urls} = response.coveredUrlConflict;
+                    showCoveredUrlRulesDialog(domain, urls).then((action) => {
+                        if (action) enableRule(action, urls);
+                        else done({ok: false, cancelled: true});
+                    });
+                    return;
+                }
+                if (chrome.runtime.lastError || !response?.ok) {
+                    done({ok: false});
+                    return;
+                }
+                blockingEnabled = response.enabled;
+                pausedUntil = response.pausedUntil;
+                setText(activeRules, countActiveRules(response.blocked));
+                refreshBlockingState();
+                done(response);
+            });
+        };
+        enableRule();
     },
 );
 

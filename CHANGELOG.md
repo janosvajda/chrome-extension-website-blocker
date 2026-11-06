@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Maintenance
+
+- Restore the real Chromium end-to-end tests with Playwright 1.65.0, which bundles Chromium 158, and run them again in pull-request checks and release validation.
+
+## 1.0.9 - 2026-11-05
+
+### Added
+
+- Make **Block this site** offer the same domain-or-full-URL choice as the context menu, and show an **Enable blocking** action when the current website already has a disabled rule. Enabling preserves the rule's scope and schedule and reloads the page when blocking can take effect immediately.
+- When adding or enabling a domain block that covers existing full-URL blocks, list those URLs and let the user keep, disable, or delete them before continuing.
+
+### Maintenance
+
+- Remove the Playwright browser dependency and its bundled Chromium builds from local development and pull-request checks.
+- Keep release validation focused on dependency auditing, linting, Jest coverage, type checking, and the production build.
+
 ## 1.0.8 - 2026-11-03
 
 ### Added

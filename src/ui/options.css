@@ -908,6 +908,48 @@ button:hover {
     overflow-wrap: anywhere;
     padding: 12px 14px;
 }
+.scopeChoice {
+    position: relative;
+}
+.scopeChoice > button {
+    width: 100%;
+}
+.scopeChoiceTooltip {
+    background: #2f2923;
+    border-radius: 8px;
+    bottom: calc(100% + 9px);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    left: 50%;
+    line-height: 1.35;
+    opacity: 0;
+    padding: 8px 10px;
+    pointer-events: none;
+    position: absolute;
+    text-align: left;
+    transform: translateX(-50%) translateY(3px);
+    transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+    visibility: hidden;
+    white-space: normal;
+    width: min(240px, calc(100vw - 48px));
+    z-index: 3;
+}
+.scopeChoice:last-child .scopeChoiceTooltip {
+    left: auto;
+    right: 0;
+    transform: translateY(3px);
+}
+.scopeChoice:hover .scopeChoiceTooltip,
+.scopeChoice:focus-within .scopeChoiceTooltip {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+    visibility: visible;
+}
+.scopeChoice:last-child:hover .scopeChoiceTooltip,
+.scopeChoice:last-child:focus-within .scopeChoiceTooltip {
+    transform: translateY(0);
+}
 .errorDialogCard {
     border: 1px solid #ead8c8;
     box-shadow: 0 22px 50px rgba(42, 32, 24, 0.2);
