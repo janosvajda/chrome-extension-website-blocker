@@ -1,17 +1,24 @@
 import {
     BlockScope,
+    CoveredUrlRuleAction,
+    CoveredUrlRuleInfo,
     NormalizedBlockedEntry,
     blockedEntryCovers,
+    findCoveredUrlRules,
+    getCoveredUrlRuleInfo,
+    isBlockedEntryCovered,
     normalizeBlockedEntry,
     requiresBlockScopeChoice,
+    sameCoveredUrlRuleInfo,
 } from '../helper/blockedEntry';
 import {normalizePausedUntil} from '../helper/extensionState';
 import {normalizeRuleSchedule} from '../helper/schedules';
 import {formatSchedule, ScheduledRule} from './scheduleEditor';
+import {showCoveredUrlRulesDialog} from '../background/dialogs';
 
 interface AddRuleOptions {
     getRules: () => ScheduledRule[];
-    addRule: (rule: NormalizedBlockedEntry) => boolean;
+    addRule: (rule: NormalizedBlockedEntry, coveredUrlAction?: CoveredUrlRuleAction) => boolean;
 }
 
 export function createAddRuleController({getRules, addRule}: AddRuleOptions): void {
@@ -58,7 +65,27 @@ export function createAddRuleController({getRules, addRule}: AddRuleOptions): vo
         addWithBlockingWarning(normalizeBlockedEntry(websiteName, scope) as NormalizedBlockedEntry);
     }
 
-    function addWithBlockingWarning(normalized: NormalizedBlockedEntry): void {
+    function addWithBlockingWarning(
+        normalized: NormalizedBlockedEntry,
+        coveredUrlAction?: CoveredUrlRuleAction,
+        expectedCoveredUrls?: CoveredUrlRuleInfo[],
+    ): void {
+        const currentRules = getRules();
+        const coveredUrls = findCoveredUrlRules(currentRules, normalized);
+        const coveredUrlState = getCoveredUrlRuleInfo(currentRules, normalized);
+        const conflictChanged = coveredUrlAction
+            && !sameCoveredUrlRuleInfo(coveredUrlState, expectedCoveredUrls || []);
+        if (coveredUrls.length
+            && (!coveredUrlAction || conflictChanged)
+            && !isBlockedEntryCovered(currentRules, normalized)) {
+            showCoveredUrlRulesDialog(
+                normalized.name,
+                coveredUrlState,
+            ).then((action) => {
+                if (action) addWithBlockingWarning(normalized, action, coveredUrlState);
+            });
+            return;
+        }
         chrome.storage.local.get({enabled: true, pausedUntil: 0}, (data) => {
             const scheduledCoverage = getRules().filter((entry) =>
                 entry.enabled
@@ -72,7 +99,7 @@ export function createAddRuleController({getRules, addRule}: AddRuleOptions): vo
                 );
                 return;
             }
-            if (!addRule(normalized)) {
+            if (!addRule(normalized, coveredUrlAction)) {
                 showStatus('This website is already covered by an existing rule.', true);
                 return;
             }

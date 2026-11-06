@@ -1,8 +1,15 @@
 import {
+    CoveredUrlRuleAction,
+    CoveredUrlRuleInfo,
     NormalizedBlockedEntry,
-    blockedEntryCovers,
+    applyCoveredUrlRuleAction,
+    findCoveredUrlRules,
+    getCoveredUrlRuleInfo,
+    isBlockedEntryCovered,
     normalizeBlockedEntry,
+    sameCoveredUrlRuleInfo,
 } from '../helper/blockedEntry';
+import {showCoveredUrlRulesDialog} from '../background/dialogs';
 import {formatSchedule, ScheduledRule} from './scheduleEditor';
 import {sortBlockedEntries} from './ruleSync';
 
@@ -82,15 +89,19 @@ export function createRuleListController({
         render(1);
     }
 
-    function addRule(normalized: NormalizedBlockedEntry): boolean {
+    function addRule(
+        normalized: NormalizedBlockedEntry,
+        coveredUrlAction?: CoveredUrlRuleAction,
+    ): boolean {
         const rules = getRules();
-        const alreadyCovered = rules.some((entry) => {
-            const sameRule = entry.scope === normalized.scope && entry.name === normalized.name;
-            return sameRule || (entry.enabled && blockedEntryCovers(entry, normalized));
-        });
-        if (alreadyCovered) return false;
+        if (isBlockedEntryCovered(rules, normalized)) return false;
+        const coveredUrls = findCoveredUrlRules(rules, normalized);
+        if (coveredUrls.length && !coveredUrlAction) return false;
+        const resolvedRules = coveredUrlAction
+            ? applyCoveredUrlRuleAction(rules, normalized, coveredUrlAction)
+            : rules;
         replaceRules(sortBlockedEntries([
-            ...rules,
+            ...resolvedRules,
             {name: normalized.name, scope: normalized.scope, enabled: true},
         ]));
         persistRules();
@@ -148,18 +159,7 @@ export function createRuleListController({
         });
 
         checkbox.addEventListener('change', () => {
-            const index = findRuleIndex(normalizedRule);
-            if (index < 0) return;
-            const rules = getRules();
-            rules[index] = {...rules[index], enabled: checkbox.checked};
-            replaceRules(rules);
-            persistRules();
-            if (ruleFilter.value === 'enabled' || ruleFilter.value === 'disabled') {
-                const visibleIndex = Array.from(websiteList.querySelectorAll('.websiteCheckbox')).indexOf(checkbox);
-                render();
-                const visibleCheckboxes = websiteList.querySelectorAll<HTMLInputElement>('.websiteCheckbox');
-                (visibleCheckboxes[Math.min(visibleIndex, visibleCheckboxes.length - 1)] || ruleFilter).focus();
-            }
+            updateRuleEnabled(normalizedRule, checkbox.checked, checkbox);
         });
 
         const deleteButton = document.createElement('button');
@@ -175,6 +175,67 @@ export function createRuleListController({
 
         item.append(details, scope, checkbox, scheduleButton, deleteButton);
         websiteList.appendChild(item);
+    }
+
+    function updateRuleEnabled(
+        entry: NormalizedBlockedEntry,
+        enabled: boolean,
+        control: HTMLInputElement,
+        coveredUrlAction?: CoveredUrlRuleAction,
+        expectedCoveredUrls?: CoveredUrlRuleInfo[],
+    ): void {
+        const rules = getRules();
+        const index = findRuleIndex(entry);
+        if (index < 0) return;
+        const currentRule = rules[index];
+        if (currentRule.enabled === enabled) {
+            control.checked = enabled;
+            return;
+        }
+        const coveredUrlState = enabled
+            ? getCoveredUrlRuleInfo(rules, entry)
+            : [];
+        const conflictChanged = coveredUrlAction
+            && !sameCoveredUrlRuleInfo(coveredUrlState, expectedCoveredUrls || []);
+        if (coveredUrlState.length && (!coveredUrlAction || conflictChanged)) {
+            control.checked = currentRule.enabled;
+            showCoveredUrlRulesDialog(entry.name, coveredUrlState).then((action) => {
+                if (action) updateRuleEnabled(entry, enabled, control, action, coveredUrlState);
+                else control.focus();
+            });
+            return;
+        }
+        const resolvedRules = coveredUrlAction
+            ? applyCoveredUrlRuleAction(rules, entry, coveredUrlAction)
+            : rules;
+        const resolvedIndex = resolvedRules.findIndex((candidate) =>
+            candidate.name === entry.name && candidate.scope === entry.scope
+        );
+        resolvedRules[resolvedIndex] = {...resolvedRules[resolvedIndex], enabled};
+        replaceRules(resolvedRules);
+        control.checked = enabled;
+        if (coveredUrlAction === 'delete' || coveredUrlAction === 'disable') {
+            persistRules(() => {
+                render();
+                (findRuleCheckbox(entry) || ruleFilter).focus();
+            });
+            return;
+        }
+        persistRules();
+        if (ruleFilter.value === 'enabled' || ruleFilter.value === 'disabled') {
+            const visibleIndex = Array.from(websiteList.querySelectorAll('.websiteCheckbox')).indexOf(control);
+            render();
+            const visibleCheckboxes = websiteList.querySelectorAll<HTMLInputElement>('.websiteCheckbox');
+            (visibleCheckboxes[Math.min(visibleIndex, visibleCheckboxes.length - 1)] || ruleFilter).focus();
+        }
+    }
+
+    function findRuleCheckbox(entry: NormalizedBlockedEntry): HTMLInputElement | null {
+        const row = [...websiteList.querySelectorAll<HTMLElement>('.websiteItem')].find((item) =>
+            item.getAttribute('data-scope') === entry.scope
+            && item.querySelector('.websiteName')?.textContent === entry.name
+        );
+        return row?.querySelector<HTMLInputElement>('.websiteCheckbox') || null;
     }
 
     function findRuleIndex(rule: NormalizedBlockedEntry): number {

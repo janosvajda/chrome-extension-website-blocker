@@ -318,7 +318,14 @@ test.describe.serial('Tiny Website Blocker extension', () => {
 
         await page.locator('#newWebsite').fill('chrome.google.com');
         await page.locator('#addButton').click();
+        // The covered-URL dialog uses a closed shadow root, so choose Keep URL blocks with the keyboard.
+        const coveredUrlDialog = page.locator('tiny-website-blocker-dialog');
+        await expect(coveredUrlDialog).toHaveCount(1);
+        await page.keyboard.press('Tab');
+        await page.keyboard.press('Enter');
+        await expect(coveredUrlDialog).toHaveCount(0);
         await expect(page.locator('.websiteItem[data-scope="domain"]').filter({hasText: 'chrome.google.com'})).toContainText('Domain');
+        await expect(page.locator('.websiteItem[data-scope="url"]').filter({hasText: 'chrome.google.com/webstore'})).toHaveCount(1);
 
         await page.locator('#newWebsite').fill('https://chrome.google.com/another/page');
         await page.locator('#addButton').click();
@@ -348,6 +355,49 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await expect(urlRule).toHaveCount(0);
 
         await page.close();
+    });
+
+    test('redraws Settings after resolving URL blocks while enabling their domain', async () => {
+        const domainRule = {name: 'example.com', scope: 'domain', enabled: false};
+        const urlRule = {name: 'https://example.com/article', scope: 'url', enabled: true};
+
+        for (const scenario of [
+            {tabs: 2, keepsUrl: true},
+            {tabs: 3, keepsUrl: false},
+        ]) {
+            await serviceWorker.evaluate(async (blocked) => {
+                await chrome.storage.local.set({blocked});
+            }, [domainRule, urlRule]);
+            const page = await context.newPage();
+            await page.goto(`${extensionUrl}/options.html`);
+            const domainCheckbox = page.getByRole('checkbox', {name: 'Block example.com'});
+
+            await domainCheckbox.click();
+            await chooseClosedDialogAction(page, scenario.tabs);
+
+            const renderedDomainCheckbox = page.getByRole('checkbox', {name: 'Block example.com'});
+            await expect(renderedDomainCheckbox).toBeChecked();
+            await expect(renderedDomainCheckbox).toBeFocused();
+            if (scenario.keepsUrl) {
+                await expect(page.locator('.websiteName')).toHaveText(['example.com', urlRule.name]);
+                await expect(page.locator('#ruleResultsCount')).toHaveText('2 rules');
+                await expect(page.getByRole('checkbox', {name: `Block ${urlRule.name}`})).not.toBeChecked();
+            } else {
+                await expect(page.locator('.websiteName')).toHaveText(['example.com']);
+                await expect(page.locator('#ruleResultsCount')).toHaveText('1 rule');
+                await expect(page.getByRole('checkbox', {name: `Block ${urlRule.name}`})).toHaveCount(0);
+            }
+
+            const saved = await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'));
+            expect(saved.blocked).toEqual(scenario.keepsUrl
+                ? [
+                    {...domainRule, enabled: true},
+                    {...urlRule, enabled: false},
+                ]
+                : [{...domainRule, enabled: true}]
+            );
+            await page.close();
+        }
     });
 
     test('shows popup state and changes the global blocking switch', async () => {
@@ -449,6 +499,12 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             predicate: (page) => page.url().includes('warning.html'),
         });
         await popup.locator('#blockCurrentSiteButton').click();
+        // The page has a path, so the popup asks for the scope in a closed shadow root; choose Block domain.
+        const scopeDialog = popup.locator('tiny-website-blocker-dialog');
+        await expect(scopeDialog).toHaveCount(1);
+        await popup.keyboard.press('Tab');
+        await popup.keyboard.press('Enter');
+        await expect(scopeDialog).toHaveCount(0);
 
         await expect(popup.locator('#currentSiteRuleStatus'))
             .toHaveText('Added to your blocking list. Reloading this page now.');
@@ -467,6 +523,80 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await warning.close();
         await popup.close();
         await context.unroute('https://popup-add.test/**');
+    });
+
+    test('adds the current full URL from the toolbar popup and blocks only that URL', async () => {
+        await context.route('https://popup-url.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Popup full URL test</title>',
+        }));
+        const blockedUrl = 'https://popup-url.test/watch?item=1';
+        const site = await context.newPage();
+        await site.goto(blockedUrl);
+        const popup = await context.newPage();
+        await popup.goto(`${extensionUrl}/popup.html`);
+        await reloadPopupForTab(popup, site, serviceWorker);
+
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await popup.locator('#blockCurrentSiteButton').click();
+        // Cancel is focused first: two Tab presses select Block this full URL.
+        await chooseClosedDialogAction(popup, 2);
+
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [{name: blockedUrl, scope: 'url', enabled: true}],
+        });
+        const warning = await warningPromise;
+        await warning.waitForLoadState('domcontentloaded');
+        await expect(warning.locator('#blockedReason')).toHaveText('Blocked by URL rule');
+        await expect.poll(() => site.isClosed()).toBe(true);
+
+        await warning.close();
+        await popup.close();
+        await context.unroute('https://popup-url.test/**');
+    });
+
+    test('enables a disabled domain from the popup and resolves its existing URL blocks', async () => {
+        await context.route('https://popup-enable.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Popup enable test</title>',
+        }));
+        const domainRule = {name: 'popup-enable.test', scope: 'domain', enabled: false};
+        const urlRule = {name: 'https://popup-enable.test/saved', scope: 'url', enabled: true};
+        await serviceWorker.evaluate(async (blocked) => {
+            await chrome.storage.local.set({blocked});
+        }, [domainRule, urlRule]);
+        const site = await context.newPage();
+        await site.goto('https://popup-enable.test/current');
+        const popup = await context.newPage();
+        await popup.goto(`${extensionUrl}/popup.html`);
+        await reloadPopupForTab(popup, site, serviceWorker);
+
+        await expect(popup.locator('#currentSiteRuleStatus'))
+            .toHaveText('A block exists for this website, but it is disabled.');
+        await expect(popup.locator('#enableCurrentSiteRuleButton')).toBeVisible();
+        const warningPromise = context.waitForEvent('page', {
+            predicate: (page) => page.url().includes('warning.html'),
+        });
+        await popup.locator('#enableCurrentSiteRuleButton').click();
+        // Cancel is focused first: two Tab presses select Disable URL blocks.
+        await chooseClosedDialogAction(popup, 2);
+
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [
+                {...domainRule, enabled: true},
+                {...urlRule, enabled: false},
+            ],
+        });
+        const warning = await warningPromise;
+        await warning.waitForLoadState('domcontentloaded');
+        await expect(warning.locator('#blockedReason')).toHaveText('Blocked by domain rule');
+        await expect.poll(() => site.isClosed()).toBe(true);
+
+        await warning.close();
+        await popup.close();
+        await context.unroute('https://popup-enable.test/**');
     });
 
     test('protects blocking changes with a locally verified passphrase', async () => {
@@ -1209,6 +1339,16 @@ async function openBlockedPage(
     await expect(warningPage.locator('#blockedReason')).toBeVisible();
     await warningPage.close();
     return warningPage;
+}
+
+async function chooseClosedDialogAction(page: Page, tabPresses: number): Promise<void> {
+    const dialog = page.locator('tiny-website-blocker-dialog');
+    await expect(dialog).toHaveCount(1);
+    for (let index = 0; index < tabPresses; index += 1) {
+        await page.keyboard.press('Tab');
+    }
+    await page.keyboard.press('Enter');
+    await expect(dialog).toHaveCount(0);
 }
 
 async function reloadPopupForTab(popup: Page, tabPage: Page, serviceWorker: Worker): Promise<void> {

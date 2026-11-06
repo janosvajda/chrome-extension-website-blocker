@@ -1,6 +1,6 @@
 {
   "name": "chrome-extension-website-blocker",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "private": true,
   "description": "Website blocker",
   "main": "index.js",
@@ -11,12 +11,13 @@
     "test": "jest",
     "test:coverage": "jest --runInBand --no-watchman --coverage",
     "test:integration": "jest --runInBand --no-watchman --testPathPatterns=integration",
+    "test:e2e": "npm run build && playwright test",
     "package:store": "npm run build && node scripts/create-store-package.cjs",
     "prepublishOnly": "node -e \"console.error('This Chrome extension must not be published to npm.'); process.exit(1)\"",
-    "verify:release": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run build && node scripts/create-store-package.cjs",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint src",
-    "lint:fix": "oxlint src --fix"
+    "verify:release": "npm audit --audit-level=critical && npm run lint && npm run test:coverage && npm run test:e2e && node scripts/create-store-package.cjs",
+    "typecheck": "tsc --noEmit && tsc -p e2e/tsconfig.json",
+    "lint": "oxlint src e2e playwright.config.ts",
+    "lint:fix": "oxlint src e2e playwright.config.ts --fix"
   },
   "repository": {
     "type": "git",
@@ -41,6 +42,7 @@
     "@types/chrome": "0.2.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.65.0",
     "@swc/core": "1.16.1",
     "@swc/jest": "0.2.39",
     "@types/jest": "30.0.0",

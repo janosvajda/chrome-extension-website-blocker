@@ -1,5 +1,5 @@
 import {RuleSchedule} from '../helper/blockedEntry';
-import {normalizeRuleSchedule} from '../helper/schedules';
+import {formatSchedule, normalizeRuleSchedule} from '../helper/schedules';
 import {SCHEDULE_TEMPLATES} from './scheduleTemplates';
 
 export type ScheduledRule = {
@@ -257,17 +257,4 @@ export function createScheduleEditor(dependencies: ScheduleEditorDependencies) {
     return {open, close};
 }
 
-export function formatSchedule(schedule?: RuleSchedule): string {
-    if (!schedule) return 'Always';
-    const normalized = normalizeRuleSchedule(schedule);
-    if (!normalized) return 'Always';
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const groups = new Map<string, number[]>();
-    normalized.daily.forEach((entry) => {
-        const label = entry.mode === 'all-day' ? 'all day' : `${entry.start}-${entry.end}`;
-        groups.set(label, [...(groups.get(label) || []), entry.day]);
-    });
-    return [...groups.entries()].map(([label, days]) =>
-        `${days.map((day) => dayNames[day]).join(', ')} | ${label}`
-    ).join('; ');
-}
+export {formatSchedule};

@@ -6,6 +6,15 @@ jest.mock('./helper/passphraseProtection', () => {
     const actual = jest.requireActual('./helper/passphraseProtection');
     return {...actual, createPassphraseProtection: jest.fn(), verifyPassphrase: jest.fn()};
 });
+const mockShowCoveredUrlRulesDialog = jest.fn();
+jest.mock('./background/dialogs', () => {
+    const actual = jest.requireActual('./background/dialogs');
+    return {
+        ...actual,
+        showCoveredUrlRulesDialog: (domain: string, urls: Array<{url: string; enabled: boolean}>) =>
+            mockShowCoveredUrlRulesDialog(domain, urls),
+    };
+});
 
 const protection = {version: 1, iterations: 600000, salt: 'AQ==', iv: 'Ag==', ciphertext: 'Aw=='};
 
@@ -88,6 +97,7 @@ async function flush() {
 describe('options UI', () => {
     beforeEach(() => {
         jest.resetModules();
+        mockShowCoveredUrlRulesDialog.mockReset();
         jest.spyOn(document, 'addEventListener');
     });
     afterEach(() => {
@@ -459,20 +469,76 @@ describe('options UI', () => {
         expect((document.getElementById('blockScopeDialog') as HTMLElement).hidden).toBe(true);
     });
 
-    it('allows a domain to replace narrower URL coverage but rejects a URL covered by a domain', () => {
+    it.each([
+        ['keep', true, true],
+        ['disable', true, false],
+        ['delete', false, false],
+    ] as const)('%s existing full-URL blocks when adding their domain', async (action, keepsUrl, urlEnabled) => {
         const existingUrl = 'https://chrome.google.com/webstore/devconsole/item/edit/status';
         const {data} = setup({
-            blocked: [{name: existingUrl, scope: 'url', enabled: true}],
+            blocked: [
+                {name: existingUrl, scope: 'url', enabled: true},
+                {name: 'https://unrelated.example/page', scope: 'url', enabled: true},
+            ],
         });
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce(action);
 
         addWebsite('chrome.google.com');
+        await flush();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenCalledWith('chrome.google.com', [
+            {url: existingUrl, enabled: true},
+        ]);
         expect(data.blocked).toContainEqual({name: 'chrome.google.com', scope: 'domain', enabled: true});
+        if (keepsUrl) {
+            expect(data.blocked).toContainEqual({name: existingUrl, scope: 'url', enabled: urlEnabled});
+        } else {
+            expect(data.blocked).not.toContainEqual(expect.objectContaining({name: existingUrl}));
+        }
+        expect(data.blocked).toContainEqual({
+            name: 'https://unrelated.example/page', scope: 'url', enabled: true,
+        });
         expect(document.getElementById('addWebsiteStatus')?.textContent).toBe('Website added.');
 
         addWebsite('https://chrome.google.com/another/page');
         document.getElementById('blockUrlButton')?.click();
         expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toContain('already covered');
-        expect(data.blocked).toHaveLength(2);
+    });
+
+    it('does not add a domain when the full-URL conflict dialog is cancelled', async () => {
+        const existingUrl = 'https://example.com/existing';
+        const {data} = setup({
+            blocked: [{name: existingUrl, scope: 'url', enabled: true}],
+        });
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce(null);
+
+        addWebsite('example.com');
+        await flush();
+
+        expect(data.blocked).toEqual([{name: existingUrl, scope: 'url', enabled: true}]);
+        expect(document.getElementById('addWebsiteStatus')?.textContent).toBe('');
+    });
+
+    it('asks again if covered URL blocks change while the choice dialog is open', async () => {
+        const original = {name: 'https://example.com/original', scope: 'url', enabled: true};
+        const addedElsewhere = {name: 'https://example.com/new', scope: 'url', enabled: true};
+        const {data, changeStoredRules} = setup({blocked: [original]});
+        mockShowCoveredUrlRulesDialog
+            .mockResolvedValueOnce('delete')
+            .mockResolvedValueOnce(null);
+
+        addWebsite('example.com');
+        changeStoredRules([original, addedElsewhere]);
+        await flush();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenNthCalledWith(1, 'example.com', [
+            {url: original.name, enabled: true},
+        ]);
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenNthCalledWith(2, 'example.com', [
+            {url: addedElsewhere.name, enabled: true},
+            {url: original.name, enabled: true},
+        ]);
+        expect(data.blocked).toEqual([original, addedElsewhere]);
     });
 
     it('allows a URL beneath a disabled domain but still rejects an exact disabled duplicate', () => {
@@ -491,6 +557,133 @@ describe('options UI', () => {
         document.getElementById('blockUrlButton')?.click();
         expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toContain('already covered');
         expect(data.blocked).toHaveLength(2);
+    });
+
+    it('resolves covered full-URL blocks before enabling a disabled domain', async () => {
+        const fullUrl = 'https://example.com/article';
+        const {data} = setup({blocked: [
+            {name: 'example.com', scope: 'domain', enabled: false},
+            {name: fullUrl, scope: 'url', enabled: true},
+        ]});
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce('delete');
+        const domainRow = [...document.querySelectorAll<HTMLElement>('.websiteItem')]
+            .find((row) => row.querySelector('.websiteName')?.textContent === 'example.com')!;
+        const checkbox = domainRow.querySelector('.websiteCheckbox') as HTMLInputElement;
+
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+        await flush();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenCalledWith('example.com', [
+            {url: fullUrl, enabled: true},
+        ]);
+        expect(data.blocked).toEqual([
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]);
+        expect(visibleRuleNames()).toEqual(['example.com']);
+        expect(document.getElementById('ruleResultsCount')?.textContent).toBe('1 rule');
+        const renderedCheckbox = document.querySelector<HTMLInputElement>('.websiteCheckbox');
+        expect(renderedCheckbox?.checked).toBe(true);
+        expect(document.activeElement).toBe(renderedCheckbox);
+    });
+
+    it('redraws a covered full-URL block after disabling it while enabling its domain', async () => {
+        const fullUrl = 'https://example.com/article';
+        const {data} = setup({blocked: [
+            {name: 'example.com', scope: 'domain', enabled: false},
+            {name: fullUrl, scope: 'url', enabled: true},
+        ]});
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce('disable');
+        const domainRow = [...document.querySelectorAll<HTMLElement>('.websiteItem')]
+            .find((row) => row.querySelector('.websiteName')?.textContent === 'example.com')!;
+        const checkbox = domainRow.querySelector('.websiteCheckbox') as HTMLInputElement;
+
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+        await flush();
+
+        expect(data.blocked).toEqual([
+            {name: 'example.com', scope: 'domain', enabled: true},
+            {name: fullUrl, scope: 'url', enabled: false},
+        ]);
+        expect(visibleRuleNames()).toEqual(['example.com', fullUrl]);
+        const renderedRows = [...document.querySelectorAll<HTMLElement>('.websiteItem')];
+        const renderedDomainCheckbox = renderedRows
+            .find((row) => row.querySelector('.websiteName')?.textContent === 'example.com')
+            ?.querySelector<HTMLInputElement>('.websiteCheckbox');
+        const renderedUrlCheckbox = renderedRows
+            .find((row) => row.querySelector('.websiteName')?.textContent === fullUrl)
+            ?.querySelector<HTMLInputElement>('.websiteCheckbox');
+        expect(renderedDomainCheckbox?.checked).toBe(true);
+        expect(renderedUrlCheckbox?.checked).toBe(false);
+        expect(document.activeElement).toBe(renderedDomainCheckbox);
+    });
+
+    it('returns focus to the filter when enabling removes the domain from the filtered list', async () => {
+        const fullUrl = 'https://example.com/article';
+        const {data} = setup({blocked: [
+            {name: 'example.com', scope: 'domain', enabled: false},
+            {name: fullUrl, scope: 'url', enabled: true},
+        ]});
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce('delete');
+        selectRuleFilter('disabled');
+        const checkbox = document.querySelector<HTMLInputElement>('.websiteCheckbox')!;
+
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+        await flush();
+
+        expect(data.blocked).toEqual([
+            {name: 'example.com', scope: 'domain', enabled: true},
+        ]);
+        expect(visibleRuleNames()).toEqual([]);
+        expect(document.activeElement).toBe(document.getElementById('ruleFilter'));
+    });
+
+    it('keeps a disabled domain unchanged when its covered-URL dialog is cancelled', async () => {
+        const fullUrl = 'https://example.com/article';
+        const originalRules = [
+            {name: 'example.com', scope: 'domain', enabled: false},
+            {name: fullUrl, scope: 'url', enabled: true},
+        ];
+        const {data} = setup({blocked: originalRules});
+        mockShowCoveredUrlRulesDialog.mockResolvedValueOnce(null);
+        const domainRow = [...document.querySelectorAll<HTMLElement>('.websiteItem')]
+            .find((row) => row.querySelector('.websiteName')?.textContent === 'example.com')!;
+        const checkbox = domainRow.querySelector('.websiteCheckbox') as HTMLInputElement;
+
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+        await flush();
+
+        expect(checkbox.checked).toBe(false);
+        expect(data.blocked).toEqual(originalRules);
+    });
+
+    it('asks again if a covered URL changes state while a domain enable dialog is open', async () => {
+        const domain = {name: 'example.com', scope: 'domain', enabled: false};
+        const enabledUrl = {name: 'https://example.com/article', scope: 'url', enabled: true};
+        const disabledUrl = {...enabledUrl, enabled: false};
+        const {data, changeStoredRules} = setup({blocked: [domain, enabledUrl]});
+        mockShowCoveredUrlRulesDialog
+            .mockResolvedValueOnce('keep')
+            .mockResolvedValueOnce(null);
+        const domainRow = [...document.querySelectorAll<HTMLElement>('.websiteItem')]
+            .find((row) => row.querySelector('.websiteName')?.textContent === 'example.com')!;
+        const checkbox = domainRow.querySelector('.websiteCheckbox') as HTMLInputElement;
+
+        checkbox.checked = true;
+        checkbox.dispatchEvent(new Event('change'));
+        changeStoredRules([domain, disabledUrl]);
+        await flush();
+
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenNthCalledWith(1, 'example.com', [
+            {url: enabledUrl.name, enabled: true},
+        ]);
+        expect(mockShowCoveredUrlRulesDialog).toHaveBeenNthCalledWith(2, 'example.com', [
+            {url: enabledUrl.name, enabled: false},
+        ]);
+        expect(data.blocked).toEqual([domain, disabledUrl]);
     });
 
     it('drops malformed stored rules', () => {
