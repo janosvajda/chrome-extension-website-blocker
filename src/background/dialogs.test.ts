@@ -68,13 +68,17 @@ describe('background injected dialogs', () => {
 
     it.each([
         ['Cancel', null],
-        ['Block domain', 'domain'],
-        ['Block this full URL', 'url'],
+        ['Block entire domain', 'domain'],
+        ['Block only this URL', 'url'],
     ])('resolves the block-scope action %s', async (label, expected) => {
         const result = showBlockScopeDialog('https://example.com/path');
 
         expect(activeRoot().textContent).toContain('Choose how you want to block this page:');
         expect(activeRoot().textContent).toContain('https://example.com/path');
+        expect([...activeRoot().querySelectorAll('[role="tooltip"]')].map((tooltip) => tooltip.textContent)).toEqual([
+            'Blocks every page on this domain and all its subdomains.',
+            'Blocks only this exact address. Other pages on the domain remain available.',
+        ]);
         expect(document.getElementById('tiny-blocker-choice')?.shadowRoot).toBeNull();
         clickButton(label);
 
@@ -93,9 +97,20 @@ describe('background injected dialogs', () => {
         expect(styles).toContain('@media (max-width: 440px)');
         expect(styles).toContain('max-height: 88px');
         expect(styles).toContain('grid-template-columns: auto auto auto');
+        expect(root.querySelector('.overlay')?.classList.contains('popup')).toBe(false);
 
         clickButton('Cancel');
         await expect(result).resolves.toBeNull();
+
+        const popupResult = showBlockScopeDialog(
+            'https://example.com/a/very/long/path?with=query',
+            'popup',
+        );
+        const popupRoot = activeRoot();
+        expect(popupRoot.querySelector('.overlay')?.classList.contains('popup')).toBe(true);
+        expect(popupRoot.querySelector('style')?.textContent).toContain('transform: translateY(-50px)');
+        clickButton('Cancel');
+        await expect(popupResult).resolves.toBeNull();
     });
 
     it('cancels the block-scope dialog from its backdrop', async () => {

@@ -8,7 +8,7 @@ jest.mock('./helper/passphraseProtection', () => {
 const mockShowBlockScopeDialog = jest.fn();
 const mockShowCoveredUrlRulesDialog = jest.fn();
 jest.mock('./background/dialogs', () => ({
-    showBlockScopeDialog: (url: string) => mockShowBlockScopeDialog(url),
+    showBlockScopeDialog: (url: string, surface: 'page' | 'popup') => mockShowBlockScopeDialog(url, surface),
     showCoveredUrlRulesDialog: (domain: string, urls: Array<{url: string; enabled: boolean}>) =>
         mockShowCoveredUrlRulesDialog(domain, urls),
 }));
@@ -383,7 +383,7 @@ describe('popup UI', () => {
         document.getElementById('blockCurrentSiteButton')?.click();
         await Promise.resolve();
 
-        expect(mockShowBlockScopeDialog).toHaveBeenCalledWith('https://news.example.com/article');
+        expect(mockShowBlockScopeDialog).toHaveBeenCalledWith('https://news.example.com/article', 'popup');
         expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith({
             type: 'addCurrentSiteRule',
             tabId: 42,

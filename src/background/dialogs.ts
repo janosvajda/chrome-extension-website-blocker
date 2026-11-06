@@ -1,9 +1,10 @@
 import type {CoveredUrlRuleInfo} from '../helper/blockedEntry';
 
 export type BlockScopeChoice = 'domain' | 'url' | null;
+export type BlockScopeSurface = 'page' | 'popup';
 export type CoveredUrlRuleChoice = 'keep' | 'disable' | 'delete' | null;
 export type RuleChoiceDialogConfig =
-    | {kind: 'scope'; url: string}
+    | {kind: 'scope'; url: string; surface?: BlockScopeSurface}
     | {kind: 'coveredUrls'; domain: string; urls: CoveredUrlRuleInfo[]};
 export type RuleChoiceDialogResult = Exclude<BlockScopeChoice, null> | Exclude<CoveredUrlRuleChoice, null> | null;
 
@@ -108,6 +109,10 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
                 font-family: "Trebuchet MS", "Lucida Grande", "Lucida Sans Unicode", sans-serif;
             }
 
+            .overlay.popup .card {
+                transform: translateY(-50px);
+            }
+
             .title {
                 margin-bottom: 14px;
                 font-size: 20px;
@@ -174,6 +179,54 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
                 flex-wrap: wrap;
                 justify-content: flex-end;
                 gap: 8px;
+            }
+
+            .choice {
+                position: relative;
+            }
+
+            .choice button {
+                width: 100%;
+            }
+
+            .tooltip {
+                position: absolute;
+                bottom: calc(100% + 9px);
+                left: 50%;
+                z-index: 2;
+                width: min(240px, calc(100vw - 48px));
+                padding: 8px 10px;
+                border-radius: 8px;
+                background: #2f2923;
+                color: #fff;
+                font-size: 12px;
+                font-weight: normal;
+                line-height: 1.35;
+                text-align: left;
+                white-space: normal;
+                opacity: 0;
+                visibility: hidden;
+                pointer-events: none;
+                transform: translateX(-50%) translateY(3px);
+                transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+            }
+
+            .choice:last-child .tooltip {
+                right: 0;
+                left: auto;
+                transform: translateY(3px);
+            }
+
+            .choice:hover .tooltip,
+            .choice:focus-within .tooltip {
+                opacity: 1;
+                visibility: visible;
+                transform: translateX(-50%) translateY(0);
+            }
+
+            .choice:last-child:hover .tooltip,
+            .choice:last-child:focus-within .tooltip {
+                transform: translateY(0);
             }
 
             button {
@@ -274,6 +327,7 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
         `;
         const overlay = document.createElement('div');
         overlay.className = 'overlay';
+        if (config.kind === 'scope' && config.surface === 'popup') overlay.classList.add('popup');
 
         const card = document.createElement('div');
         card.className = 'card';
@@ -288,11 +342,26 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
         const actions = document.createElement('div');
         actions.className = `actions ${config.kind}`;
 
-        const choices: Array<{label: string; result: RuleChoiceDialogResult; className: string}> = config.kind === 'scope'
+        const choices: Array<{
+            label: string;
+            result: RuleChoiceDialogResult;
+            className: string;
+            description?: string;
+        }> = config.kind === 'scope'
             ? [
                 {label: 'Cancel', result: null, className: 'cancel'},
-                {label: 'Block domain', result: 'domain', className: 'domain'},
-                {label: 'Block this full URL', result: 'url', className: 'full-url'},
+                {
+                    label: 'Block entire domain',
+                    result: 'domain',
+                    className: 'domain',
+                    description: 'Blocks every page on this domain and all its subdomains.',
+                },
+                {
+                    label: 'Block only this URL',
+                    result: 'url',
+                    className: 'full-url',
+                    description: 'Blocks only this exact address. Other pages on the domain remain available.',
+                },
             ]
             : [
                 {label: 'Cancel', result: null, className: 'cancel'},
@@ -340,7 +409,21 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
             button.textContent = choice.label;
             button.className = choice.className;
             button.addEventListener('click', () => finish(choice.result as RuleChoiceDialogResult));
-            actions.appendChild(button);
+            if (!choice.description) {
+                actions.appendChild(button);
+                return;
+            }
+            const choiceWrapper = document.createElement('span');
+            choiceWrapper.className = 'choice';
+            const tooltip = document.createElement('span');
+            const tooltipId = `tiny-blocker-${choice.className}-description`;
+            tooltip.id = tooltipId;
+            tooltip.className = 'tooltip';
+            tooltip.setAttribute('role', 'tooltip');
+            tooltip.textContent = choice.description;
+            button.setAttribute('aria-describedby', tooltipId);
+            choiceWrapper.append(button, tooltip);
+            actions.appendChild(choiceWrapper);
         });
         overlay.addEventListener('click', (event) => {
             if (event.target === overlay) finish(null);
@@ -355,8 +438,11 @@ export function showRuleChoiceDialog(config: RuleChoiceDialogConfig): Promise<Ru
     });
 }
 
-export function showBlockScopeDialog(url: string): Promise<BlockScopeChoice> {
-    return showRuleChoiceDialog({kind: 'scope', url}) as Promise<BlockScopeChoice>;
+export function showBlockScopeDialog(
+    url: string,
+    surface: BlockScopeSurface = 'page',
+): Promise<BlockScopeChoice> {
+    return showRuleChoiceDialog({kind: 'scope', url, surface}) as Promise<BlockScopeChoice>;
 }
 
 export function showCoveredUrlRulesDialog(

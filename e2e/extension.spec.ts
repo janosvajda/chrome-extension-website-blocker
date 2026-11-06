@@ -312,6 +312,12 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await page.locator('#newWebsite').fill('https://chrome.google.com/webstore');
         await page.locator('#newWebsite').press('Enter');
         await expect(page.locator('#blockScopeDialog')).toBeVisible();
+        await expect(page.locator('#blockDomainButton')).toHaveText('Block entire domain');
+        await expect(page.locator('#blockUrlButton')).toHaveText('Block only this URL');
+        await page.locator('#blockDomainButton').hover();
+        await expect(page.locator('#blockDomainDescription')).toHaveCSS('opacity', '1');
+        await page.locator('#blockUrlButton').focus();
+        await expect(page.locator('#blockUrlDescription')).toHaveCSS('opacity', '1');
         await page.locator('#blockUrlButton').click();
         await expect(page.locator('.websiteItem')).toContainText('https://chrome.google.com/webstore');
         await expect(page.locator('.websiteScope')).toHaveText('URL');
@@ -499,7 +505,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             predicate: (page) => page.url().includes('warning.html'),
         });
         await popup.locator('#blockCurrentSiteButton').click();
-        // The page has a path, so the popup asks for the scope in a closed shadow root; choose Block domain.
+        // The page has a path, so the popup asks for the scope in a closed shadow root; choose Block entire domain.
         const scopeDialog = popup.locator('tiny-website-blocker-dialog');
         await expect(scopeDialog).toHaveCount(1);
         await popup.keyboard.press('Tab');
@@ -541,7 +547,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             predicate: (page) => page.url().includes('warning.html'),
         });
         await popup.locator('#blockCurrentSiteButton').click();
-        // Cancel is focused first: two Tab presses select Block this full URL.
+        // Cancel is focused first: two Tab presses select Block only this URL.
         await chooseClosedDialogAction(popup, 2);
 
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({

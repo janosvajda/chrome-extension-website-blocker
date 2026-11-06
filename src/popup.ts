@@ -87,7 +87,7 @@ const currentSiteStatus = createCurrentSiteStatus(
             saveRule('domain');
             return;
         }
-        showBlockScopeDialog(url).then((scope) => {
+        showBlockScopeDialog(url, 'popup').then((scope) => {
             if (!scope) {
                 done({ok: false, cancelled: true});
                 return;
