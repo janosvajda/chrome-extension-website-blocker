@@ -2,6 +2,7 @@ import {
     applyCoveredUrlRuleAction,
     blockedEntryCovers,
     detectBlockScope,
+    domainRuleMatchesHostname,
     findCoveredUrlRules,
     getCoveredUrlRuleInfo,
     isBlockedEntryCovered,
@@ -92,6 +93,32 @@ describe('blocked entry validation', () => {
         )).toBe(false);
     });
 
+    it('matches a domain-only rule without covering child or parent domains', () => {
+        const exact = {name: 'youtube.com', scope: 'domain' as const, includeSubdomains: false};
+        expect(normalizeBlockedEntry('youtube.com', 'domain', false)).toEqual(exact);
+        expect(domainRuleMatchesHostname(exact, 'youtube.com')).toBe(true);
+        expect(domainRuleMatchesHostname(exact, 'www.youtube.com')).toBe(true);
+        expect(domainRuleMatchesHostname(exact, 'music.youtube.com')).toBe(false);
+        expect(domainRuleMatchesHostname(
+            {name: 'music.youtube.com'},
+            'youtube.com',
+        )).toBe(false);
+        expect(blockedEntryCovers(exact, {
+            name: 'https://youtube.com/watch', scope: 'url',
+        })).toBe(true);
+        expect(blockedEntryCovers(exact, {
+            name: 'https://music.youtube.com/watch', scope: 'url',
+        })).toBe(false);
+        expect(blockedEntryCovers(
+            {name: 'youtube.com', scope: 'domain'},
+            {name: 'youtube.com', scope: 'domain'},
+        )).toBe(true);
+        expect(blockedEntryCovers(exact, exact)).toBe(true);
+        expect(blockedEntryCovers(exact, {
+            name: 'youtube.com', scope: 'domain',
+        })).toBe(false);
+    });
+
     it('covers scope detection and equivalent rule comparisons', () => {
         expect(normalizeBlockedEntry('')).toBeNull();
         expect(normalizeBlockedEntry('bad value', 'url')).toBeNull();
@@ -146,6 +173,9 @@ describe('blocked entry validation', () => {
             [{name: 'example.com', scope: 'domain', enabled: false}],
             {name: 'old.example.com', scope: 'domain'},
         )).toBe(false);
+        expect(findCoveredUrlRules(rules, {
+            name: 'example.com', scope: 'domain', includeSubdomains: false,
+        }).map((entry) => entry.name)).toEqual(['https://example.com/one']);
     });
 
     it('validates IP addresses and DNS label boundaries', () => {

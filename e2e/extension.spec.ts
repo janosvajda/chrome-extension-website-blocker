@@ -239,6 +239,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
             await expect(page.getByRole('combobox', {name: 'Show'})).toBeInViewport({ratio: 1});
             if (viewport.width > 640) {
                 await expect(page.locator('.websiteHeader')).toHaveText('Website');
+                await expect(page.locator('.coverageHeader')).toHaveText('Rule type');
                 await expect(page.locator('.actionHeader')).toHaveText('Blocked');
                 await expect(page.locator('#websiteListHeader')).toBeInViewport({ratio: 1});
                 const header = await page.locator('.actionHeader').boundingBox();
@@ -477,7 +478,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
 
         await expect(popup.locator('#currentSiteName')).toHaveText('old.status.test');
         await expect(popup.locator('#currentSiteRuleStatus'))
-            .toHaveText('Domain blocking · Extension is off');
+            .toHaveText('Domain + subdomains · Extension is off');
         expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
             blocked: [{name: 'status.test', scope: 'domain', enabled: true}],
         });
@@ -486,6 +487,93 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await popup.close();
         await site.close();
         await context.unroute('https://old.status.test/**');
+    });
+
+    test('explains blocking rule types in the Settings help dialog', async () => {
+        const options = await context.newPage();
+        await options.goto(`${extensionUrl}/options.html`);
+        const helpButton = options.getByRole('button', {name: 'How blocking rules work'});
+        const dialog = options.getByRole('dialog', {name: 'How blocking rules work'});
+
+        await helpButton.click();
+        await expect(dialog).toBeVisible();
+        await expect(dialog.getByRole('heading', {name: 'Domain + subdomains'})).toBeVisible();
+        await expect(dialog.getByRole('heading', {name: 'Domain only'})).toBeVisible();
+        await expect(dialog.getByRole('heading', {name: 'One full URL'})).toBeVisible();
+        await expect(dialog).toContainText('What happens when you open this address with each rule:');
+        await expect(dialog).toContainText('https://subdomain.example.com/page');
+        await expect(dialog.getByText('Available', {exact: true})).toBeVisible();
+        await expect(dialog.getByText('Blocked', {exact: true})).toHaveCount(3);
+        await expect(dialog.getByRole('button', {name: 'Close'})).toBeFocused();
+        await options.screenshot({path: test.info().outputPath('rule-help-dialog.png')});
+        await dialog.getByRole('button', {name: 'Close'}).click();
+        await expect(dialog).toBeHidden();
+
+        await options.setViewportSize({width: 390, height: 700});
+        await helpButton.click();
+        const dialogBounds = await dialog.locator('.ruleHelpCard').boundingBox();
+        expect(dialogBounds).not.toBeNull();
+        expect(dialogBounds!.x).toBeGreaterThanOrEqual(0);
+        expect(dialogBounds!.y).toBeGreaterThanOrEqual(0);
+        expect(dialogBounds!.x + dialogBounds!.width).toBeLessThanOrEqual(390);
+        expect(dialogBounds!.y + dialogBounds!.height).toBeLessThanOrEqual(700);
+        expect(await options.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+        expect(await dialog.locator('.ruleHelpCard').evaluate((card) => card.scrollHeight > card.clientHeight)).toBe(true);
+        await options.keyboard.press('Escape');
+        await expect(dialog).toBeHidden();
+        await expect(helpButton).toBeFocused();
+        await options.close();
+    });
+
+    test('switches an existing domain rule to domain-only coverage', async () => {
+        await context.route('https://scope.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Parent domain</title>',
+        }));
+        await context.route('https://music.scope.test/**', (route) => route.fulfill({
+            contentType: 'text/html',
+            body: '<!doctype html><title>Subdomain remains available</title>',
+        }));
+        await serviceWorker.evaluate(async () => {
+            await chrome.storage.local.set({
+                blocked: [{name: 'scope.test', scope: 'domain', enabled: true}],
+            });
+        });
+
+        const options = await context.newPage();
+        await options.goto(`${extensionUrl}/options.html`);
+        const subdomainCheckbox = options.getByRole('checkbox', {
+            name: 'Include subdomains for scope.test',
+        });
+        await expect(subdomainCheckbox).toBeChecked();
+        await subdomainCheckbox.uncheck();
+        await expect(subdomainCheckbox).not.toBeChecked();
+        expect(await serviceWorker.evaluate(() => chrome.storage.local.get('blocked'))).toEqual({
+            blocked: [{
+                name: 'scope.test',
+                scope: 'domain',
+                includeSubdomains: false,
+                enabled: true,
+            }],
+        });
+
+        await options.locator('#newWebsite').fill('scope.test');
+        await options.locator('#addButton').click();
+        await expect(options.locator('#addWebsiteErrorMessage')).toHaveText(
+            'scope.test is already in your list. Select Include subdomains for that rule to cover its subdomains too.',
+        );
+        await options.locator('#closeAddWebsiteErrorButton').click();
+
+        const subdomain = await context.newPage();
+        await subdomain.goto('https://music.scope.test/listen');
+        await expect(subdomain).toHaveTitle('Subdomain remains available');
+
+        await openBlockedPage(context, 'https://scope.test/watch', 'reason=domain');
+
+        await subdomain.close();
+        await options.close();
+        await context.unroute('https://scope.test/**');
+        await context.unroute('https://music.scope.test/**');
     });
 
     test('adds the current domain from the toolbar popup and blocks it immediately', async () => {
@@ -580,7 +668,7 @@ test.describe.serial('Tiny Website Blocker extension', () => {
         await reloadPopupForTab(popup, site, serviceWorker);
 
         await expect(popup.locator('#currentSiteRuleStatus'))
-            .toHaveText('A block exists for this website, but it is disabled.');
+            .toHaveText('Domain + subdomains · Disabled');
         await expect(popup.locator('#enableCurrentSiteRuleButton')).toBeVisible();
         const warningPromise = context.waitForEvent('page', {
             predicate: (page) => page.url().includes('warning.html'),

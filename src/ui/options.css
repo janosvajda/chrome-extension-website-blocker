@@ -74,9 +74,38 @@ main {
 .headerActions {
     display: flex;
     flex-direction: row;
-    flex-wrap: wrap;
-    align-items: flex-end;
+    flex-wrap: nowrap;
+    align-items: center;
     gap: 6px;
+}
+
+.headerActionButton {
+    min-height: 36px;
+    padding: 7px 13px;
+    white-space: nowrap;
+}
+
+.helpIconButton {
+    align-items: center;
+    background: #fff8f1;
+    border: 1px solid var(--accent);
+    color: var(--accent-deep);
+    display: inline-flex;
+    flex: 0 0 36px;
+    height: 36px;
+    justify-content: center;
+    padding: 0;
+    width: 36px;
+}
+
+.helpIconButton svg {
+    height: 20px;
+    width: 20px;
+}
+
+.helpIconButton:hover {
+    background: rgba(224, 112, 47, 0.12);
+    color: var(--accent-deep);
 }
 
 .titleHeading {
@@ -88,6 +117,7 @@ main {
 
 .titleHeading h1 {
     margin-bottom: 6px;
+    white-space: nowrap;
 }
 
 .versionBadge {
@@ -384,7 +414,7 @@ h1 {
     font-size: 11px;
     font-weight: bold;
     gap: 8px;
-    grid-template-columns: minmax(0, 1fr) 72px 48px 44px 44px;
+    grid-template-columns: minmax(0, 1fr) 190px 48px 44px 44px;
     letter-spacing: 1.4px;
     line-height: 14px;
     padding: 3px 12px;
@@ -396,6 +426,11 @@ h1 {
     padding-inline: 8px;
 }
 
+.coverageHeader {
+    grid-column: 2;
+    text-align: center;
+}
+
 .actionHeader {
     grid-column: 3;
     text-align: center;
@@ -405,7 +440,7 @@ h1 {
     align-items: center;
     display: grid;
     gap: 8px;
-    grid-template-columns: minmax(0, 1fr) 72px 48px 44px 44px;
+    grid-template-columns: minmax(0, 1fr) 190px 48px 44px 44px;
     margin: 8px 0;
     border: 1px solid var(--line);
     background-color: #fff;
@@ -774,7 +809,6 @@ h1 {
 }
 
 .websiteScope {
-    justify-self: center;
     margin: 0;
     padding: 4px 10px;
     border-radius: 999px;
@@ -783,6 +817,34 @@ h1 {
     font-size: 11px;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+.websiteCoverage {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    justify-self: center;
+    min-width: 0;
+}
+
+.subdomainOption {
+    align-items: center;
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    font-size: 10px;
+    gap: 5px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.subdomainCheckbox {
+    accent-color: var(--accent);
+    cursor: pointer;
+    height: 14px;
+    margin: 0;
+    width: 14px;
 }
 
 .websiteCheckbox {
@@ -884,6 +946,235 @@ button:hover {
 .transferDialogCard { margin: 0; max-width: 620px; width: 100%; }
 .transferDialogCard > div:first-child .subtitle { padding-top: 12px; }
 .transferDialogActions { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 14px; }
+
+.ruleHelpCard {
+    background: var(--card);
+    border-radius: 20px;
+    box-shadow: var(--shadow);
+    display: grid;
+    gap: 18px;
+    max-height: calc(100vh - 36px);
+    max-width: 680px;
+    overflow-y: auto;
+    padding: 26px;
+    width: 100%;
+}
+
+.ruleHelpHeader {
+    align-items: center;
+    display: flex;
+    gap: 14px;
+}
+
+.ruleHelpHeader > div {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ruleHelpCloseButton {
+    flex: 0 0 auto;
+}
+
+.ruleHelpHeader .sectionTitle {
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+
+.ruleHelpIcon {
+    align-items: center;
+    background: #fbe7d8;
+    border-radius: 50%;
+    color: var(--accent-deep);
+    display: inline-flex;
+    flex: 0 0 48px;
+    height: 48px;
+    justify-content: center;
+}
+
+.ruleHelpIcon svg {
+    height: 29px;
+    width: 29px;
+}
+
+.ruleHelpGrid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ruleHelpItem {
+    background: #fffaf5;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: grid;
+    gap: 8px;
+    padding: 14px;
+}
+
+.ruleHelpItem h3,
+.ruleHelpControls h3 {
+    color: var(--ink);
+    font-size: 14px;
+    margin: 0;
+}
+
+.ruleHelpItem p,
+.ruleHelpControl p,
+.ruleHelpNote {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.45;
+    margin: 0;
+}
+
+.ruleHelpItem code {
+    color: #493d32;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.ruleHelpBadge {
+    background: rgba(224, 112, 47, 0.12);
+    border-radius: 999px;
+    color: var(--accent-deep);
+    font-size: 9px;
+    font-weight: 800;
+    justify-self: start;
+    letter-spacing: 0.8px;
+    padding: 4px 8px;
+    text-transform: uppercase;
+}
+
+.ruleHelpUrlBadge {
+    background: rgba(31, 27, 22, 0.08);
+    color: #4d443b;
+}
+
+.ruleHelpExample {
+    background: #fffaf5;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+}
+
+.ruleHelpExampleHeader {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    justify-content: space-between;
+}
+
+.ruleHelpExampleHeader h3 {
+    font-size: 14px;
+    margin: 0;
+}
+
+.ruleHelpExampleHeader p {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.4;
+    margin: 4px 0 0;
+}
+
+.ruleHelpExampleHeader code {
+    background: #f5e8dd;
+    border-radius: 8px;
+    color: #493d32;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 11px;
+    overflow-wrap: anywhere;
+    padding: 6px 8px;
+}
+
+.ruleHelpExampleRows {
+    display: grid;
+}
+
+.ruleHelpExampleRow {
+    align-items: center;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    display: grid;
+    font-size: 11px;
+    gap: 10px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    line-height: 1.4;
+    padding: 9px 2px;
+}
+
+.ruleHelpExampleRow:first-child {
+    border-top: 0;
+    padding-top: 0;
+}
+
+.ruleHelpExampleRow:last-child {
+    padding-bottom: 0;
+}
+
+.ruleHelpExampleRow strong {
+    color: var(--ink);
+    overflow-wrap: anywhere;
+}
+
+.ruleHelpResult {
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.7px;
+    padding: 4px 7px;
+    text-transform: uppercase;
+}
+
+.ruleHelpBlockedResult {
+    background: #fbe3d5;
+    color: #a4471d;
+}
+
+.ruleHelpAvailableResult {
+    background: #e5f3e9;
+    color: #28703f;
+}
+
+.ruleHelpControls {
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+}
+
+.ruleHelpControl {
+    align-items: center;
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 25px minmax(0, 1fr);
+}
+
+.ruleHelpControlIcon {
+    align-items: center;
+    display: inline-flex;
+    font-size: 17px;
+    height: 25px;
+    justify-content: center;
+    width: 25px;
+}
+
+.ruleHelpCheckIcon {
+    background: var(--accent);
+    border-radius: 5px;
+    color: white;
+    font-size: 15px;
+}
+
+.ruleHelpNote {
+    background: #f5efe7;
+    border-radius: 11px;
+    color: #51483f;
+    padding: 10px 12px;
+}
 
 .passphraseFields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .passphraseFields:not(.changingPassword) { grid-template-columns: repeat(2, 1fr); }
@@ -1064,6 +1355,10 @@ button:hover {
         margin-bottom: 10px;
     }
 
+    .titleHeading h1 {
+        white-space: normal;
+    }
+
     .titleBlock,
     .titleBlock > div {
         min-width: 0;
@@ -1071,6 +1366,15 @@ button:hover {
 
     .headerActions {
         align-items: center;
+        flex-wrap: wrap;
+    }
+
+    .ruleHelpGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .ruleHelpCard {
+        padding: 20px;
     }
 
     .ruleTools {
@@ -1098,7 +1402,8 @@ button:hover {
         padding: 2px 0;
     }
 
-    .websiteScope {
+    .websiteCoverage {
+        align-items: flex-start;
         justify-self: start;
     }
 

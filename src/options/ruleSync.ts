@@ -85,12 +85,17 @@ export function sortBlockedEntries(entries: ScheduledRule[]): ScheduledRule[] {
 
 export function normalizeBlockedEntries(entries): ScheduledRule[] {
     const normalizedEntries = (entries || []).map((entry) => {
-        const normalized = normalizeBlockedEntry(entry?.name || '', entry?.scope);
+        const normalized = normalizeBlockedEntry(
+            entry?.name || '',
+            entry?.scope,
+            entry?.includeSubdomains === false ? false : undefined,
+        );
         if (!normalized) return null;
         const schedule = normalizeRuleSchedule(entry?.schedule);
         return {
             name: normalized.name,
             scope: normalized.scope,
+            ...(normalized.includeSubdomains === false ? {includeSubdomains: false} : {}),
             enabled: Boolean(entry?.enabled),
             ...(schedule ? {schedule} : {}),
         } as ScheduledRule;

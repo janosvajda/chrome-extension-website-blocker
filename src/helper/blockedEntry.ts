@@ -14,6 +14,7 @@ export type BlockedEntry = {
     name: string;
     enabled: boolean;
     scope?: BlockScope;
+    includeSubdomains?: boolean;
     title?: string;
     description?: string;
     schedule?: RuleSchedule;
@@ -22,9 +23,14 @@ export type BlockedEntry = {
 export type NormalizedBlockedEntry = {
     name: string;
     scope: BlockScope;
+    includeSubdomains?: boolean;
 };
 
-export function normalizeBlockedEntry(input: string, scope?: BlockScope): NormalizedBlockedEntry | null {
+export function normalizeBlockedEntry(
+    input: string,
+    scope?: BlockScope,
+    includeSubdomains?: boolean,
+): NormalizedBlockedEntry | null {
     const trimmed = input.trim();
     if (!trimmed) {
         return null;
@@ -44,7 +50,11 @@ export function normalizeBlockedEntry(input: string, scope?: BlockScope): Normal
     if (!isValidHostname(hostname)) {
         return null;
     }
-    return { name: hostname, scope: 'domain' };
+    return {
+        name: hostname,
+        scope: 'domain',
+        ...(includeSubdomains === false ? {includeSubdomains: false} : {}),
+    };
 }
 export function detectBlockScope(input: string): BlockScope {
     const url = toUrl(input);
@@ -79,24 +89,39 @@ export function normalizeUrlForMatch(input: string): string | null {
 }
 
 export function blockedEntryCovers(
-    existing: Pick<BlockedEntry, 'name' | 'scope'>,
-    candidate: Pick<BlockedEntry, 'name' | 'scope'>,
+    existing: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
+    candidate: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
 ): boolean {
-    const normalizedExisting = normalizeBlockedEntry(existing.name, existing.scope);
-    const normalizedCandidate = normalizeBlockedEntry(candidate.name, candidate.scope);
+    const normalizedExisting = normalizeBlockedEntry(
+        existing.name,
+        existing.scope,
+        existing.includeSubdomains,
+    );
+    const normalizedCandidate = normalizeBlockedEntry(
+        candidate.name,
+        candidate.scope,
+        candidate.includeSubdomains,
+    );
     if (!normalizedExisting || !normalizedCandidate) return false;
     if (normalizedExisting.scope === normalizedCandidate.scope) {
-        return normalizedExisting.scope === 'domain'
-            ? hostnameMatchesDomain(normalizedCandidate.name, normalizedExisting.name)
-            : normalizedExisting.name === normalizedCandidate.name;
+        if (normalizedExisting.scope === 'url') {
+            return normalizedExisting.name === normalizedCandidate.name;
+        }
+        if (!domainRuleMatchesHostname(normalizedExisting, normalizedCandidate.name)) return false;
+        return normalizedExisting.name !== normalizedCandidate.name
+            || normalizedExisting.includeSubdomains !== false
+            || normalizedCandidate.includeSubdomains === false;
     }
     return normalizedExisting.scope === 'domain'
-        && hostnameMatchesDomain(toUrl(normalizedCandidate.name)?.hostname || '', normalizedExisting.name);
+        && domainRuleMatchesHostname(
+            normalizedExisting,
+            toUrl(normalizedCandidate.name)?.hostname || '',
+        );
 }
 
 export function isBlockedEntryCovered(
-    rules: Array<Pick<BlockedEntry, 'name' | 'scope' | 'enabled'>>,
-    candidate: Pick<BlockedEntry, 'name' | 'scope'>,
+    rules: Array<Pick<BlockedEntry, 'name' | 'scope' | 'enabled' | 'includeSubdomains'>>,
+    candidate: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
 ): boolean {
     return rules.some((entry) => {
         const sameRule = (entry.scope || 'domain') === (candidate.scope || 'domain')
@@ -107,7 +132,7 @@ export function isBlockedEntryCovered(
 
 export function findCoveredUrlRules<T extends BlockedEntry>(
     rules: T[],
-    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+    domain: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
 ): T[] {
     if ((domain.scope || 'domain') !== 'domain') return [];
     return rules.filter((entry) =>
@@ -117,7 +142,7 @@ export function findCoveredUrlRules<T extends BlockedEntry>(
 
 export function getCoveredUrlRuleInfo(
     rules: BlockedEntry[],
-    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+    domain: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
 ): CoveredUrlRuleInfo[] {
     return findCoveredUrlRules(rules, domain).map((entry) => ({
         url: entry.name,
@@ -136,7 +161,7 @@ export function sameCoveredUrlRuleInfo(
 
 export function applyCoveredUrlRuleAction<T extends BlockedEntry>(
     rules: T[],
-    domain: Pick<BlockedEntry, 'name' | 'scope'>,
+    domain: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
     action: CoveredUrlRuleAction,
 ): T[] {
     if (action === 'keep') return [...rules];
@@ -158,6 +183,17 @@ export function hostnameMatchesDomain(hostname: string, domain: string): boolean
     const normalizedDomain = normalizeHostname(domain);
     return normalizedHostname === normalizedDomain
         || normalizedHostname.endsWith(`.${normalizedDomain}`);
+}
+
+export function domainRuleMatchesHostname(
+    rule: Pick<BlockedEntry, 'name' | 'includeSubdomains'>,
+    hostname: string,
+): boolean {
+    const normalizedHostname = normalizeHostname(hostname);
+    const normalizedDomain = normalizeHostname(rule.name);
+    return rule.includeSubdomains === false
+        ? normalizedHostname === normalizedDomain
+        : hostnameMatchesDomain(normalizedHostname, normalizedDomain);
 }
 
 function toUrl(input: string): URL | null {

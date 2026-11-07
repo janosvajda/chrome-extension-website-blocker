@@ -20,8 +20,14 @@
             </div>
         </div>
         <div class="headerActions">
-            <button id="openPassphraseSettingsButton" class="ghostButton" type="button">Confirmation phrase</button>
-            <button id="openTransferDialogButton" class="ghostButton" type="button">Backup and restore</button>
+            <button id="openPassphraseSettingsButton" class="ghostButton headerActionButton" type="button" aria-label="Confirmation phrase settings" title="Confirmation phrase settings">Confirmation</button>
+            <button id="openTransferDialogButton" class="ghostButton headerActionButton" type="button" aria-label="Backup and restore" title="Backup and restore">Backup</button>
+            <button id="openRuleHelpButton" class="helpIconButton" type="button" aria-label="How blocking rules work" title="How blocking rules work">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M8.7 8.8a3.45 3.45 0 1 1 5.7 2.6c-1.35 1.05-2.4 1.65-2.4 3.2"/>
+                    <circle cx="12" cy="18.1" r="1" fill="currentColor" stroke="none"/>
+                </svg>
+            </button>
         </div>
     </header>
     <div id="websiteList">
@@ -57,6 +63,7 @@
         </section>
             <div id="websiteListHeader" class="header" hidden>
                 <div class="websiteHeader">Website</div>
+                <div class="coverageHeader">Rule type</div>
                 <div class="actionHeader">Blocked</div>
             </div>
         </div>
@@ -199,6 +206,79 @@
             <div class="dialogActions transferDialogActions">
                 <button id="closeTransferDialogButton" type="button" class="ghostButton">Close</button>
             </div>
+        </div>
+    </section>
+    <section id="ruleHelpDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="ruleHelpTitle" aria-describedby="ruleHelpIntro" hidden>
+        <div class="ruleHelpCard">
+            <header class="ruleHelpHeader">
+                <span class="ruleHelpIcon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.15" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8.7 8.8a3.45 3.45 0 1 1 5.7 2.6c-1.35 1.05-2.4 1.65-2.4 3.2"/>
+                        <circle cx="12" cy="18.1" r="1" fill="currentColor" stroke="none"/>
+                    </svg>
+                </span>
+                <div>
+                    <h2 id="ruleHelpTitle" class="sectionTitle">How blocking rules work</h2>
+                    <p id="ruleHelpIntro" class="subtitle">Choose the coverage and timing that fit each website.</p>
+                </div>
+                <button id="closeRuleHelpButton" class="ghostButton ruleHelpCloseButton" type="button">Close</button>
+            </header>
+            <div class="ruleHelpGrid">
+                <article class="ruleHelpItem">
+                    <span class="ruleHelpBadge">Domain</span>
+                    <h3>Domain + subdomains</h3>
+                    <p>With <strong>Include subdomains</strong> selected, <code>example.com</code> also covers addresses such as <code>music.example.com</code>.</p>
+                </article>
+                <article class="ruleHelpItem">
+                    <span class="ruleHelpBadge">Domain</span>
+                    <h3>Domain only</h3>
+                    <p>Clear <strong>Include subdomains</strong> to cover only the named domain. Its <code>www</code> address counts as the same domain.</p>
+                </article>
+                <article class="ruleHelpItem">
+                    <span class="ruleHelpBadge ruleHelpUrlBadge">URL</span>
+                    <h3>One full URL</h3>
+                    <p>Blocks only the saved HTTP(S) address, while other pages on the same website remain available.</p>
+                </article>
+            </div>
+            <section class="ruleHelpExample" aria-labelledby="ruleHelpExampleTitle">
+                <div class="ruleHelpExampleHeader">
+                    <div>
+                        <h3 id="ruleHelpExampleTitle">Example</h3>
+                        <p>What happens when you open this address with each rule:</p>
+                    </div>
+                    <code>https://subdomain.example.com/page</code>
+                </div>
+                <div class="ruleHelpExampleRows">
+                    <div class="ruleHelpExampleRow">
+                        <span><strong>example.com</strong> · Include subdomains selected</span>
+                        <span class="ruleHelpResult ruleHelpBlockedResult">Blocked</span>
+                    </div>
+                    <div class="ruleHelpExampleRow">
+                        <span><strong>example.com</strong> · Domain only</span>
+                        <span class="ruleHelpResult ruleHelpAvailableResult">Available</span>
+                    </div>
+                    <div class="ruleHelpExampleRow">
+                        <span><strong>subdomain.example.com</strong> · Domain only</span>
+                        <span class="ruleHelpResult ruleHelpBlockedResult">Blocked</span>
+                    </div>
+                    <div class="ruleHelpExampleRow">
+                        <span><strong>https://subdomain.example.com/page</strong> · Full URL</span>
+                        <span class="ruleHelpResult ruleHelpBlockedResult">Blocked</span>
+                    </div>
+                </div>
+            </section>
+            <section class="ruleHelpControls" aria-labelledby="ruleHelpControlsTitle">
+                <h3 id="ruleHelpControlsTitle">Rule controls</h3>
+                <div class="ruleHelpControl">
+                    <span class="ruleHelpControlIcon ruleHelpCheckIcon" aria-hidden="true">✓</span>
+                    <p><strong>Blocked:</strong> selected rules can block. Clear it to keep a rule saved but inactive.</p>
+                </div>
+                <div class="ruleHelpControl">
+                    <span class="ruleHelpControlIcon" aria-hidden="true">🗓</span>
+                    <p><strong>Always or scheduled:</strong> use a schedule to block only on chosen days and times, including overnight periods.</p>
+                </div>
+            </section>
+            <p class="ruleHelpNote">Rules take effect while Tiny Website Blocker is on and blocking is not temporarily paused.</p>
         </div>
     </section>
     <section id="passphraseSettingsDialog" class="scheduleDialog" role="dialog" aria-modal="true" aria-labelledby="passphraseTitle" hidden>

@@ -7,9 +7,9 @@ import {
     RuleSchedule,
     applyCoveredUrlRuleAction,
     blockedEntryCovers,
+    domainRuleMatchesHostname,
     findCoveredUrlRules,
     getCoveredUrlRuleInfo,
-    hostnameMatchesDomain,
     normalizeBlockedEntry,
     normalizeUrlForMatch,
     requiresBlockScopeChoice,
@@ -46,7 +46,8 @@ chrome.runtime.onInstalled.addListener(() => {
 
 // Initialize a dictionary to keep track of blocked tabs
 const blockedTabs: Record<number, boolean> = {};
-let blockedHostnames = new Map<string, RuleSchedule | undefined>();
+type DomainBlock = {schedule?: RuleSchedule; includeSubdomains: boolean};
+let blockedHostnames = new Map<string, DomainBlock>();
 let blockedUrls = new Map<string, RuleSchedule | undefined>();
 let blockingEnabled = true;
 let blockingPausedUntil = 0;
@@ -54,13 +55,17 @@ let pendingStatisticsUpdates = 0;
 let statisticsUpdateInProgress = false;
 
 export function rebuildBlockedHostnames(blockedList) {
-    blockedHostnames = new Map<string, RuleSchedule | undefined>();
+    blockedHostnames = new Map<string, DomainBlock>();
     blockedUrls = new Map<string, RuleSchedule | undefined>();
     normalizeRules(blockedList).forEach((website) => {
         if (!website || !website.enabled) {
             return;
         }
-        const normalized = normalizeBlockedEntry(website.name || '', website.scope);
+        const normalized = normalizeBlockedEntry(
+            website.name || '',
+            website.scope,
+            website.includeSubdomains,
+        );
         if (!normalized) {
             return;
         }
@@ -68,13 +73,19 @@ export function rebuildBlockedHostnames(blockedList) {
             blockedUrls.set(normalized.name, website.schedule);
             return;
         }
-        blockedHostnames.set(normalized.name, website.schedule);
+        blockedHostnames.set(normalized.name, {
+            schedule: website.schedule,
+            includeSubdomains: normalized.includeSubdomains !== false,
+        });
     });
 }
 
 export function shouldBlockHostname(hostname: string, date = new Date()): boolean {
-    for (const [domain, schedule] of blockedHostnames) {
-        if (hostnameMatchesDomain(hostname, domain) && isScheduleActive(schedule, date)) {
+    for (const [domain, block] of blockedHostnames) {
+        if (domainRuleMatchesHostname(
+            {name: domain, includeSubdomains: block.includeSubdomains},
+            hostname,
+        ) && isScheduleActive(block.schedule, date)) {
             return true;
         }
     }
@@ -82,7 +93,7 @@ export function shouldBlockHostname(hostname: string, date = new Date()): boolea
 }
 
 export function resetBlockedStateForTest(): void {
-    blockedHostnames = new Map<string, RuleSchedule | undefined>();
+    blockedHostnames = new Map<string, DomainBlock>();
     blockedUrls = new Map<string, RuleSchedule | undefined>();
     blockingEnabled = true;
     blockingPausedUntil = 0;
@@ -147,8 +158,11 @@ export function blockPage(tabId, pageUrl) {
     const hasUrlRule = Boolean(normalizedUrl && blockedUrls.has(normalizedUrl));
     const urlSchedule = hasUrlRule ? blockedUrls.get(normalizedUrl!) : undefined;
     const domainSchedules: Array<RuleSchedule | undefined> = [];
-    for (const [domain, schedule] of blockedHostnames) {
-        if (hostnameMatchesDomain(hostname, domain)) domainSchedules.push(schedule);
+    for (const [domain, block] of blockedHostnames) {
+        if (domainRuleMatchesHostname(
+            {name: domain, includeSubdomains: block.includeSubdomains},
+            hostname,
+        )) domainSchedules.push(block.schedule);
     }
     const matchingSchedules = hasUrlRule
         ? [urlSchedule, ...domainSchedules]
@@ -184,7 +198,7 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                 ? currentBlocked.filter((item) =>
                     item.enabled
                     && (item.scope || 'domain') === 'domain'
-                    && blockedEntryCovers(item, domainEntry)
+                    && domainRuleMatchesHostname(item, domainEntry.name)
                 ).sort((first, second) => second.name.length - first.name.length)[0]
                 : null;
             const existingSchedule = normalizeRuleSchedule(existingDomain?.schedule);
@@ -196,7 +210,11 @@ chrome.contextMenus.onClicked.addListener(function(info, tab) {
                     formatScheduleForContextMenu(existingSchedule)
                 ).then((replaceSchedule) => {
                     if (!replaceSchedule) return;
-                    const scheduledDomain = normalizeBlockedEntry(existingDomain.name, 'domain');
+                    const scheduledDomain = normalizeBlockedEntry(
+                        existingDomain.name,
+                        'domain',
+                        existingDomain.includeSubdomains,
+                    );
                     if (scheduledDomain) applyContextMenuRule(tabId, scheduledDomain, true);
                 });
                 return;
@@ -418,7 +436,11 @@ function enableStoredRuleForCurrentSite(
         sendResponse({ok: false});
         return;
     }
-    const requestedRule = normalizeBlockedEntry(message.rule?.name || '', message.rule?.scope);
+    const requestedRule = normalizeBlockedEntry(
+        message.rule?.name || '',
+        message.rule?.scope,
+        message.rule?.includeSubdomains,
+    );
     if (!requestedRule || !ruleMatchesPage(requestedRule, message.url)) {
         sendResponse({ok: false});
         return;
@@ -507,7 +529,7 @@ function ruleMatchesPage(rule: NormalizedBlockedEntry, url: string): boolean {
         return normalizeBlockedEntry(url, 'url')?.name === rule.name;
     }
     const pageDomain = normalizeBlockedEntry(url, 'domain');
-    return Boolean(pageDomain && hostnameMatchesDomain(pageDomain.name, rule.name));
+    return Boolean(pageDomain && domainRuleMatchesHostname(rule, pageDomain.name));
 }
 
 function formatScheduleForContextMenu(schedule: RuleSchedule): string {
