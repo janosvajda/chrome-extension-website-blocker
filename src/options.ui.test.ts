@@ -115,6 +115,7 @@ describe('options UI', () => {
         for (let index = 6; index >= 1; index -= 1) addWebsite(`site-${index}.example`);
         expect((document.getElementById('websiteListHeader') as HTMLElement).hidden).toBe(false);
         expect(document.querySelector('.websiteHeader')?.textContent).toBe('Website');
+        expect(document.querySelector('.coverageHeader')?.textContent).toBe('Rule type');
         expect(document.querySelector('.actionHeader')?.textContent).toBe('Blocked');
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(5);
         expect(document.getElementById('pageInfo')?.textContent).toBe('Page 1 of 2');
@@ -136,6 +137,36 @@ describe('options UI', () => {
         document.getElementById('confirmDeleteButton')?.click();
         expect(data.blocked).toHaveLength(5);
         expect(chromeMock.storage.local.get).toHaveBeenCalled();
+    });
+
+    it('changes subdomain coverage without changing the rule state or schedule', () => {
+        const schedule = {daily: [{day: 1, mode: 'period', start: '09:00', end: '17:00'}]};
+        const domainRule = {
+            name: 'youtube.com', scope: 'domain', enabled: false, schedule,
+        };
+        const urlRule = {
+            name: 'https://example.com/watch', scope: 'url', enabled: true,
+        };
+        const {data} = setup({blocked: [domainRule, urlRule]});
+        const subdomainCheckbox = document.querySelector('.subdomainCheckbox') as HTMLInputElement;
+
+        expect(subdomainCheckbox.closest('.websiteItem')?.querySelector('.websiteScope')?.textContent)
+            .toBe('Domain');
+        expect(subdomainCheckbox.checked).toBe(true);
+        expect(subdomainCheckbox.getAttribute('aria-label')).toBe('Include subdomains for youtube.com');
+        expect(document.querySelectorAll('.subdomainCheckbox')).toHaveLength(1);
+        subdomainCheckbox.click();
+
+        expect(data.blocked).toContainEqual({...domainRule, includeSubdomains: false});
+        expect(data.blocked).toContainEqual(urlRule);
+        expect(subdomainCheckbox.checked).toBe(false);
+        expect(document.activeElement).toBe(subdomainCheckbox);
+
+        subdomainCheckbox.click();
+        expect(data.blocked).toContainEqual(domainRule);
+        expect(data.blocked.find((entry) => entry.name === domainRule.name))
+            .not.toHaveProperty('includeSubdomains');
+        expect(subdomainCheckbox.checked).toBe(true);
     });
 
     it('searches the complete list without changing stored rules and paginates only matches', () => {
@@ -425,6 +456,31 @@ describe('options UI', () => {
         );
     });
 
+    it('identifies an existing domain-only schedule on its exact domain', () => {
+        setup({blocked: [{
+            name: 'youtube.com', scope: 'domain', includeSubdomains: false, enabled: true,
+            schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+        }]});
+
+        addWebsite('youtube.com');
+
+        expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toBe(
+            'This website is already covered by scheduled blocking for youtube.com: Mon | 08:00-17:00.'
+        );
+    });
+
+    it('explains how to include subdomains when the domain-only rule already exists', () => {
+        setup({blocked: [{
+            name: 'youtube.com', scope: 'domain', includeSubdomains: false, enabled: false,
+        }]});
+
+        addWebsite('youtube.com');
+
+        expect(document.getElementById('addWebsiteErrorMessage')?.textContent).toBe(
+            'youtube.com is already in your list. Select Include subdomains for that rule to cover its subdomains too.'
+        );
+    });
+
     it.each([
         [{enabled: false}, 'currently off'],
         [{enabled: true, pausedUntil: Date.now() + 60_000}, 'temporarily paused'],
@@ -689,6 +745,36 @@ describe('options UI', () => {
     it('drops malformed stored rules', () => {
         setup({blocked: [null, {}, {name: 'not valid', scope: 'domain', enabled: true}]});
         expect(document.querySelectorAll('.websiteItem')).toHaveLength(0);
+    });
+
+    it('opens and closes the blocking-rule help dialog accessibly', () => {
+        setup();
+        const openButton = document.getElementById('openRuleHelpButton') as HTMLButtonElement;
+        const closeButton = document.getElementById('closeRuleHelpButton') as HTMLButtonElement;
+        const dialog = document.getElementById('ruleHelpDialog') as HTMLElement;
+
+        openButton.click();
+        expect(dialog.hidden).toBe(false);
+        expect(document.activeElement).toBe(closeButton);
+        expect(document.getElementById('ruleHelpTitle')?.textContent).toBe('How blocking rules work');
+        expect(document.querySelectorAll('.ruleHelpItem')).toHaveLength(3);
+        expect(document.querySelector('.ruleHelpExampleHeader code')?.textContent)
+            .toBe('https://subdomain.example.com/page');
+        expect(document.querySelector('.ruleHelpExampleHeader p')?.textContent)
+            .toBe('What happens when you open this address with each rule:');
+        expect(document.querySelectorAll('.ruleHelpExampleRow')).toHaveLength(4);
+
+        document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', cancelable: true}));
+        expect(dialog.hidden).toBe(true);
+        expect(document.activeElement).toBe(openButton);
+
+        openButton.click();
+        dialog.click();
+        expect(dialog.hidden).toBe(true);
+
+        openButton.click();
+        closeButton.click();
+        expect(dialog.hidden).toBe(true);
     });
 
     it('exports normalized configuration', () => {

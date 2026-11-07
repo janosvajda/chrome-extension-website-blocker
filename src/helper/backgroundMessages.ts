@@ -38,7 +38,7 @@ export type EnableCurrentSiteRuleRequest = {
     type: typeof ENABLE_CURRENT_SITE_RULE;
     tabId: number;
     url: string;
-    rule: Pick<BlockedEntry, 'name' | 'scope'>;
+    rule: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>;
     coveredUrlAction?: CoveredUrlRuleAction;
     coveredUrls?: CoveredUrlRuleInfo[];
 };

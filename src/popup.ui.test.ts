@@ -130,8 +130,23 @@ describe('popup UI', () => {
         }, false, 'https://jobs.linkedin.com/feed/');
 
         expect(document.getElementById('currentSiteName')?.textContent).toBe('jobs.linkedin.com');
-        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain blocking · Active now');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain + subdomains · Active now');
         expect(chromeMock.storage.local.set).not.toHaveBeenCalled();
+    });
+
+    it('shows a domain-only rule only on its own domain', () => {
+        const rule = {
+            name: 'youtube.com', scope: 'domain', includeSubdomains: false, enabled: true,
+        };
+        setup({enabled: true, blocked: [rule], statistics: {}}, false, 'https://youtube.com/watch');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Domain only · Active now');
+
+        jest.resetModules();
+        document.body.innerHTML = '';
+        setup({enabled: true, blocked: [rule], statistics: {}}, false, 'https://music.youtube.com/');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent)
+            .toBe('Not in your blocking list');
     });
 
     it('shows disabled, scheduled, and unmatched current website states', () => {
@@ -141,7 +156,7 @@ describe('popup UI', () => {
             statistics: {},
         }, false, 'https://old.example.com/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('A block exists for this website, but it is disabled.');
+            .toBe('Domain + subdomains · Disabled');
         expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(false);
 
         jest.resetModules();
@@ -157,7 +172,7 @@ describe('popup UI', () => {
             statistics: {},
         }, false, 'https://old.example.com/');
         expect(document.querySelector('#currentSiteRuleStatus .scheduleDetails')?.textContent)
-            .toBe('Scheduled blocking: Mon | 08:00-17:00');
+            .toBe('Domain + subdomains · Scheduled blocking: Mon | 08:00-17:00');
         expect(document.querySelector('#currentSiteRuleStatus .availableNow')?.textContent)
             .toBe('Available now');
 
@@ -195,6 +210,33 @@ describe('popup UI', () => {
             .toBe('Blocking enabled. Reloading this page now.');
         expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(true);
         expect(document.getElementById('activeRules')?.textContent).toBe('1');
+    });
+
+    it('preserves domain-only coverage when enabling a disabled rule', () => {
+        const rule = {
+            name: 'example.com', scope: 'domain', includeSubdomains: false, enabled: false,
+        };
+        const chromeMock = setup({
+            enabled: true,
+            blocked: [rule],
+            statistics: {},
+        }, false, 'https://example.com/article');
+        chromeMock.runtime.sendMessage.mockImplementation((_message, callback) => callback({
+            ok: true,
+            blocked: [{...rule, enabled: true}],
+            enabled: true,
+            pausedUntil: 0,
+            reload: 'started',
+        }));
+
+        document.getElementById('enableCurrentSiteRuleButton')?.click();
+
+        expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith({
+            type: 'enableCurrentSiteRule',
+            tabId: 42,
+            url: 'https://example.com/article',
+            rule: {name: 'example.com', scope: 'domain', includeSubdomains: false},
+        }, expect.any(Function));
     });
 
     it('resolves covered full-URL blocks before enabling a disabled domain', async () => {
@@ -270,7 +312,7 @@ describe('popup UI', () => {
 
         expect(chromeMock.runtime.sendMessage).toHaveBeenCalledTimes(1);
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('A block exists for this website, but it is disabled.');
+            .toBe('Domain + subdomains · Disabled');
         expect((document.getElementById('enableCurrentSiteRuleButton') as HTMLButtonElement).hidden).toBe(false);
     });
 
@@ -360,7 +402,7 @@ describe('popup UI', () => {
         document.getElementById('enableCurrentSiteRuleButton')?.click();
 
         expect(document.querySelector('#currentSiteRuleStatus .scheduleDetails')?.textContent)
-            .toBe('Scheduled blocking: Mon | 08:00-17:00');
+            .toBe('Domain + subdomains · Scheduled blocking: Mon | 08:00-17:00');
         expect(document.querySelector('#currentSiteRuleStatus .availableNow')?.textContent)
             .toBe('Available now');
     });
@@ -571,7 +613,7 @@ describe('popup UI', () => {
             blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
             statistics: {},
         }, false, 'https://example.com/', false);
-        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain blocking · Active now');
+        expect(document.getElementById('currentSiteRuleStatus')?.textContent).toBe('Domain + subdomains · Active now');
 
         jest.resetModules();
         document.body.innerHTML = '';
@@ -591,7 +633,7 @@ describe('popup UI', () => {
             statistics: {},
         }, false, 'https://example.com/');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('Domain blocking · Extension is off');
+            .toBe('Domain + subdomains · Extension is off');
 
         jest.resetModules();
         document.body.innerHTML = '';
@@ -602,7 +644,7 @@ describe('popup UI', () => {
             statistics: {},
         }, false, 'https://example.com/page');
         expect(document.getElementById('currentSiteRuleStatus')?.textContent)
-            .toBe('Full URL blocking · Blocking is paused');
+            .toBe('URL · Blocking is paused');
     });
 
     it('keeps the required toggle functional when optional display elements are absent', () => {

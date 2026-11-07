@@ -6,6 +6,7 @@ export type ScheduledRule = {
     name: string;
     scope: 'domain' | 'url';
     enabled: boolean;
+    includeSubdomains?: boolean;
     schedule?: RuleSchedule;
 };
 

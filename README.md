@@ -6,9 +6,9 @@ Tiny Website Blocker is a lightweight, open-source Chrome extension that helps y
 
 ## Features
 
-- **Domain and Exact-URL Blocking**: Block an entire website or one specific HTTP(S) page. When an entered address contains a path, query, or fragment, Tiny Website Blocker asks whether to block the domain or that full URL. Plain domains and origin-only URLs are normalized automatically.
+- **Domain and Exact-URL Blocking**: Block a domain and its subdomains, one domain only, or one specific HTTP(S) page. New domain rules include subdomains by default; clear their **Include subdomains** checkbox in Settings to limit them to the named domain without changing their schedule or enabled state. `www` is treated as the same domain. When an entered address contains a path, query, or fragment, Tiny Website Blocker asks whether to block the domain or that full URL. Plain domains and origin-only URLs are normalized automatically.
 
-- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. Invalid or redundant rules are rejected clearly. When adding or enabling a domain block that covers existing full-URL blocks, you can keep, disable, or delete those URL blocks before continuing. Deletion requires confirmation.
+- **Simple Rule Management**: Add, enable, disable, schedule, and delete rules from one clean, sorted, and paginated list. A built-in help dialog briefly explains each rule type and control. Invalid or redundant rules are rejected clearly. When adding or enabling a domain block that covers existing full-URL blocks, you can keep, disable, or delete those URL blocks before continuing. Deletion requires confirmation.
 
 - **Search and Filter Rules**: Search domains and full URLs across the entire list, or show enabled, disabled, scheduled, unscheduled, domain, or URL rules. Result counts and a clear-filters action make it easy to return to the full list. Searching and filtering do not change which websites are blocked.
 

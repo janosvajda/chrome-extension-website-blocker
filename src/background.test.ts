@@ -160,6 +160,19 @@ describe('background blocked hostnames cache', () => {
         expect(shouldBlockHostname('notreddit.com')).toBe(false);
     });
 
+    it('keeps subdomains and parent domains available for a domain-only rule', () => {
+        rebuildBlockedHostnames([{
+            name: 'music.youtube.com',
+            scope: 'domain',
+            includeSubdomains: false,
+            enabled: true,
+        }]);
+
+        expect(shouldBlockHostname('music.youtube.com')).toBe(true);
+        expect(shouldBlockHostname('child.music.youtube.com')).toBe(false);
+        expect(shouldBlockHostname('youtube.com')).toBe(false);
+    });
+
     it('ignores storage changes from other storage areas', () => {
         onStorageChanged({enabled: {newValue: false}}, 'sync');
         expect(isBlockingActive()).toBe(true);
@@ -1409,6 +1422,32 @@ describe('background blocked hostnames cache', () => {
         onContextMenuClicked(
             {menuItemId: 'blockPage'},
             {id: 13, url: 'https://old.reddit.com/feed/', title: 'Reddit'}
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(mockChrome.storage.local.set).not.toHaveBeenCalled();
+        expect(mockChrome.tabs.reload).not.toHaveBeenCalled();
+    });
+
+    it('shows an existing domain-only schedule on its exact domain', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 7, 24, 18, 0));
+        const scheduledRule = {
+            name: 'youtube.com', scope: 'domain', includeSubdomains: false, enabled: true,
+            schedule: {daily: [{day: 1, mode: 'period', start: '08:00', end: '17:00'}]},
+        };
+        mockChrome.storage.local.get.mockImplementation((_keys, callback) => callback({
+            enabled: true, pausedUntil: 0, blocked: [scheduledRule],
+        }));
+        mockChrome.scripting.executeScript.mockImplementationOnce((options, callback) => {
+            expect(options.args).toEqual(['youtube.com', 'Mon | 08:00-17:00']);
+            callback([{result: false}]);
+        });
+
+        onContextMenuClicked(
+            {menuItemId: 'blockPage'},
+            {id: 14, url: 'https://youtube.com/watch', title: 'YouTube'}
         );
         await Promise.resolve();
         await Promise.resolve();

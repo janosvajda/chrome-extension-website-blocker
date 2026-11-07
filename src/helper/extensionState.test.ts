@@ -127,4 +127,20 @@ describe('extensionState', () => {
             blocked: [{name: 'example.com', scope: 'domain', enabled: true}],
         }));
     });
+
+    it('preserves domain-only coverage in version 4 backups', () => {
+        expect(parseImportedConfiguration({
+            version: 4,
+            enabled: true,
+            blocked: [{
+                name: 'example.com', scope: 'domain', includeSubdomains: false, enabled: true,
+            }],
+        })).toEqual({
+            version: 4,
+            enabled: true,
+            blocked: [{
+                name: 'example.com', scope: 'domain', includeSubdomains: false, enabled: true,
+            }],
+        });
+    });
 });

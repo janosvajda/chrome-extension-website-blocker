@@ -1,4 +1,4 @@
-import {BlockedEntry, RuleSchedule, hostnameMatchesDomain, normalizeBlockedEntry} from '../helper/blockedEntry';
+import {BlockedEntry, RuleSchedule, domainRuleMatchesHostname, normalizeBlockedEntry} from '../helper/blockedEntry';
 import type {AddCurrentSiteRuleResponse, EnableCurrentSiteRuleResponse} from '../helper/backgroundMessages';
 import {normalizePausedUntil} from '../helper/extensionState';
 import {formatSchedule, isScheduleActive, normalizeRules} from '../helper/schedules';
@@ -12,7 +12,7 @@ type AddCurrentSiteRule = (
 type EnableCurrentSiteRule = (
     tabId: number,
     url: string,
-    rule: Pick<BlockedEntry, 'name' | 'scope'>,
+    rule: Pick<BlockedEntry, 'name' | 'scope' | 'includeSubdomains'>,
     done: (response: EnableCurrentSiteRuleResponse) => void,
 ) => void;
 
@@ -70,6 +70,11 @@ export function createCurrentSiteStatus(
         } else {
             if (addButton) addButton.hidden = true;
             const availability = getAvailability();
+            const ruleType = (rule.scope || 'domain') === 'url'
+                ? 'URL'
+                : rule.includeSubdomains === false
+                    ? 'Domain only'
+                    : 'Domain + subdomains';
             if (additionState === 'added') {
                 if (!availability.blockingEnabled) {
                     ruleStatus.textContent = 'Added to your blocking list. Tiny Website Blocker is currently off.';
@@ -95,7 +100,7 @@ export function createCurrentSiteStatus(
                     ruleStatus.textContent = 'Could not enable blocking. Please try again.';
                     ruleStatus.classList.add('error');
                 } else {
-                    ruleStatus.textContent = 'A block exists for this website, but it is disabled.';
+                    ruleStatus.textContent = `${ruleType} · Disabled`;
                     ruleStatus.classList.add('inactive');
                 }
                 if (enableButton) {
@@ -104,7 +109,6 @@ export function createCurrentSiteStatus(
                 }
             } else {
                 if (enableButton) enableButton.hidden = true;
-                const ruleType = (rule.scope || 'domain') === 'url' ? 'Full URL blocking' : 'Domain blocking';
                 if (enableState === 'enabled' && !availability.blockingEnabled) {
                     ruleStatus.textContent = 'Blocking is enabled for this website. Tiny Website Blocker is currently off.';
                     ruleStatus.classList.add('inactive');
@@ -112,7 +116,7 @@ export function createCurrentSiteStatus(
                     ruleStatus.textContent = 'Blocking is enabled for this website. Blocking is temporarily paused.';
                     ruleStatus.classList.add('inactive');
                 } else if (enableState === 'enabled' && rule.schedule && !isScheduleActive(rule.schedule, new Date(now))) {
-                    showAvailableSchedule(ruleStatus, rule.schedule);
+                    showAvailableSchedule(ruleStatus, rule.schedule, ruleType);
                 } else if (enableState === 'enabled' && reloadOutcome === 'started') {
                     ruleStatus.textContent = 'Blocking enabled. Reloading this page now.';
                     ruleStatus.classList.add('active');
@@ -126,7 +130,7 @@ export function createCurrentSiteStatus(
                     ruleStatus.textContent = `${ruleType} · Blocking is paused`;
                     ruleStatus.classList.add('inactive');
                 } else if (rule.schedule && !isScheduleActive(rule.schedule, new Date(now))) {
-                    showAvailableSchedule(ruleStatus, rule.schedule);
+                    showAvailableSchedule(ruleStatus, rule.schedule, ruleType);
                 } else {
                     ruleStatus.textContent = `${ruleType} · Active now`;
                     ruleStatus.classList.add('active');
@@ -169,7 +173,11 @@ export function createCurrentSiteStatus(
     enableButton?.addEventListener('click', () => {
         if (!enableCurrentSiteRule || currentTabId === null || !currentUrl
             || !currentRule || currentRule.enabled || enableState === 'enabling') return;
-        const rule = {name: currentRule.name, scope: currentRule.scope || 'domain'};
+        const rule = {
+            name: currentRule.name,
+            scope: currentRule.scope || 'domain',
+            ...(currentRule.includeSubdomains === false ? {includeSubdomains: false} : {}),
+        };
         enableState = 'enabling';
         refresh();
         enableCurrentSiteRule(currentTabId, currentUrl, rule, (response) => {
@@ -188,10 +196,14 @@ export function createCurrentSiteStatus(
     return {load, refresh};
 }
 
-function showAvailableSchedule(ruleStatus: HTMLElement, schedule: RuleSchedule): void {
+function showAvailableSchedule(
+    ruleStatus: HTMLElement,
+    schedule: RuleSchedule,
+    ruleType: string,
+): void {
     const scheduleDetails = document.createElement('span');
     scheduleDetails.className = 'scheduleDetails';
-    scheduleDetails.textContent = `Scheduled blocking: ${formatSchedule(schedule)}`;
+    scheduleDetails.textContent = `${ruleType} · Scheduled blocking: ${formatSchedule(schedule)}`;
     const availability = document.createElement('span');
     availability.className = 'availableNow';
     availability.textContent = 'Available now';
@@ -207,7 +219,7 @@ function findMatchingRule(
 ): BlockedEntry | undefined {
     const exactRule = rules.find((rule) => (rule.scope || 'domain') === 'url' && rule.name === exactUrl);
     const domainRules = rules.filter((rule) =>
-        (rule.scope || 'domain') === 'domain' && hostnameMatchesDomain(domain, rule.name)
+        (rule.scope || 'domain') === 'domain' && domainRuleMatchesHostname(rule, domain)
     ).sort((first, second) => second.name.length - first.name.length);
     const matches = [exactRule, ...domainRules].filter((rule): rule is BlockedEntry => Boolean(rule));
     return matches.find((rule) => rule.enabled && isScheduleActive(rule.schedule, date))

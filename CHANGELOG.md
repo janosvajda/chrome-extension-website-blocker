@@ -1,10 +1,14 @@
-# Changelog
+## 1.0.10 - 2026-11-06
 
-## Unreleased
+### Added
+
+- Add an **Include subdomains** checkbox to domain rules in Settings, while preserving each rule's schedule and enabled state. Existing and newly added domain rules continue to include subdomains by default.
+- Add a rule help dialog in Settings with short explanations and a practical comparison of domain, subdomain, full-URL, enabled, and scheduled blocking.
 
 ### Maintenance
 
-- Restore the real Chromium end-to-end tests with Playwright 1.65.0, which bundles Chromium 158, and run them again in pull-request checks and release validation.
+- Restore Playwright and the Chromium end-to-end suite to local development, pull-request checks, and release validation.
+- Add browser coverage for switching a rule to **Domain only** and verifying that the domain remains blocked while its subdomains remain available.
 
 ## 1.0.9 - 2026-11-05
 

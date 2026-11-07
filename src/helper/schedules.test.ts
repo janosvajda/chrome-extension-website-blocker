@@ -103,6 +103,14 @@ describe('per-rule schedules', () => {
         ])).toEqual([{name: 'example.com', scope: 'domain', enabled: true, schedule: normalizedWorkHours}]);
     });
 
+    it('preserves domain-only coverage while normalizing rules', () => {
+        expect(normalizeRules([{
+            name: 'example.com', scope: 'domain', includeSubdomains: false, enabled: true,
+        }])).toEqual([{
+            name: 'example.com', scope: 'domain', includeSubdomains: false, enabled: true,
+        }]);
+    });
+
     it('migrates enabled legacy groups into scheduled rules', () => {
         const migrated = migrateLegacyScheduleGroups(
             [{name: 'always.example', scope: 'domain', enabled: true}],

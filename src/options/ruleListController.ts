@@ -110,7 +110,11 @@ export function createRuleListController({
     }
 
     function createWebsiteItem(rule: ScheduledRule): void {
-        const normalizedRule = normalizeBlockedEntry(rule.name, rule.scope);
+        const normalizedRule = normalizeBlockedEntry(
+            rule.name,
+            rule.scope,
+            rule.includeSubdomains,
+        );
         if (!normalizedRule) return;
 
         const item = document.createElement('div');
@@ -136,9 +140,33 @@ export function createRuleListController({
         }
         details.append(name, scheduleSummary);
 
+        const coverage = document.createElement('div');
+        coverage.className = 'websiteCoverage';
         const scope = document.createElement('span');
         scope.className = 'websiteScope';
-        scope.textContent = normalizedRule.scope === 'url' ? 'URL' : 'Domain';
+        if (normalizedRule.scope === 'domain') {
+            scope.textContent = 'Domain';
+            const subdomainOption = document.createElement('label');
+            subdomainOption.className = 'subdomainOption';
+            const subdomainCheckbox = document.createElement('input');
+            subdomainCheckbox.type = 'checkbox';
+            subdomainCheckbox.className = 'subdomainCheckbox';
+            subdomainCheckbox.checked = normalizedRule.includeSubdomains !== false;
+            subdomainCheckbox.setAttribute(
+                'aria-label',
+                `Include subdomains for ${normalizedRule.name}`,
+            );
+            const subdomainLabel = document.createElement('span');
+            subdomainLabel.textContent = 'Include subdomains';
+            subdomainOption.append(subdomainCheckbox, subdomainLabel);
+            subdomainCheckbox.addEventListener('change', () => {
+                updateSubdomainCoverage(normalizedRule, subdomainCheckbox);
+            });
+            coverage.append(scope, subdomainOption);
+        } else {
+            scope.textContent = 'URL';
+            coverage.append(scope);
+        }
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -173,8 +201,24 @@ export function createRuleListController({
             deleteDialog.hidden = false;
         });
 
-        item.append(details, scope, checkbox, scheduleButton, deleteButton);
+        item.append(details, coverage, checkbox, scheduleButton, deleteButton);
         websiteList.appendChild(item);
+    }
+
+    function updateSubdomainCoverage(
+        entry: NormalizedBlockedEntry,
+        control: HTMLInputElement,
+    ): void {
+        const rules = getRules();
+        const index = findRuleIndex(entry);
+        if (index < 0 || rules[index].scope !== 'domain') return;
+        const updatedRule = {...rules[index]};
+        if (control.checked) delete updatedRule.includeSubdomains;
+        else updatedRule.includeSubdomains = false;
+        const updatedRules = [...rules];
+        updatedRules[index] = updatedRule;
+        replaceRules(updatedRules);
+        persistRules(() => control.focus());
     }
 
     function updateRuleEnabled(

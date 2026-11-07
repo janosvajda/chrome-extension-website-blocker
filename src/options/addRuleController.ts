@@ -3,7 +3,6 @@ import {
     CoveredUrlRuleAction,
     CoveredUrlRuleInfo,
     NormalizedBlockedEntry,
-    blockedEntryCovers,
     findCoveredUrlRules,
     getCoveredUrlRuleInfo,
     isBlockedEntryCovered,
@@ -90,7 +89,7 @@ export function createAddRuleController({getRules, addRule}: AddRuleOptions): vo
             const scheduledCoverage = getRules().filter((entry) =>
                 entry.enabled
                 && Boolean(normalizeRuleSchedule(entry.schedule))
-                && blockedEntryCovers(entry, normalized)
+                && isBlockedEntryCovered([entry], normalized)
             ).sort((first, second) => second.name.length - first.name.length)[0];
             if (scheduledCoverage) {
                 showStatus(
@@ -100,7 +99,18 @@ export function createAddRuleController({getRules, addRule}: AddRuleOptions): vo
                 return;
             }
             if (!addRule(normalized, coveredUrlAction)) {
-                showStatus('This website is already covered by an existing rule.', true);
+                const existingDomainOnlyRule = normalized.scope === 'domain'
+                    && getRules().some((entry) =>
+                        (entry.scope || 'domain') === 'domain'
+                        && entry.name === normalized.name
+                        && entry.includeSubdomains === false
+                    );
+                showStatus(
+                    existingDomainOnlyRule
+                        ? `${normalized.name} is already in your list. Select Include subdomains for that rule to cover its subdomains too.`
+                        : 'This website is already covered by an existing rule.',
+                    true,
+                );
                 return;
             }
             input.value = '';

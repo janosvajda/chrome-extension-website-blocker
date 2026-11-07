@@ -88,7 +88,11 @@ export function normalizeRules(value: unknown): BlockedEntry[] {
     for (const entry of value) {
         if (!isRecord(entry) || typeof entry.name !== 'string') continue;
         const scope = entry.scope === 'domain' || entry.scope === 'url' ? entry.scope : undefined;
-        const normalized = normalizeBlockedEntry(entry.name, scope);
+        const normalized = normalizeBlockedEntry(
+            entry.name,
+            scope,
+            entry.includeSubdomains === false ? false : undefined,
+        );
         if (!normalized) continue;
         const key = ruleKey(normalized);
         if (seen.has(key)) continue;

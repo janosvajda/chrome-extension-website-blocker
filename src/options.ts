@@ -7,6 +7,7 @@ import {createPassphraseController} from './options/passphraseController';
 import {createRuleListController} from './options/ruleListController';
 import {createAddRuleController} from './options/addRuleController';
 import {initializeDialogKeyboard} from './options/dialogKeyboard';
+import {initializeRuleHelpController} from './options/ruleHelpController';
 
 const scheduleDialog = document.getElementById('scheduleDialog') as HTMLElement;
 const extensionVersion = document.getElementById('extensionVersion') as HTMLElement;
@@ -63,6 +64,7 @@ initializeBackupController({
     },
 });
 initializeDialogKeyboard();
+initializeRuleHelpController();
 
 extensionVersion.textContent = `v${chrome.runtime.getManifest().version}`;
 copyrightYear.textContent = String(new Date().getFullYear());

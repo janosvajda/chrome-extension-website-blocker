@@ -11,6 +11,7 @@ const DISMISSIBLE_DIALOGS: Array<[dialogId: string, closeButtonId: string]> = [
     ['scheduleDialog', 'cancelScheduleButton'],
     ['passphraseSettingsDialog', 'closePassphraseSettingsButton'],
     ['transferDialog', 'closeTransferDialogButton'],
+    ['ruleHelpDialog', 'closeRuleHelpButton'],
 ];
 
 export function initializeDialogKeyboard(): void {
